@@ -25,6 +25,15 @@ if ( ! $template_post ) {
 	wp_die( 'La plantilla asociada a este fabricante no existe.', 'Plantilla no encontrada', [ 'response' => 404 ] );
 }
 
+$catalog_css_path = dirname( dirname( dirname( __DIR__ ) ) ) . '/assets/css/catalog-render.css';
+
+wp_enqueue_style(
+	'aoe-catalog-render',
+	plugin_dir_url( dirname( dirname( dirname( __DIR__ ) ) ) . '/aoe-catalog-engine.php' ) . 'assets/css/catalog-render.css',
+	[],
+	file_exists( $catalog_css_path ) ? filemtime( $catalog_css_path ) : '1.0.0'
+);
+
 function aoe_preview_get_first_value( array $values ): string {
 	foreach ( $values as $value ) {
 		if ( is_string( $value ) && '' !== trim( $value ) ) {
@@ -50,10 +59,22 @@ function aoe_preview_render_pdf_links( array $pdf ): string {
 			continue;
 		}
 
-		$html .= '<a class="aoe-preview-pdf" href="' . esc_url( $url ) . '" target="_blank" rel="noopener">' . esc_html( $label ) . '</a>';
+		$html .= '<a class="aoe-catalog-pdf" href="' . esc_url( $url ) . '" target="_blank" rel="noopener">' . esc_html( $label ) . '</a>';
 	}
 
 	return $html;
+}
+
+function aoe_preview_render_pdf_icon_links( array $pdf ): string {
+	$first_pdf = aoe_preview_get_first_value( [
+		$pdf['print'] ?? '',
+		$pdf['spec_sheet'] ?? '',
+		$pdf['footprint'] ?? '',
+		$pdf['catalog_page'] ?? '',
+	] );
+
+	return '<a class="abrir-modal-dinamico aoe-catalog-icon-link" data-toggle="modal" data-target=".fusion-modal.modal-productos" href="#" aria-label="Ver imagen del producto"><i class="fas fa-image"></i></a>'
+		. '<a class="abrir-modal-dinamico aoe-catalog-icon-link" data-toggle="modal" data-target=".fusion-modal.modal-productos" href="' . esc_url( $first_pdf ? $first_pdf : '#' ) . '" aria-label="Ver documentos del producto"><i class="fas fa-file-pdf"></i></a>';
 }
 
 function aoe_preview_render_catalog_html( array $preview_data ): string {
@@ -63,35 +84,15 @@ function aoe_preview_render_catalog_html( array $preview_data ): string {
 	$first        = $products[0] ?? [];
 	$family_image = aoe_preview_get_first_value( is_array( $first['images'] ?? null ) ? $first['images'] : [] );
 	$family_pdf   = is_array( $first['pdf'] ?? null ) ? $first['pdf'] : [];
+	$category_display_name = ! empty( $first['name'] ) ? (string) $first['name'] : $category;
 
 	ob_start();
 	?>
-	<style>
-		.aoe-preview-catalog h2 { font-size: 18px; line-height: 1.35; margin: 0 0 10px; }
-		.aoe-preview-catalog p { margin: 0 0 14px; }
-		.aoe-preview-assets { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin: 0 0 18px; }
-		.aoe-preview-assets img { max-width: 120px; height: auto; border: 1px solid #ddd; }
-		.aoe-preview-pdf, .aoe-preview-page-link { display: inline-block; border: 1px solid #d5d5d5; border-radius: 4px; padding: 4px 8px; margin: 0 6px 6px 0; text-decoration: none; }
-		.aoe-preview-pagination { margin: 0 0 14px; }
-		.aoe-preview-table { width: 100%; border-collapse: collapse; font-size: 14px; }
-		.aoe-preview-table th, .aoe-preview-table td { border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: top; }
-		.aoe-preview-table th { background: #f7f7f7; }
-		.aoe-preview-table th.aoe-preview-underlined { text-decoration: underline; }
-		.aoe-preview-sku { color: #005ea8; cursor: pointer; text-decoration: underline; }
-		.aoe-preview-modal { display: none; position: fixed; z-index: 99999; inset: 0; background: rgba(0, 0, 0, 0.55); align-items: center; justify-content: center; padding: 20px; }
-		.aoe-preview-modal.is-open { display: flex; }
-		.aoe-preview-modal__inner { background: #fff; max-width: 620px; width: 100%; padding: 22px; position: relative; }
-		.aoe-preview-modal__close { position: absolute; top: 8px; right: 12px; border: 0; background: transparent; font-size: 26px; line-height: 1; cursor: pointer; }
-		.aoe-preview-modal img { max-width: 220px; height: auto; display: block; margin: 12px 0; }
-		.aoe-preview-lead-form { margin-top: 16px; padding-top: 14px; border-top: 1px solid #ddd; }
-		.aoe-preview-lead-form input, .aoe-preview-lead-form button { max-width: 100%; }
-	</style>
-
-	<div class="aoe-preview-catalog">
+	<div class="aoe-catalog-render">
 		<header>
-			<h2><?php echo esc_html( $category ); ?></h2>
+			<h2>Catálogo de <?php echo esc_html( $category_display_name ); ?></h2>
 			<p>Listado de prueba para <?php echo esc_html( $manufacturer ); ?>, generado con un maximo de 200 productos del primer modelo detectado.</p>
-			<div class="aoe-preview-assets">
+			<div class="aoe-catalog-assets">
 				<?php if ( $family_image ) : ?>
 					<img src="<?php echo esc_url( $family_image ); ?>" alt="<?php echo esc_attr( $category ); ?>" />
 				<?php endif; ?>
@@ -99,17 +100,17 @@ function aoe_preview_render_catalog_html( array $preview_data ): string {
 			</div>
 		</header>
 
-		<nav class="aoe-preview-pagination" aria-label="Paginacion de productos">
+		<nav class="aoe-catalog-pagination" aria-label="Paginacion de productos">
 			<span>Ir a la pagina:</span>
-			<a class="aoe-preview-page-link" href="<?php echo esc_url( home_url( '/catalogo/' . ( $preview_data['test_slug'] ?? '' ) . '/' . sanitize_title( $category ) . '/' ) ); ?>">1</a>
+			<a class="aoe-catalog-page-link" href="<?php echo esc_url( home_url( '/catalogo/' . ( $preview_data['test_slug'] ?? '' ) . '/' . sanitize_title( $category ) . '/' ) ); ?>">1</a>
 		</nav>
 
-		<table class="aoe-preview-table" itemscope itemtype="https://schema.org/ItemList">
+		<table class="aoe-catalog-table" itemscope itemtype="https://schema.org/ItemList">
 			<thead>
 				<tr>
 					<th>Codigo</th>
-					<th class="aoe-preview-underlined">Nombre</th>
-					<th class="aoe-preview-underlined">Fabricante</th>
+					<th class="aoe-catalog-underlined">Nombre</th>
+					<th class="aoe-catalog-underlined">Fabricante</th>
 					<th>PDFs</th>
 				</tr>
 			</thead>
@@ -121,46 +122,79 @@ function aoe_preview_render_catalog_html( array $preview_data ): string {
 					$images    = is_array( $product['images'] ?? null ) ? $product['images'] : [];
 					$pdf       = is_array( $product['pdf'] ?? null ) ? $product['pdf'] : [];
 					$image_url = aoe_preview_get_first_value( $images );
+					$product_description = 'Conector ' . $manufacturer . ' ' . $name;
 					?>
-					<tr itemprop="itemListElement" itemscope itemtype="https://schema.org/Product"
+					<tr class="fila-producto no-lazyload" itemprop="itemListElement" itemscope itemtype="https://schema.org/Product"
 						data-sku="<?php echo esc_attr( $sku ); ?>"
-						data-name="<?php echo esc_attr( $name ); ?>"
-						data-image="<?php echo esc_url( $image_url ); ?>"
-						data-print="<?php echo esc_url( $pdf['print'] ?? '' ); ?>"
-						data-footprint="<?php echo esc_url( $pdf['footprint'] ?? '' ); ?>"
-						data-catalog-page="<?php echo esc_url( $pdf['catalog_page'] ?? '' ); ?>"
-						data-spec-sheet="<?php echo esc_url( $pdf['spec_sheet'] ?? '' ); ?>">
-						<td><span class="aoe-preview-sku" itemprop="sku"><?php echo esc_html( $sku ); ?></span></td>
-						<td><span itemprop="name"><?php echo esc_html( $name ); ?></span></td>
+						data-nombre="<?php echo esc_attr( $name ); ?>"
+						data-img="<?php echo esc_url( $image_url ); ?>"
+						data-pdf-print="<?php echo esc_url( $pdf['print'] ?? '' ); ?>"
+						data-pdf-foot="<?php echo esc_url( $pdf['footprint'] ?? '' ); ?>"
+						data-pdf-cat="<?php echo esc_url( $pdf['catalog_page'] ?? '' ); ?>"
+						data-pdf-spec="<?php echo esc_url( $pdf['spec_sheet'] ?? '' ); ?>">
+						<td>
+							<a class="aoe-catalog-sku" data-toggle="modal" data-target=".fusion-modal.modal-productos" href="#">
+								<span itemprop="sku"><?php echo esc_html( $sku ); ?></span>
+							</a>
+						</td>
+						<td>
+							<span itemprop="name"><?php echo esc_html( $name ); ?></span>
+							<?php if ( ! empty( $image_url ) ) : ?>
+								<meta itemprop="image" content="<?php echo esc_url( $image_url ); ?>" class="no-lazyload">
+							<?php endif; ?>
+							<meta itemprop="description" content="<?php echo esc_attr( $product_description ); ?>">
+							<div itemprop="offers" itemscope itemtype="https://schema.org/Offer" hidden>
+								<link itemprop="availability" href="https://schema.org/InStock">
+							</div>
+						</td>
 						<td itemprop="brand" itemscope itemtype="https://schema.org/Brand"><span itemprop="name"><?php echo esc_html( $manufacturer ); ?></span></td>
-						<td><?php echo aoe_preview_render_pdf_links( $pdf ); ?></td>
-						<td hidden itemprop="offers" itemscope itemtype="https://schema.org/Offer"><link itemprop="availability" href="https://schema.org/InStock" /></td>
+						<td class="aoe-catalog-actions"><?php echo aoe_preview_render_pdf_icon_links( $pdf ); ?></td>
 					</tr>
 				<?php endforeach; ?>
 			</tbody>
 		</table>
 
-		<div class="aoe-preview-modal" id="aoe-preview-modal" aria-hidden="true">
-			<div class="aoe-preview-modal__inner" role="dialog" aria-modal="true" aria-labelledby="aoe-preview-modal-title">
-				<button class="aoe-preview-modal__close" type="button" aria-label="Cerrar">&times;</button>
-				<h3 id="aoe-preview-modal-title"></h3>
-				<img id="aoe-preview-modal-image" src="" alt="" />
-				<div id="aoe-preview-modal-pdfs"></div>
-				<form class="aoe-preview-lead-form">
-					<input type="hidden" name="sku" id="aoe-preview-lead-sku" value="" />
-					<input type="hidden" name="pdf" id="aoe-preview-lead-pdf" value="" />
-					<label>Correo electronico<br /><input type="email" name="email" /></label>
-					<button type="button">Solicitar informacion</button>
-				</form>
+		<div class="fusion-modal modal fade modal-productos aoe-catalog-modal" id="aoe-catalog-modal" aria-hidden="true">
+			<div class="modal-dialog modal-lg" role="document">
+				<div class="modal-content fusion-modal-content">
+					<div class="modal-header">
+						<button class="close aoe-catalog-modal__close" type="button" data-dismiss="modal" aria-hidden="true" aria-label="Close">&times;</button>
+						<h3 class="modal-title" id="modal-heading-1" data-dismiss="modal" aria-hidden="true"></h3>
+					</div>
+					<div class="modal-body fusion-clearfix">
+						<div id="ficha-producto-modal" class="aoe-catalog-product-card">
+							<div class="aoe-catalog-product-summary">
+								<div class="aoe-catalog-product-image-wrap">
+									<img data-skip-lazy="1" data-smush-skip="true" loading="eager" id="modal-img-producto" class="no-lazyload" src="" alt="">
+								</div>
+								<div class="aoe-catalog-product-info">
+									<h2 id="modal-sku-titulo"></h2>
+									<p id="modal-nombre-subtitulo"></p>
+									<p class="aoe-catalog-manufacturer"><strong>Fabricante:</strong> <?php echo esc_html( $manufacturer ); ?></p>
+									<div class="aoe-catalog-contact-wrap">
+										<a id="btn-contacto-modal" class="fusion-button button-flat fusion-button-default-size button-default fusion-button-default btn-catalogo-generico aoe-catalog-contact-button" title="" href="#" data-toggle="modal" data-target=".fusion-modal.modal-productos-formulario" data-sku-link="">
+											<span id="btn-texto-dinamique" class="fusion-button-text">Quiero más información</span>
+										</a>
+									</div>
+									<p class="aoe-catalog-support-text">TC Componentes es proveedor industrial de este producto. Podemos facilitarte muestras, ayudarte en tu diseño y proporcionar un suministro estable al mejor precio.</p>
+								</div>
+							</div>
+							<div id="contenedor-documentacion-bloque" class="aoe-catalog-docs">
+								<h3 id="titulo-documentacion">Descarga de catálogos</h3>
+								<div id="lista-pdfs-dinamica" class="aoe-catalog-docs-grid"></div>
+							</div>
+						</div>
+					</div>
+				</div>
 			</div>
 		</div>
 	</div>
 
 	<script>
 		document.addEventListener('click', function(event) {
-			var skuTarget = event.target.closest('.aoe-preview-sku');
-			var closeTarget = event.target.closest('.aoe-preview-modal__close');
-			var modal = document.getElementById('aoe-preview-modal');
+			var skuTarget = event.target.closest('.abrir-modal-dinamico');
+			var closeTarget = event.target.closest('.aoe-catalog-modal__close');
+			var modal = document.getElementById('aoe-catalog-modal');
 
 			if (!modal) return;
 
@@ -174,29 +208,42 @@ function aoe_preview_render_catalog_html( array $preview_data ): string {
 
 			var row = skuTarget.closest('tr');
 			var sku = row.getAttribute('data-sku') || '';
-			var name = row.getAttribute('data-name') || '';
-			var image = row.getAttribute('data-image') || '';
+			var name = row.getAttribute('data-nombre') || '';
+			var image = row.getAttribute('data-img') || '';
 			var pdfs = [
-				['Print', row.getAttribute('data-print') || ''],
-				['Footprint', row.getAttribute('data-footprint') || ''],
-				['Catalog Page', row.getAttribute('data-catalog-page') || ''],
-				['Spec Sheet', row.getAttribute('data-spec-sheet') || '']
+				['Print', row.getAttribute('data-pdf-print') || ''],
+				['Footprint', row.getAttribute('data-pdf-foot') || ''],
+				['Catalog Page', row.getAttribute('data-pdf-cat') || ''],
+				['Spec Sheet', row.getAttribute('data-pdf-spec') || '']
 			];
 			var pdfHtml = '';
 			var firstPdf = '';
+			var docsContainer = document.getElementById('lista-pdfs-dinamica');
+			var docsBlock = document.getElementById('contenedor-documentacion-bloque');
 
 			pdfs.forEach(function(item) {
 				if (!item[1]) return;
 				if (!firstPdf) firstPdf = item[1];
-				pdfHtml += '<a class="aoe-preview-pdf" href="' + item[1] + '" target="_blank" rel="noopener">' + item[0] + '</a>';
+				pdfHtml += '<a class="aoe-catalog-doc-card" href="' + item[1] + '" target="_blank" rel="noopener">'
+					+ '<i class="fas fa-file-pdf"></i>'
+					+ '<span><strong>' + item[0] + '</strong><em>Oficial <?php echo esc_js( $manufacturer ); ?> Document</em></span>'
+					+ '</a>';
 			});
 
-			document.getElementById('aoe-preview-modal-title').textContent = sku + ' - ' + name;
-			document.getElementById('aoe-preview-modal-image').src = image;
-			document.getElementById('aoe-preview-modal-image').alt = sku;
-			document.getElementById('aoe-preview-modal-pdfs').innerHTML = pdfHtml;
-			document.getElementById('aoe-preview-lead-sku').value = sku;
-			document.getElementById('aoe-preview-lead-pdf').value = firstPdf;
+			document.getElementById('modal-heading-1').textContent = sku;
+			document.getElementById('modal-sku-titulo').textContent = sku;
+			document.getElementById('modal-nombre-subtitulo').textContent = name;
+			document.getElementById('modal-img-producto').src = image;
+			document.getElementById('modal-img-producto').alt = sku;
+			document.getElementById('titulo-documentacion').textContent = 'Descarga de catálogos de ' + sku;
+			document.getElementById('btn-contacto-modal').setAttribute('title', 'Quiero más información sobre <?php echo esc_js( $manufacturer ); ?> ' + sku);
+			document.getElementById('btn-contacto-modal').setAttribute('data-sku-link', sku);
+			if (docsContainer) {
+				docsContainer.innerHTML = pdfHtml;
+			}
+			if (docsBlock) {
+				docsBlock.hidden = !pdfHtml;
+			}
 
 			modal.classList.add('is-open');
 			modal.setAttribute('aria-hidden', 'false');

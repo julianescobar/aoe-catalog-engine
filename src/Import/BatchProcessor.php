@@ -15,8 +15,13 @@ class BatchProcessor {
 	}
 
 	public function ajax_process_batch() {
+		@ini_set( 'display_errors', '0' );
+		if ( ob_get_length() ) {
+			ob_clean();
+		}
+
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( 'Acceso no autorizado' );
+			$this->send_json_error( 'Acceso no autorizado' );
 		}
 
 		global $wpdb;
@@ -28,7 +33,7 @@ class BatchProcessor {
 
 		$processor = $this->processor_manager->get_processor( $manufacturer_slug );
 		if ( ! $processor ) {
-			wp_send_json_error( 'Procesador no encontrado para el fabricante ' . $manufacturer_slug );
+			$this->send_json_error( 'Procesador no encontrado para el fabricante ' . $manufacturer_slug );
 		}
 
 		$table_manufacturers = $wpdb->prefix . 'aoe_catalog_manufacturers';
@@ -38,7 +43,7 @@ class BatchProcessor {
 		) );
 
 		if ( ! $manufacturer ) {
-			wp_send_json_error( 'El fabricante no esta registrado en la base de datos.' );
+			$this->send_json_error( 'El fabricante no esta registrado en la base de datos.' );
 		}
 
 		if ( $is_test ) {
@@ -102,7 +107,7 @@ class BatchProcessor {
 			$this->add_log( 'Importacion Catalogo', $manufacturer->name, "Importacion completada. Modo: $import_mode. Total catalogo: $total_products." );
 		}
 
-		wp_send_json_success( [
+		$this->send_json_success( [
 			'processed' => $processed_count,
 			'message'   => "Se procesaron $processed_count filas.",
 		] );
@@ -142,7 +147,7 @@ class BatchProcessor {
 		}
 
 		if ( empty( $products ) ) {
-			wp_send_json_error( 'No se encontraron productos validos para generar la prueba.' );
+			$this->send_json_error( 'No se encontraron productos validos para generar la prueba.' );
 		}
 
 		$previous_slug = get_option( 'aoe_preview_current_' . $manufacturer_slug );
@@ -182,11 +187,27 @@ class BatchProcessor {
 
 		$this->add_log( 'Generacion de Prueba', $manufacturer->name, "Se genero una prueba temporal en: $test_url" );
 
-		wp_send_json_success( [
+		$this->send_json_success( [
 			'processed' => count( $products ),
 			'message'   => 'Prueba generada con ' . count( $products ) . ' productos del modelo ' . $category . '.',
 			'test_url'  => $test_url,
 		] );
+	}
+
+	private function send_json_success( array $data ) {
+		if ( ob_get_length() ) {
+			ob_clean();
+		}
+
+		wp_send_json_success( $data );
+	}
+
+	private function send_json_error( $data ) {
+		if ( ob_get_length() ) {
+			ob_clean();
+		}
+
+		wp_send_json_error( $data );
 	}
 
 	private function refresh_preview_rewrite_rules() {

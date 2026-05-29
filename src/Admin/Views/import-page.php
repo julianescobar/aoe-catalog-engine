@@ -36,6 +36,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 					<span class="description">No data loaded yet. Upload a file or paste content to auto-detect columns.</span>
 				</div>
 			</div>
+
+			<div class="aoe-btn-row" id="aoe-preview-action" style="margin-top: 15px; display:none;">
+				<button type="button" class="button" id="aoe-btn-test" style="background: #e5f5fa; border-color: #007cba; color: #007cba;">Generar prueba</button>
+				<span class="description">Genera una p&aacute;gina temporal con el primer modelo detectado, hasta 200 productos.</span>
+			</div>
 		</div>
 
 		<!-- Step 2: Configuración de Acción y Modo de Importación -->

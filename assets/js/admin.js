@@ -60,6 +60,7 @@ jQuery(document).ready(function($) {
 		headers.forEach(function(header) {
 			$container.append('<span class="aoe-column-badge">' + escHTML(header) + '</span>');
 		});
+		$('#aoe-preview-action').slideDown();
 		$('#aoe-action-step').slideDown();
 	}
 
@@ -139,7 +140,7 @@ jQuery(document).ready(function($) {
 		}
 
 		// Configure batching
-		var batchSize = isTest ? 200 : 50; // tests only generate one virtual page
+		var batchSize = 50;
 		var totalRows = rows.length;
 		var processed = 0;
 		var manufacturer = $('#manufacturer_slug').val();
