@@ -1,0 +1,19 @@
+{
+    "name": "julianescobar/aoe-catalog-engine",
+    "description": "AOE Catalog Engine - A high-performance WordPress catalog system",
+    "type": "wordpress-plugin",
+    "authors": [
+        {
+            "name": "AOE",
+            "email": "dev@aoe.com"
+        }
+    ],
+    "require": {
+        "php": ">=7.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "AOE\\CatalogEngine\\": "src/"
+        }
+    }
+}

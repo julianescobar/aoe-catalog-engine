@@ -1,0 +1,146 @@
+/* AOE Catalog Engine Admin CSS */
+.aoe-wrap {
+	margin: 20px 20px 0 0;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+}
+
+.aoe-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 20px;
+	border-bottom: 1px solid #ccd0d4;
+	padding-bottom: 15px;
+}
+
+.aoe-header h1 {
+	margin: 0;
+	font-size: 24px;
+	font-weight: 600;
+	color: #1d2327;
+}
+
+.aoe-card {
+	background: #fff;
+	border: 1px solid #ccd0d4;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+	border-radius: 4px;
+	padding: 20px;
+	margin-bottom: 20px;
+}
+
+.aoe-card h2 {
+	margin-top: 0;
+	font-size: 18px;
+	border-bottom: 1px solid #f0f0f1;
+	padding-bottom: 10px;
+	margin-bottom: 15px;
+}
+
+/* Form Styles */
+.aoe-form-group {
+	margin-bottom: 15px;
+}
+
+.aoe-form-group label {
+	display: block;
+	font-weight: 600;
+	margin-bottom: 5px;
+	color: #1d2327;
+}
+
+.aoe-form-group input[type="text"],
+.aoe-form-group select,
+.aoe-form-group textarea {
+	width: 100%;
+	max-width: 500px;
+	padding: 8px;
+	border: 1px solid #8c8f94;
+	border-radius: 4px;
+}
+
+.aoe-form-group textarea {
+	max-width: 100%;
+	height: 150px;
+	font-family: monospace;
+}
+
+/* Steps and Progress indicators */
+.aoe-step {
+	border-left: 3px solid #ccd0d4;
+	padding-left: 20px;
+	margin-bottom: 30px;
+	position: relative;
+}
+
+.aoe-step.active {
+	border-left-color: #3582c4;
+}
+
+.aoe-step-title {
+	font-size: 16px;
+	font-weight: 600;
+	margin-bottom: 10px;
+}
+
+.aoe-detected-columns {
+	background: #f6f7f7;
+	padding: 10px;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	margin: 10px 0;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.aoe-column-badge {
+	background: #fff;
+	border: 1px solid #ccd0d4;
+	padding: 3px 8px;
+	border-radius: 12px;
+	font-size: 12px;
+	font-family: monospace;
+}
+
+.aoe-progress-container {
+	margin-top: 15px;
+	background: #dcdcde;
+	border-radius: 10px;
+	overflow: hidden;
+	height: 18px;
+	width: 100%;
+	max-width: 600px;
+}
+
+.aoe-progress-bar {
+	background: #3582c4;
+	height: 100%;
+	width: 0%;
+	transition: width 0.2s ease-in-out;
+}
+
+.aoe-progress-status {
+	font-weight: 600;
+	margin-top: 8px;
+	font-size: 13px;
+}
+
+.aoe-btn-row {
+	display: flex;
+	gap: 10px;
+	margin-top: 15px;
+}
+
+.aoe-log-box {
+	background: #1e1e1e;
+	color: #00ff00;
+	font-family: monospace;
+	padding: 15px;
+	height: 200px;
+	overflow-y: auto;
+	border-radius: 4px;
+	font-size: 12px;
+	margin-top: 15px;
+	line-height: 1.5;
+}
