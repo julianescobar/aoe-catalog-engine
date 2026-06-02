@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 		<a href="<?php echo esc_url( admin_url( 'admin.php?page=aoe-catalog-manufacturers' ) ); ?>" class="page-title-action">Volver a Fabricantes</a>
 	</div>
 
-	<input type="hidden" id="manufacturer_slug" value="<?php echo esc_attr( $manufacturer->slug ); ?>" />
+	<input type="hidden" id="manufacturer_slug" value="<?php echo esc_attr( $manufacturer->slug ); ?>" data-supported-columns="<?php echo esc_attr( wp_json_encode( isset( $supported_columns ) ? $supported_columns : [] ) ); ?>" />
 
 	<div class="aoe-card">
 		<!-- Step 1: Fuente de Datos -->
@@ -29,16 +29,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 				<textarea id="csv_paste" placeholder="SKU,Name,Category,Description&#10;SAM-001,Connector 1,Connectors,High performance connector&#10;SAM-002,Cable 2,Cables,Coaxial cable"></textarea>
 			</div>
 
-			<!-- Dynamic Column Detection -->
-			<div id="aoe-detected-columns" style="margin-top: 15px;">
-				<div style="font-weight: 600; margin-bottom: 5px;">Columnas detectadas:</div>
+			<!-- Dynamic Column Detection / Preview -->
+			<div id="aoe-detected-columns" style="margin-top: 20px;">
+				<div style="font-weight: 600; margin-bottom: 8px; font-size: 14px;">Vista previa de datos (primeros 5 registros):</div>
 				<div class="aoe-detected-columns" id="aoe-detected-columns-list">
-					<span class="description">No data loaded yet. Upload a file or paste content to auto-detect columns.</span>
+					<span class="description">No se han cargado datos aún. Sube un archivo o pega el contenido para ver una vista previa.</span>
 				</div>
 			</div>
 
-			<div class="aoe-btn-row" id="aoe-preview-action" style="margin-top: 15px; display:none;">
+			<div class="aoe-btn-row" id="aoe-preview-action" style="margin-top: 15px; display:none; gap: 10px; align-items: center;">
 				<button type="button" class="button" id="aoe-btn-test" style="background: #e5f5fa; border-color: #007cba; color: #007cba;">Generar prueba</button>
+				<button type="button" class="button button-primary" id="aoe-btn-show-import">Seguir con importación</button>
 				<span class="description">Genera una p&aacute;gina temporal con el primer modelo detectado, hasta 200 productos.</span>
 			</div>
 		</div>
@@ -59,8 +60,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 				</label>
 			</div>
 
-			<div class="aoe-btn-row">
-				<button type="button" class="button" id="aoe-btn-test" style="background: #e5f5fa; border-color: #007cba; color: #007cba;">Generar prueba</button>
+			<div class="aoe-btn-row">				
 				<button type="button" class="button button-primary" id="aoe-btn-import">Ejecutar importación</button>
 			</div>
 		</div>

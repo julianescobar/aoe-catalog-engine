@@ -18,8 +18,8 @@ class AdminManager {
 	public function add_plugin_admin_menu() {
 		// Main Menu: Catálogo
 		add_menu_page(
-			'Catálogo',
-			'Catálogo',
+			'Catálogo AOE',
+			'Catálogo AOE',
 			'manage_options',
 			'aoe-catalog-engine',
 			[ $this, 'display_catalog_pages' ],
@@ -80,6 +80,11 @@ class AdminManager {
 			$id = isset( $_GET['id'] ) ? intval( $_GET['id'] ) : 0;
 			$manufacturer = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $table_name WHERE id = %d", $id ) );
 			if ( $manufacturer ) {
+				$processor = $this->processor_manager->get_processor( $manufacturer->slug );
+				$supported_columns = [];
+				if ( $processor ) {
+					$supported_columns = $processor->get_supported_columns();
+				}
 				require_once __DIR__ . '/Views/import-page.php';
 				return;
 			}

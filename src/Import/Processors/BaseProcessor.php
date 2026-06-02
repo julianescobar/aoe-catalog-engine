@@ -25,4 +25,11 @@ abstract class BaseProcessor implements ProcessorInterface {
 			'additional_data' => []
 		];
 	}
+
+	/**
+	 * Default supported columns list
+	 */
+	public function get_supported_columns(): array {
+		return [ 'SKU', 'Name', 'Category', 'Description' ];
+	}
 }

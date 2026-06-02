@@ -17,4 +17,11 @@ interface ProcessorInterface {
 	 * @return string
 	 */
 	public static function get_manufacturer_slug(): string;
+
+	/**
+	 * Get the list of columns this processor supports/needs from the CSV
+	 *
+	 * @return array
+	 */
+	public function get_supported_columns(): array;
 }

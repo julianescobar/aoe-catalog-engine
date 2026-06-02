@@ -50,18 +50,95 @@ jQuery(document).ready(function($) {
 		return parseCSVLine(firstLine, sep).filter(function(h) { return h !== ''; });
 	}
 
+	function parseCSVRows(content, headers, maxRows) {
+		if (!content) return [];
+		var lines = content.split('\n');
+		var sep = detectSeparator(content);
+		var rows = [];
+		var count = 0;
+		for (var i = 1; i < lines.length; i++) {
+			var line = lines[i];
+			if (!line.trim()) continue;
+			var cols = parseCSVLine(line, sep);
+			var rowData = {};
+			headers.forEach(function(header, idx) {
+				rowData[header] = cols[idx] !== undefined ? cols[idx] : '';
+			});
+			rows.push(rowData);
+			count++;
+			if (maxRows && count >= maxRows) {
+				break;
+			}
+		}
+		return rows;
+	}
+
 	function displayDetectedColumns(headers) {
 		var $container = $('#aoe-detected-columns-list');
 		$container.empty();
 		if (headers.length === 0) {
-			$container.append('<span class="description">No columns detected. Make sure the CSV format is correct.</span>');
+			$container.append('<span class="description">No se detectaron columnas. Asegúrate de que el formato CSV sea correcto.</span>');
+			$('#aoe-preview-action').slideUp();
+			$('#aoe-action-step').slideUp();
 			return;
 		}
-		headers.forEach(function(header) {
-			$container.append('<span class="aoe-column-badge">' + escHTML(header) + '</span>');
+
+		// Retrieve supported columns from processor
+		var supportedCols = [];
+		try {
+			var colsAttr = $('#manufacturer_slug').attr('data-supported-columns');
+			if (colsAttr) {
+				supportedCols = JSON.parse(colsAttr);
+			}
+		} catch (e) {
+			console.error(e);
+		}
+
+		// Filter columns to only show the ones supported by the processor if defined
+		var columnsToShow = headers;
+		if (supportedCols && supportedCols.length > 0) {
+			columnsToShow = headers.filter(function(header) {
+				return supportedCols.some(function(sc) {
+					return sc.toLowerCase() === header.trim().toLowerCase();
+				});
+			});
+		}
+
+		// If for some reason none of them match, default to showing all headers
+		if (columnsToShow.length === 0) {
+			columnsToShow = headers;
+		}
+
+		var previewRows = parseCSVRows(window.aoeImportContent, headers, 5);
+		if (previewRows.length === 0) {
+			$container.append('<span class="description">No se encontraron registros.</span>');
+			$('#aoe-preview-action').slideUp();
+			$('#aoe-action-step').slideUp();
+			return;
+		}
+
+		var html = '<div class="aoe-preview-table-wrapper" style="overflow-x: auto; margin-top: 10px; border: 1px solid #dcdcde; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">';
+		html += '<table class="wp-list-table widefat fixed striped" style="margin: 0; min-width: 600px; border: none;">';
+		html += '<thead><tr>';
+		columnsToShow.forEach(function(header) {
+			html += '<th style="font-weight: 600; background: #f6f7f7; padding: 10px 12px; border-bottom: 1px solid #dcdcde;">' + escHTML(header) + '</th>';
 		});
+		html += '</tr></thead>';
+		html += '<tbody>';
+		
+		previewRows.forEach(function(row) {
+			html += '<tr>';
+			columnsToShow.forEach(function(header) {
+				html += '<td style="padding: 10px 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px;">' + escHTML(row[header] || '') + '</td>';
+			});
+			html += '</tr>';
+		});
+		
+		html += '</tbody></table></div>';
+		$container.append(html);
+
 		$('#aoe-preview-action').slideDown();
-		$('#aoe-action-step').slideDown();
+		$('#aoe-action-step').slideUp();
 	}
 
 	function escHTML(str) {
@@ -76,10 +153,10 @@ jQuery(document).ready(function($) {
 		var reader = new FileReader();
 		reader.onload = function(evt) {
 			var content = evt.target.result;
-			var headers = parseCSVHeaders(content);
-			displayDetectedColumns(headers);
 			// Save parsed content in memory for batches
 			window.aoeImportContent = content;
+			var headers = parseCSVHeaders(content);
+			displayDetectedColumns(headers);
 		};
 		reader.readAsText(file);
 	});
@@ -87,9 +164,9 @@ jQuery(document).ready(function($) {
 	// Trigger detection on Text paste
 	$('#csv_paste').on('input', function() {
 		var content = $(this).val();
+		window.aoeImportContent = content;
 		var headers = parseCSVHeaders(content);
 		displayDetectedColumns(headers);
-		window.aoeImportContent = content;
 	});
 
 	// Batch Execution Core
@@ -229,6 +306,14 @@ jQuery(document).ready(function($) {
 	$('#aoe-btn-test').on('click', function(e) {
 		e.preventDefault();
 		runBatchProcess(true);
+	});
+
+	$('#aoe-btn-show-import').on('click', function(e) {
+		e.preventDefault();
+		$('#aoe-action-step').slideDown();
+		$('html, body').animate({
+			scrollTop: $("#aoe-action-step").offset().top - 50
+		}, 500);
 	});
 
 	$('#aoe-btn-import').on('click', function(e) {

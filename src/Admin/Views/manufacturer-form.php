@@ -11,8 +11,12 @@ $name = $is_edit && isset( $manufacturer ) ? $manufacturer->name : '';
 $slug = $is_edit && isset( $manufacturer ) ? $manufacturer->slug : '';
 $wp_post_id = $is_edit && isset( $manufacturer ) ? $manufacturer->wp_post_id : 0;
 
-// Fetch all WP pages to populate templates drop-down
-$pages = get_pages();
+// Fetch all 'catalogo_online' CPT posts to populate drop-down
+$catalogs = get_posts( [
+	'post_type'      => 'catalogo_online',
+	'posts_per_page' => -1,
+	'post_status'    => [ 'publish', 'draft' ],
+] );
 ?>
 <div class="wrap aoe-wrap">
 	<div class="aoe-header">
@@ -43,12 +47,12 @@ $pages = get_pages();
 			</div>
 
 			<div class="aoe-form-group">
-				<label for="m_post_id">Página o plantilla asociada en WordPress</label>
+				<label for="m_post_id">Catálogo Online asociado en WordPress</label>
 				<select name="wp_post_id" id="m_post_id">
-					<option value="0">Seleccionar página plantilla...</option>
-					<?php foreach ( $pages as $p ) : ?>
-						<option value="<?php echo esc_attr( $p->ID ); ?>" <?php selected( $wp_post_id, $p->ID ); ?>>
-							<?php echo esc_html( $p->post_title ); ?> (ID: <?php echo esc_attr( $p->ID ); ?>)
+					<option value="0">Seleccionar catálogo...</option>
+					<?php foreach ( $catalogs as $c ) : ?>
+						<option value="<?php echo esc_attr( $c->ID ); ?>" <?php selected( $wp_post_id, $c->ID ); ?>>
+							<?php echo esc_html( $c->post_title ); ?> (ID: <?php echo esc_attr( $c->ID ); ?>)
 						</option>
 					<?php endforeach; ?>
 				</select>

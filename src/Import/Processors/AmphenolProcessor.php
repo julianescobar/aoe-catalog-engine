@@ -8,6 +8,10 @@ class AmphenolProcessor extends BaseProcessor {
 		return 'amphenol';
 	}
 
+	public function get_supported_columns(): array {
+		return [ 'SKU', 'Title', 'Overview', 'Category' ];
+	}
+
 	public function process_row( array $row ): array {
 		$data = $this->get_default_structure();
 

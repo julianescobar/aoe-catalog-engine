@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 				<tr>
 					<th>Nombre</th>
 					<th>Slug</th>
-					<th>Página / Plantilla Asociada</th>
+					<th>Catálogo Asociado</th>
 					<th>Acciones</th>
 				</tr>
 			</thead>
@@ -35,19 +35,19 @@ if ( ! defined( 'ABSPATH' ) ) {
 						$delete_url = wp_nonce_url( admin_url( 'admin.php?page=aoe-catalog-manufacturers&action=delete&id=' . $m->id ), 'delete_manufacturer_' . $m->id );
 						$import_url = admin_url( 'admin.php?page=aoe-catalog-manufacturers&action=import&id=' . $m->id );
 						
-						// Get associated page name
-						$page_name = 'Ninguna';
+						// Get associated catalog name
+						$catalog_name = 'Ninguno';
 						if ( $m->wp_post_id ) {
 							$post = get_post( $m->wp_post_id );
 							if ( $post ) {
-								$page_name = $post->post_title . ' (ID: ' . $post->ID . ')';
+								$catalog_name = $post->post_title . ' (ID: ' . $post->ID . ')';
 							}
 						}
 						?>
 						<tr>
 							<td><strong><a href="<?php echo esc_url( $edit_url ); ?>"><?php echo esc_html( $m->name ); ?></a></strong></td>
 							<td><code><?php echo esc_html( $m->slug ); ?></code></td>
-							<td><?php echo esc_html( $page_name ); ?></td>
+							<td><?php echo esc_html( $catalog_name ); ?></td>
 							<td>
 								<a href="<?php echo esc_url( $edit_url ); ?>">Ver/Editar</a> | 
 								<a href="<?php echo esc_url( $delete_url ); ?>" class="submitdelete" onclick="return confirm('¿Seguro que deseas eliminar este fabricante?');" style="color: #b32d2e;">Eliminar</a> | 
