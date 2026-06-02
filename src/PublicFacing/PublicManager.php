@@ -12,6 +12,7 @@ class PublicManager {
 	}
 
 	public function register_rewrite_rules() {
+		add_rewrite_rule( '^catalogo/(test-[^/]+)/([^/]+)-([0-9]+)/?', 'index.php?aoe_catalog_preview=$matches[1]&aoe_catalog_category=$matches[2]&aoe_catalog_page=$matches[3]', 'top' );
 		add_rewrite_rule( '^catalogo/(test-[^/]+)/([^/]+)/?', 'index.php?aoe_catalog_preview=$matches[1]&aoe_catalog_category=$matches[2]', 'top' );
 		add_rewrite_rule( '^catalog/([^/]+)/?', 'index.php?aoe_catalog=$matches[1]', 'top' );
 	}
@@ -20,6 +21,7 @@ class PublicManager {
 		$vars[] = 'aoe_catalog';
 		$vars[] = 'aoe_catalog_preview';
 		$vars[] = 'aoe_catalog_category';
+		$vars[] = 'aoe_catalog_page';
 		return $vars;
 	}
 

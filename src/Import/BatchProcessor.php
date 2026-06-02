@@ -114,84 +114,117 @@ class BatchProcessor {
 	}
 
 	private function process_test_preview( $processor, $manufacturer, string $manufacturer_slug, array $rows ) {
-		$products = [];
-		$category = '';
+		$offset     = intval( $_POST['offset'] ?? 0 );
+		$total_rows = intval( $_POST['total_rows'] ?? 0 );
+		$is_first   = ( 0 === $offset );
+		$is_last    = ( $offset + count( $rows ) >= $total_rows );
+		$per_page   = 200;
 
+		// First batch: set up slug and clean previous preview
+		if ( $is_first ) {
+			$previous_slug = get_option( 'aoe_preview_current_' . $manufacturer_slug );
+			if ( ! empty( $previous_slug ) ) {
+				delete_transient( 'aoe_preview_' . $previous_slug );
+			}
+			$test_slug      = 'test-' . $manufacturer_slug . '-' . gmdate( 'YmdHis' );
+			$products       = [];
+			$first_category = null;
+		} else {
+			$test_slug = get_option( 'aoe_preview_current_' . $manufacturer_slug );
+			if ( ! $test_slug ) {
+				$this->send_json_error( 'Error de sesion de prueba. Regenera la prueba desde cero.' );
+			}
+			$existing       = get_transient( 'aoe_preview_' . $test_slug );
+			$products       = is_array( $existing['products'] ?? null ) ? $existing['products'] : [];
+			$first_category = $existing['first_category'] ?? null;
+		}
+
+		// Process current batch — only keep rows of the first category detected
 		foreach ( $rows as $row ) {
 			$normalized = $processor->process_row( $row );
-
 			if ( empty( $normalized['sku'] ) ) {
 				continue;
 			}
+			$cat = ! empty( $normalized['category'] ) ? $normalized['category'] : 'uncategorized';
 
-			if ( empty( $category ) ) {
-				$category = ! empty( $normalized['category'] ) ? $normalized['category'] : 'uncategorized';
+			// Lock first category on the very first valid product across all batches
+			if ( $first_category === null ) {
+				$first_category = $cat;
 			}
 
-			if ( $normalized['category'] !== $category ) {
+			// Skip rows that don't belong to the first category
+			if ( $cat !== $first_category ) {
 				continue;
 			}
 
 			$products[] = [
 				'sku'         => $normalized['sku'],
 				'name'        => $normalized['name'],
-				'category'    => $normalized['category'],
+				'category'    => $cat,
 				'description' => $normalized['description'],
 				'images'      => $normalized['images'],
 				'pdf'         => $normalized['pdf'],
 			];
-
-			if ( count( $products ) >= 200 ) {
-				break;
-			}
 		}
 
-		if ( empty( $products ) ) {
-			$this->send_json_error( 'No se encontraron productos validos para generar la prueba.' );
-		}
+		$display_category = ! empty( $first_category ) ? $first_category : 'catalogo';
 
-		$previous_slug = get_option( 'aoe_preview_current_' . $manufacturer_slug );
-		if ( ! empty( $previous_slug ) ) {
-			delete_transient( 'aoe_preview_' . $previous_slug );
-		}
-
-		$test_slug = 'test-' . $manufacturer_slug . '-' . gmdate( 'YmdHis' );
-		$payload   = [
+		// Store accumulated state
+		$payload = [
 			'manufacturer_slug' => $manufacturer_slug,
 			'manufacturer_name' => $manufacturer->name,
 			'test_slug'         => $test_slug,
-			'category'          => $category,
+			'first_category'    => $display_category,
 			'template_post_id'  => intval( $manufacturer->wp_post_id ),
 			'products'          => $products,
 			'created_at'        => current_time( 'mysql' ),
 		];
-
 		set_transient( 'aoe_preview_' . $test_slug, $payload, 12 * HOUR_IN_SECONDS );
 		update_option( 'aoe_preview_current_' . $manufacturer_slug, $test_slug, false );
 
-		$test_url   = home_url( '/catalogo/' . $test_slug . '/' . sanitize_title( $category ) . '/' );
-		$test_pages = get_option( 'aoe_catalog_generated_pages', [] );
+		// Last batch: finalize and generate URL
+		if ( $is_last ) {
+			if ( empty( $products ) ) {
+				delete_transient( 'aoe_preview_' . $test_slug );
+				delete_option( 'aoe_preview_current_' . $manufacturer_slug );
+				$this->send_json_error( 'No se encontraron productos validos para generar la prueba.' );
+			}
 
-		if ( ! empty( $previous_slug ) && isset( $test_pages[ $previous_slug ] ) ) {
-			unset( $test_pages[ $previous_slug ] );
+			$first_cat_slug   = sanitize_title( $display_category );
+			$test_url         = home_url( '/catalogo/' . $test_slug . '/' . $first_cat_slug . '/' );
+			$total            = count( $products );
+			$total_pages      = max( 1, ceil( $total / $per_page ) );
+
+			$test_pages = get_option( 'aoe_catalog_generated_pages', [] );
+			foreach ( $test_pages as $slug => $page ) {
+				if ( strpos( $slug, 'test-' . $manufacturer_slug ) === 0 ) {
+					unset( $test_pages[ $slug ] );
+				}
+			}
+			$test_pages[ $test_slug ] = [
+				'url'            => $test_url,
+				'type'           => 'prueba temporal',
+				'manufacturer'   => $manufacturer->name,
+				'products_count' => $total,
+				'total_pages'    => $total_pages,
+			];
+			update_option( 'aoe_catalog_generated_pages', $test_pages );
+			$this->refresh_preview_rewrite_rules();
+
+			$this->add_log( 'Generacion de Prueba', $manufacturer->name, "Se genero una prueba temporal en: $test_url ($total_pages paginas)" );
+
+			$this->send_json_success( [
+				'processed'   => $total,
+				'message'     => "Prueba generada con $total productos de la categoria '$display_category' en $total_pages paginas.",
+				'test_url'    => $test_url,
+				'total_pages' => $total_pages,
+			] );
+		} else {
+			$this->send_json_success( [
+				'processed' => count( $rows ),
+				'message'   => 'Lote procesado (' . count( $rows ) . ' filas). Acumulados: ' . count( $products ) . ' productos de "' . $display_category . '".',
+			] );
 		}
-
-		$test_pages[ $test_slug ] = [
-			'url'            => $test_url,
-			'type'           => 'prueba temporal',
-			'manufacturer'   => $manufacturer->name,
-			'products_count' => count( $products ),
-		];
-		update_option( 'aoe_catalog_generated_pages', $test_pages );
-		$this->refresh_preview_rewrite_rules();
-
-		$this->add_log( 'Generacion de Prueba', $manufacturer->name, "Se genero una prueba temporal en: $test_url" );
-
-		$this->send_json_success( [
-			'processed' => count( $products ),
-			'message'   => 'Prueba generada con ' . count( $products ) . ' productos del modelo ' . $category . '.',
-			'test_url'  => $test_url,
-		] );
 	}
 
 	private function send_json_success( array $data ) {
@@ -211,6 +244,7 @@ class BatchProcessor {
 	}
 
 	private function refresh_preview_rewrite_rules() {
+		add_rewrite_rule( '^catalogo/(test-[^/]+)/([^/]+)-([0-9]+)/?', 'index.php?aoe_catalog_preview=$matches[1]&aoe_catalog_category=$matches[2]&aoe_catalog_page=$matches[3]', 'top' );
 		add_rewrite_rule( '^catalogo/(test-[^/]+)/([^/]+)/?', 'index.php?aoe_catalog_preview=$matches[1]&aoe_catalog_category=$matches[2]', 'top' );
 		flush_rewrite_rules( false );
 	}

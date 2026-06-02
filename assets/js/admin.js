@@ -199,16 +199,8 @@ jQuery(document).ready(function($) {
 		}
 
 		if (isTest) {
-			var firstModel = '';
-			rows = rows.filter(function(row) {
-				var part = (row.Part || '').trim();
-				var model = part.split('-')[0];
-
-				if (!part) return false;
-				if (!firstModel) firstModel = model;
-
-				return model === firstModel;
-			}).slice(0, 200);
+			// Send all rows; server handles pagination
+			logMessage('Test mode: all categories and products will be processed for preview.');
 
 			if (rows.length === 0) {
 				alert('No valid Samtec rows found for test generation. Make sure the CSV has a Part column.');
@@ -236,7 +228,7 @@ jQuery(document).ready(function($) {
 		logMessage('Starting process: Manufacturer=' + manufacturer + ' | Type=' + (isTest ? 'TEST' : 'PRODUCTION') + ' | Mode=' + importMode);
 		logMessage('Total rows loaded: ' + totalRows);
 		if (isTest) {
-			logMessage('Test mode: only the first detected model will be used, up to 200 products.');
+			logMessage('Test mode: all ' + totalRows + ' rows will be processed to generate paginated preview.');
 		}
 
 		function sendBatch() {

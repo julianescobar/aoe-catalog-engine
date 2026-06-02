@@ -18,6 +18,18 @@ if ( ! is_array( $preview_data ) ) {
 	exit;
 }
 
+$current_page = max( 1, intval( get_query_var( 'aoe_catalog_page', 1 ) ) );
+
+$all_products  = is_array( $preview_data['products'] ?? null ) ? $preview_data['products'] : [];
+$total_pages   = max( 1, ceil( count( $all_products ) / 200 ) );
+$current_page  = min( $current_page, $total_pages );
+$offset        = ( $current_page - 1 ) * 200;
+$page_products = array_slice( $all_products, $offset, 200 );
+
+// Get category name from first product or from payload
+$first         = $page_products[0] ?? $all_products[0] ?? [];
+$category      = ! empty( $first['category'] ) ? $first['category'] : ( $preview_data['first_category'] ?? $preview_data['category'] ?? 'Catalogo' );
+
 $template_post_id = intval( $preview_data['template_post_id'] ?? 0 );
 $template_post    = $template_post_id ? get_post( $template_post_id ) : null;
 
@@ -77,11 +89,9 @@ function aoe_preview_render_pdf_icon_links( array $pdf ): string {
 		. '<a class="abrir-modal-dinamico aoe-catalog-icon-link" data-toggle="modal" data-target=".fusion-modal.modal-productos" href="' . esc_url( $first_pdf ? $first_pdf : '#' ) . '" aria-label="Ver documentos del producto"><i class="fas fa-file-pdf"></i></a>';
 }
 
-function aoe_preview_render_catalog_html( array $preview_data ): string {
+function aoe_preview_render_catalog_html( array $preview_data, string $category, array $page_products, int $current_page, int $total_pages ): string {
 	$manufacturer = (string) ( $preview_data['manufacturer_name'] ?? '' );
-	$category     = (string) ( $preview_data['category'] ?? '' );
-	$products     = is_array( $preview_data['products'] ?? null ) ? $preview_data['products'] : [];
-	$first        = $products[0] ?? [];
+	$first        = $page_products[0] ?? [];
 	$family_image = aoe_preview_get_first_value( is_array( $first['images'] ?? null ) ? $first['images'] : [] );
 	$family_pdf   = is_array( $first['pdf'] ?? null ) ? $first['pdf'] : [];
 	$category_display_name = ! empty( $first['name'] ) ? (string) $first['name'] : $category;
@@ -90,19 +100,39 @@ function aoe_preview_render_catalog_html( array $preview_data ): string {
 	?>
 	<div class="aoe-catalog-render">
 		<header>
-			<h2>Catálogo de <?php echo esc_html( $category_display_name ); ?></h2>
-			<p>Listado de prueba para <?php echo esc_html( $manufacturer ); ?>, generado con un maximo de 200 productos del primer modelo detectado.</p>
-			<div class="aoe-catalog-assets">
-				<?php if ( $family_image ) : ?>
-					<img src="<?php echo esc_url( $family_image ); ?>" alt="<?php echo esc_attr( $category ); ?>" />
-				<?php endif; ?>
-				<div><?php echo aoe_preview_render_pdf_links( $family_pdf ); ?></div>
+			<h2>Catálogo de <?= $manufacturer; ?> <?php echo esc_html( $category_display_name ); ?></h2>
+			<p>Listado de prueba para <?php echo esc_html( $manufacturer ); ?>, pagina <?php echo $current_page; ?> de <?php echo $total_pages; ?>.</p>
+
+			<div class="aoe-catalog-row">
+				<div class="aoe-catalog-title">
+						<p>Fabricante</p>
+				</div>
+				<div class="aoe-catalog-data">
+						<a><a href="<?= site_url()."/".strtolower($manufacturer)?>" target="_blank"><?php echo esc_html( $manufacturer ); ?></a></a>
+				</div>
 			</div>
+			<!--<div class="aoe-catalog-assets">
+				<?php /* if ( $family_image ) : ?>
+					<img src="<?php echo esc_url( $family_image ); ?>" alt="<?php echo esc_attr( $category ); ?>" />
+				<?php endif; */ ?>
+				<div><?php /* echo aoe_preview_render_pdf_links( $family_pdf );*/ ?></div>
+			</div>-->
 		</header>
 
 		<nav class="aoe-catalog-pagination" aria-label="Paginacion de productos">
-			<span>Ir a la pagina:</span>
-			<a class="aoe-catalog-page-link" href="<?php echo esc_url( home_url( '/catalogo/' . ( $preview_data['test_slug'] ?? '' ) . '/' . sanitize_title( $category ) . '/' ) ); ?>">1</a>
+			<span class="aoe-catalog-bold">Ir a la pagina:</span>
+			<?php for ( $i = 1; $i <= $total_pages; $i++ ) : ?>
+				<?php
+				$page_url = ( $i === 1 )
+					? home_url( '/catalogo/' . $preview_data['test_slug'] . '/' . sanitize_title( $category ) . '/' )
+					: home_url( '/catalogo/' . $preview_data['test_slug'] . '/' . sanitize_title( $category ) . '-' . $i . '/' );
+				?>
+				<?php if ( $i === $current_page ) : ?>
+					<span class="aoe-catalog-page-link current"><?php echo $i; ?></span>
+				<?php else : ?>
+					<a class="aoe-catalog-page-link" href="<?php echo esc_url( $page_url ); ?>"><?php echo $i; ?></a>
+				<?php endif; ?>
+			<?php endfor; ?>
 		</nav>
 
 		<table class="aoe-catalog-table" itemscope itemtype="https://schema.org/ItemList">
@@ -115,7 +145,7 @@ function aoe_preview_render_catalog_html( array $preview_data ): string {
 				</tr>
 			</thead>
 			<tbody>
-				<?php foreach ( $products as $product ) : ?>
+				<?php foreach ( $page_products as $product ) : ?>
 					<?php
 					$sku       = (string) ( $product['sku'] ?? '' );
 					$name      = (string) ( $product['name'] ?? '' );
@@ -257,7 +287,7 @@ global $post;
 $post = $template_post;
 setup_postdata( $post );
 
-$catalog_html = aoe_preview_render_catalog_html( $preview_data );
+$catalog_html = aoe_preview_render_catalog_html( $preview_data, $category, $page_products, $current_page, $total_pages );
 $content      = apply_filters( 'the_content', $template_post->post_content );
 $content      = str_replace( [ '<p>[catalogo]</p>', '[catalogo]' ], $catalog_html, $content );
 
