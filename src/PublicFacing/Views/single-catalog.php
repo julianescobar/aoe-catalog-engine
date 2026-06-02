@@ -1,320 +1,267 @@
 <?php
-/**
- * Single Catalog Page Template
- */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-$catalog_slug = get_query_var( 'aoe_catalog' );
-$is_test = ( strpos( $catalog_slug, 'test-' ) === 0 );
-$title = '';
-$products = [];
-$categories = [];
-$manufacturer_name = '';
+global $wpdb;
+
+$catalog_css_path = dirname( dirname( dirname( __DIR__ ) ) ) . '/assets/css/catalog-render.css';
+wp_enqueue_style(
+	'aoe-catalog-render',
+	plugin_dir_url( dirname( dirname( dirname( __DIR__ ) ) ) . '/aoe-catalog-engine.php' ) . 'assets/css/catalog-render.css',
+	[],
+	file_exists( $catalog_css_path ) ? filemtime( $catalog_css_path ) : '1.0.0'
+);
+
+$manufacturer_slug = get_query_var( 'aoe_catalog_manufacturer' ) ?: get_query_var( 'aoe_catalog' );
+$category_slug     = get_query_var( 'aoe_catalog_category' );
+$page_num          = max( 1, intval( get_query_var( 'aoe_catalog_page', 1 ) ) );
+$is_test           = ( strpos( $manufacturer_slug, 'test-' ) === 0 );
 
 if ( $is_test ) {
-	$preview_data = get_transient( 'aoe_preview_' . $catalog_slug );
-	if ( $preview_data ) {
-		$manufacturer_name = 'Prueba Temporal';
-		$title = 'Prueba: ' . esc_html( $catalog_slug );
-		$products = $preview_data;
-		
-		// Extract categories from preview data
-		$cats = array_unique( array_column( $preview_data, 'category' ) );
-		foreach ( $cats as $c ) {
-			$categories[] = (object) [ 'name' => $c, 'products_count' => count( array_filter( $preview_data, function($item) use ($c) { return $item['category'] === $c; } ) ) ];
-		}
-	} else {
+	$preview_data = get_transient( 'aoe_preview_' . $manufacturer_slug );
+	if ( ! $preview_data ) {
 		wp_die( 'La prueba temporal ha expirado o no existe.', 'Prueba Expirada', [ 'response' => 404 ] );
 	}
-} else {
-	// Production DB Lookup
-	global $wpdb;
-	$table_m = $wpdb->prefix . 'aoe_catalog_manufacturers';
-	$table_c = $wpdb->prefix . 'aoe_catalog_categories';
-	$table_p = $wpdb->prefix . 'aoe_catalog_products';
+	$all_products    = $preview_data['products'] ?? [];
+	$total_products  = count( $all_products );
+	$per_page        = 200;
+	$total_pages     = max( 1, ceil( $total_products / $per_page ) );
+	$current_page    = min( $page_num, $total_pages );
+	$offset          = ( $current_page - 1 ) * $per_page;
+	$page_products   = array_slice( $all_products, $offset, $per_page );
+	$first           = $page_products[0] ?? $all_products[0] ?? [];
+	$category_name   = ! empty( $first['category'] ) ? $first['category'] : ( $preview_data['first_category'] ?? 'Catalogo' );
+	$manufacturer_name = $preview_data['manufacturer_name'] ?? 'Prueba Temporal';
+	$template_post_id  = intval( $preview_data['template_post_id'] ?? 0 );
 
-	$manufacturer = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $table_m WHERE slug = %s", $catalog_slug ) );
+	require_once __DIR__ . '/catalog-render-html.php';
 
-	if ( ! $manufacturer ) {
-		global $wp_query;
-		$wp_query->set_404();
-		status_header( 404 );
-		get_template_part( '404' );
-		exit;
+	$catalog_html = aoe_catalog_render_html(
+		$manufacturer_name,
+		$manufacturer_slug . '/' . sanitize_title( $category_name ),
+		$category_name,
+		$page_products,
+		$current_page,
+		$total_pages,
+		true
+	);
+
+	$template_post = $template_post_id ? get_post( $template_post_id ) : null;
+	if ( ! $template_post ) {
+		wp_die( 'La plantilla asociada a este fabricante no existe.', 'Plantilla no encontrada', [ 'response' => 404 ] );
 	}
 
-	$manufacturer_name = $manufacturer->name;
-	$title = 'Catálogo ' . esc_html( $manufacturer->name );
+	global $post;
+	$post = $template_post;
+	setup_postdata( $post );
 
-	// Fetch categories
-	$categories = $wpdb->get_results( $wpdb->prepare(
-		"SELECT * FROM $table_c WHERE manufacturer_id = %d ORDER BY name ASC",
-		$manufacturer->id
-	) );
+	$content = apply_filters( 'the_content', $template_post->post_content );
+	$content = str_replace( [ '<p>[catalogo]</p>', '[catalogo]' ], $catalog_html, $content );
 
-	// Fetch products
-	$products_raw = $wpdb->get_results( $wpdb->prepare(
-		"SELECT p.*, c.name as category_name FROM $table_p p 
-		 JOIN $table_c c ON p.category_id = c.id
-		 WHERE p.manufacturer_id = %d LIMIT 500",
-		$manufacturer->id
-	) );
-
-	foreach ( $products_raw as $p ) {
-		$products[] = [
-			'sku'         => $p->sku,
-			'name'        => $p->name,
-			'category'    => $p->category_name,
-			'description' => $p->description
-		];
-	}
+	get_header();
+	echo $content;
+	wp_reset_postdata();
+	get_footer();
+	exit;
 }
 
+// --- Production mode ---
+
+$catalog_type = get_query_var( 'aoe_catalog_type' );
+
+if ( 'grouped' === $catalog_type ) {
+	$page_slug_base = $manufacturer_slug . '/productos';
+	$page_slug      = $page_slug_base . ( $page_num > 1 ? '-' . $page_num : '' );
+} elseif ( $category_slug ) {
+	$page_slug_base = $manufacturer_slug . '/' . $category_slug;
+	$page_slug      = $page_slug_base . ( $page_num > 1 ? '-' . $page_num : '' );
+} else {
+	$page_slug_base = $manufacturer_slug;
+	$page_slug      = $page_slug_base . ( $page_num > 1 ? '-' . $page_num : '' );
+}
+
+$table_pages = $wpdb->prefix . 'aoe_catalog_pregenerated_pages';
+$table_seg   = $wpdb->prefix . 'aoe_catalog_page_segments';
+$table_cat   = $wpdb->prefix . 'aoe_catalog_categories';
+$table_prod  = $wpdb->prefix . 'aoe_catalog_products';
+$table_m     = $wpdb->prefix . 'aoe_catalog_manufacturers';
+
+$page = $wpdb->get_row( $wpdb->prepare(
+	"SELECT p.*, m.name AS manufacturer_name, m.wp_post_id AS template_post_id
+	 FROM $table_pages p
+	 JOIN $table_m m ON p.manufacturer_id = m.id
+	 WHERE p.slug = %s",
+	$page_slug
+) );
+
+if ( ! $page ) {
+	$page = $wpdb->get_row( $wpdb->prepare(
+		"SELECT p.*, m.name AS manufacturer_name, m.wp_post_id AS template_post_id
+		 FROM $table_pages p
+		 JOIN $table_m m ON p.manufacturer_id = m.id
+		 WHERE p.slug = %s",
+		$manufacturer_slug
+	) );
+}
+
+if ( ! $page ) {
+	global $wp_query;
+	$wp_query->set_404();
+	status_header( 404 );
+	get_template_part( '404' );
+	exit;
+}
+
+$manufacturer_slug_base = $wpdb->get_var( $wpdb->prepare(
+	"SELECT slug FROM $table_m WHERE id = %d", $page->manufacturer_id
+) ) ?: $manufacturer_slug;
+
+$manufacturer_name = $page->manufacturer_name;
+$page_type         = $page->type;
+$template_post_id  = intval( $page->template_post_id ?? 0 );
+$per_page          = 200;
+$current_page      = $page_num;
+$total_pages       = 1;
+
+$segments = $wpdb->get_results( $wpdb->prepare(
+	"SELECT s.*, c.name AS category_name, c.slug AS category_slug
+	 FROM $table_seg s
+	 JOIN $table_cat c ON s.category_id = c.id
+	 WHERE s.page_id = %d
+	 ORDER BY s.sort_order ASC",
+	$page->id
+) );
+
+$page_products = [];
+$display_category = '';
+
+if ( 'category' === $page_type ) {
+	$cat_seg = $segments[0] ?? null;
+	if ( $cat_seg ) {
+		$display_category = $cat_seg->category_name;
+		$from    = (int) $cat_seg->products_from;
+		$to      = (int) $cat_seg->products_to;
+		$limit   = $to - $from;
+		$total_products = (int) $wpdb->get_var( $wpdb->prepare(
+			"SELECT COUNT(*) FROM $table_prod WHERE category_id = %d",
+			$cat_seg->category_id
+		) );
+		$total_pages = max( 1, ceil( $total_products / $per_page ) );
+
+		$page_products = $wpdb->get_results( $wpdb->prepare(
+			"SELECT * FROM $table_prod WHERE category_id = %d ORDER BY sku ASC LIMIT %d OFFSET %d",
+			$cat_seg->category_id, $limit, $from
+		) );
+	}
+} elseif ( 'grouped' === $page_type ) {
+	foreach ( $segments as $seg ) {
+		$seg_prods = $wpdb->get_results( $wpdb->prepare(
+			"SELECT * FROM $table_prod WHERE category_id = %d ORDER BY sku ASC LIMIT %d",
+			$seg->category_id, (int) $seg->products_to
+		) );
+		$page_products = array_merge( $page_products, $seg_prods );
+	}
+	$total_grouped = $wpdb->get_var( $wpdb->prepare(
+		"SELECT COUNT(*) FROM $table_pages WHERE manufacturer_id = %d AND type = 'grouped'",
+		$page->manufacturer_id
+	) );
+	$total_pages = max( 1, (int) $total_grouped );
+}
+
+// If tree page, show category list and exit without render table
+if ( 'tree' === $page_type || ( empty( $display_category ) && empty( $page_products ) ) ) {
+	$tree_pages = $wpdb->get_results( $wpdb->prepare(
+		"SELECT page_number, link_count FROM $table_pages
+		 WHERE manufacturer_id = %d AND type = 'tree'
+		 ORDER BY page_number ASC",
+		$page->manufacturer_id
+	) );
+	$total_pages = count( $tree_pages );
+
+	// Build a lookup: for each category_id, find the best page slug
+	$cat_page_map = [];
+	$cat_pages_raw = $wpdb->get_results( $wpdb->prepare(
+		"SELECT s.category_id, p.slug AS page_slug, p.type
+		 FROM $table_seg s
+		 JOIN $table_pages p ON s.page_id = p.id
+		 WHERE p.manufacturer_id = %d AND p.type IN ('category', 'grouped')
+		 ORDER BY (p.type = 'category') DESC",
+		$page->manufacturer_id
+	) );
+	foreach ( $cat_pages_raw as $cp ) {
+		if ( ! isset( $cat_page_map[ $cp->category_id ] ) ) {
+			$cat_page_map[ $cp->category_id ] = $cp->page_slug;
+		}
+	}
+
+	$template_post = $template_post_id ? get_post( $template_post_id ) : null;
+	if ( ! $template_post ) {
+		wp_die( 'La plantilla asociada a este fabricante no existe.', 'Plantilla no encontrada', [ 'response' => 404 ] );
+	}
+
+	ob_start();
+	?>
+	<div class="aoe-tree">
+		<h3>Categorías</h3>
+		<ul class="aoe-cat-list">
+			<?php foreach ( $segments as $seg ) : ?>
+				<?php
+				$cat_url = isset( $cat_page_map[ $seg->category_id ] )
+					? home_url( '/catalogo/' . $cat_page_map[ $seg->category_id ] . '/' )
+					: '#';
+				?>
+				<li>
+					<a href="<?php echo esc_url( $cat_url ); ?>"><?php echo esc_html( $seg->category_name ); ?></a>
+					<span class="count"><?php echo esc_html( $seg->products_to ?? 0 ); ?></span>
+				</li>
+			<?php endforeach; ?>
+		</ul>
+	</div>
+	<?php
+	$tree_html = ob_get_clean();
+
+	global $post;
+	$post = $template_post;
+	setup_postdata( $post );
+
+	$content = apply_filters( 'the_content', $template_post->post_content );
+	$content = str_replace( [ '<p>[catalogo]</p>', '[catalogo]' ], $tree_html, $content );
+
+	get_header();
+	echo $content;
+	wp_reset_postdata();
+	get_footer();
+	exit;
+}
+
+// Category or grouped page — render product table
+$template_post = $template_post_id ? get_post( $template_post_id ) : null;
+if ( ! $template_post ) {
+	wp_die( 'La plantilla asociada a este fabricante no existe.', 'Plantilla no encontrada', [ 'response' => 404 ] );
+}
+
+require_once __DIR__ . '/catalog-render-html.php';
+
+$catalog_html = aoe_catalog_render_html(
+	$manufacturer_name,
+	$page_slug_base,
+	$display_category,
+	$page_products,
+	$current_page,
+	$total_pages,
+	false
+);
+
+global $post;
+$post = $template_post;
+setup_postdata( $post );
+
+$content = apply_filters( 'the_content', $template_post->post_content );
+$content = str_replace( [ '<p>[catalogo]</p>', '[catalogo]' ], $catalog_html, $content );
+
 get_header();
-?>
-<style>
-	:root {
-		--aoe-primary: #3b82f6;
-		--aoe-dark: #1e293b;
-		--aoe-light: #f8fafc;
-		--aoe-border: #e2e8f0;
-	}
-	.aoe-public-wrap {
-		max-width: 1200px;
-		margin: 40px auto;
-		padding: 0 20px;
-		font-family: 'Inter', -apple-system, sans-serif;
-	}
-	.aoe-hero {
-		background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-		color: #fff;
-		border-radius: 12px;
-		padding: 40px;
-		margin-bottom: 30px;
-		position: relative;
-		overflow: hidden;
-	}
-	.aoe-hero h1 {
-		margin: 0 0 10px 0;
-		font-size: 32px;
-		font-weight: 700;
-	}
-	.aoe-hero .badge {
-		display: inline-block;
-		background: #ef4444;
-		color: #fff;
-		font-size: 12px;
-		font-weight: 600;
-		padding: 4px 10px;
-		border-radius: 20px;
-		text-transform: uppercase;
-		margin-bottom: 15px;
-	}
-	.aoe-grid {
-		display: grid;
-		grid-template-columns: 280px 1fr;
-		gap: 30px;
-	}
-	.aoe-sidebar {
-		background: #fff;
-		border: 1px solid var(--aoe-border);
-		border-radius: 8px;
-		padding: 20px;
-		height: fit-content;
-	}
-	.aoe-sidebar h3 {
-		margin-top: 0;
-		font-size: 16px;
-		border-bottom: 1px solid var(--aoe-border);
-		padding-bottom: 10px;
-		margin-bottom: 15px;
-	}
-	.aoe-cat-list {
-		list-style: none;
-		padding: 0;
-		margin: 0;
-	}
-	.aoe-cat-list li {
-		display: flex;
-		justify-content: space-between;
-		padding: 8px 0;
-		border-bottom: 1px solid #f1f5f9;
-		font-size: 14px;
-	}
-	.aoe-cat-list li span.count {
-		background: #f1f5f9;
-		color: #475569;
-		padding: 2px 8px;
-		border-radius: 10px;
-		font-size: 11px;
-		font-weight: 600;
-	}
-	.aoe-content-area {
-		background: #fff;
-		border: 1px solid var(--aoe-border);
-		border-radius: 8px;
-		padding: 20px;
-	}
-	.aoe-table {
-		width: 100%;
-		border-collapse: collapse;
-		margin-top: 20px;
-	}
-	.aoe-table th, .aoe-table td {
-		text-align: left;
-		padding: 12px 15px;
-		border-bottom: 1px solid var(--aoe-border);
-	}
-	.aoe-table th {
-		background: var(--aoe-light);
-		font-weight: 600;
-		color: var(--aoe-dark);
-	}
-	.aoe-table tbody tr:hover {
-		background: #f1f5f9;
-		cursor: pointer;
-	}
-	.aoe-sku {
-		font-family: monospace;
-		background: #f1f5f9;
-		padding: 2px 6px;
-		border-radius: 4px;
-		font-size: 13px;
-		color: #0f172a;
-	}
-	/* Modal Styles */
-	.aoe-modal {
-		display: none;
-		position: fixed;
-		top: 0;
-		left: 0;
-		width: 100%;
-		height: 100%;
-		background: rgba(15, 23, 42, 0.6);
-		backdrop-filter: blur(4px);
-		z-index: 9999;
-		justify-content: center;
-		align-items: center;
-	}
-	.aoe-modal-content {
-		background: #fff;
-		border-radius: 12px;
-		max-width: 600px;
-		width: 90%;
-		padding: 30px;
-		position: relative;
-		box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-	}
-	.aoe-modal-close {
-		position: absolute;
-		top: 15px;
-		right: 20px;
-		font-size: 24px;
-		cursor: pointer;
-		color: #94a3b8;
-	}
-	.aoe-modal-close:hover {
-		color: #000;
-	}
-</style>
-
-<div class="aoe-public-wrap">
-	<div class="aoe-hero">
-		<?php if ( $is_test ) : ?>
-			<span class="badge">Vista de Prueba</span>
-		<?php endif; ?>
-		<h1><?php echo esc_html( $title ); ?></h1>
-		<p>Catálogo interactivo optimizado para SEO para la marca <strong><?php echo esc_html( $manufacturer_name ); ?></strong>.</p>
-	</div>
-
-	<div class="aoe-grid">
-		<!-- Categorías Jerárquicas -->
-		<aside class="aoe-sidebar">
-			<h3>Categorías Detectadas</h3>
-			<ul class="aoe-cat-list">
-				<?php foreach ( $categories as $cat ) : ?>
-					<li>
-						<span><?php echo esc_html( $cat->name ); ?></span>
-						<span class="count"><?php echo esc_html( $cat->products_count ); ?></span>
-					</li>
-				<?php endforeach; ?>
-			</ul>
-		</aside>
-
-		<!-- Listado de Productos -->
-		<main class="aoe-content-area">
-			<h3>Productos del Catálogo</h3>
-			
-			<table class="aoe-table" id="aoe-products-table">
-				<thead>
-					<tr>
-						<th>SKU</th>
-						<th>Nombre</th>
-						<th>Categoría</th>
-					</tr>
-				</thead>
-				<tbody>
-					<?php if ( empty( $products ) ) : ?>
-						<tr>
-							<td colspan="3">No hay productos en esta vista.</td>
-						</tr>
-					<?php else : ?>
-						<?php foreach ( $products as $prod ) : ?>
-							<tr class="aoe-product-row" 
-								data-sku="<?php echo esc_attr( $prod['sku'] ); ?>" 
-								data-name="<?php echo esc_attr( $prod['name'] ); ?>" 
-								data-category="<?php echo esc_attr( $prod['category'] ); ?>"
-								data-desc="<?php echo esc_attr( $prod['description'] ); ?>">
-								<td><span class="aoe-sku"><?php echo esc_html( $prod['sku'] ); ?></span></td>
-								<td><strong><?php echo esc_html( $prod['name'] ); ?></strong></td>
-								<td><?php echo esc_html( $prod['category'] ); ?></td>
-							</tr>
-						<?php endforeach; ?>
-					<?php endif; ?>
-				</tbody>
-			</table>
-		</main>
-	</div>
-</div>
-
-<!-- Modal Dinámico de Producto -->
-<div class="aoe-modal" id="aoe-product-modal">
-	<div class="aoe-modal-content">
-		<span class="aoe-modal-close" id="aoe-close-modal">&times;</span>
-		<h2 id="modal-product-name" style="margin-top: 0;"></h2>
-		<p style="margin-bottom: 20px;"><span class="aoe-sku" id="modal-product-sku"></span> <span id="modal-product-cat" style="margin-left: 10px; color: #64748b;"></span></p>
-		<hr style="border: 0; border-top: 1px solid var(--aoe-border); margin: 20px 0;" />
-		<div id="modal-product-desc" style="line-height: 1.6; color: #334155;"></div>
-	</div>
-</div>
-
-<script>
-	jQuery(document).ready(function($) {
-		$('.aoe-product-row').on('click', function() {
-			var sku = $(this).data('sku');
-			var name = $(this).data('name');
-			var cat = $(this).data('category');
-			var desc = $(this).data('desc') || 'Sin descripción disponible.';
-
-			$('#modal-product-name').text(name);
-			$('#modal-product-sku').text(sku);
-			$('#modal-product-cat').text('Categoría: ' + cat);
-			$('#modal-product-desc').text(desc);
-
-			$('#aoe-product-modal').css('display', 'flex');
-		});
-
-		$('#aoe-close-modal, #aoe-product-modal').on('click', function(e) {
-			if (e.target === this || e.target.id === 'aoe-close-modal') {
-				$('#aoe-product-modal').hide();
-			}
-		});
-	});
-</script>
-
-<?php
+echo $content;
+wp_reset_postdata();
 get_footer();
-?>

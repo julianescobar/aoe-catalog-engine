@@ -4,6 +4,8 @@ namespace AOE\CatalogEngine\Import;
 
 use AOE\CatalogEngine\Database\CategoryRepository;
 use AOE\CatalogEngine\Database\ProductRepository;
+use AOE\CatalogEngine\Database\PageRepository;
+use AOE\CatalogEngine\Database\PageSegmentRepository;
 
 class BatchProcessor {
 
@@ -87,22 +89,12 @@ class BatchProcessor {
 		}
 
 		if ( $is_last_chunk && $processed_count > 0 ) {
-			$pages     = get_option( 'aoe_catalog_generated_pages', [] );
-			$prod_slug = $manufacturer_slug;
-			$prod_url  = home_url( '/catalog/' . $prod_slug );
-
 			$total_products = $wpdb->get_var( $wpdb->prepare(
 				"SELECT COUNT(*) FROM {$wpdb->prefix}aoe_catalog_products WHERE manufacturer_id = %d",
 				$manufacturer->id
 			) );
 
-			$pages[ $prod_slug ] = [
-				'url'            => $prod_url,
-				'type'           => 'catalogo principal',
-				'manufacturer'   => $manufacturer->name,
-				'products_count' => $total_products,
-			];
-			update_option( 'aoe_catalog_generated_pages', $pages );
+			$this->pack_catalog( (int) $manufacturer->id, $manufacturer_slug );
 
 			$this->add_log( 'Importacion Catalogo', $manufacturer->name, "Importacion completada. Modo: $import_mode. Total catalogo: $total_products." );
 		}
@@ -233,6 +225,174 @@ class BatchProcessor {
 		}
 
 		wp_send_json_success( $data );
+	}
+
+	private function pack_catalog( int $manufacturer_id, string $manufacturer_slug ) {
+		global $wpdb;
+
+		// Clear previous pages for this manufacturer
+		PageRepository::clear_by_manufacturer( $manufacturer_id );
+		PageSegmentRepository::clear_by_manufacturer( $manufacturer_id );
+
+		$threshold = 190;
+		$per_page  = 200;
+
+		// Get categories with product counts
+		$table_cat = $wpdb->prefix . 'aoe_catalog_categories';
+		$categories = $wpdb->get_results( $wpdb->prepare(
+			"SELECT id, name, slug, products_count FROM $table_cat WHERE manufacturer_id = %d AND products_count > 0 ORDER BY products_count DESC",
+			$manufacturer_id
+		) );
+
+		if ( empty( $categories ) ) {
+			return;
+		}
+
+		// Separate large and small categories
+		$large = [];
+		$small = [];
+		foreach ( $categories as $cat ) {
+			if ( (int) $cat->products_count >= $threshold ) {
+				$large[] = $cat;
+			} else {
+				$small[] = $cat;
+			}
+		}
+
+		// Large categories: one or more dedicated pages (type=category)
+		foreach ( $large as $cat ) {
+			$total_prods  = (int) $cat->products_count;
+			$total_pages  = max( 1, ceil( $total_prods / $per_page ) );
+			for ( $p = 1; $p <= $total_pages; $p++ ) {
+				$page_slug = $manufacturer_slug . '/' . $cat->slug . ( $p > 1 ? '-' . $p : '' );
+				$from      = ( $p - 1 ) * $per_page;
+				$to        = min( $p * $per_page, $total_prods );
+				$page_id   = PageRepository::insert( [
+					'manufacturer_id' => $manufacturer_id,
+					'type'            => 'category',
+					'slug'            => $page_slug,
+					'page_number'     => $p,
+					'link_count'      => $to - $from,
+				] );
+				PageSegmentRepository::insert( [
+					'page_id'        => $page_id,
+					'manufacturer_id' => $manufacturer_id,
+					'category_id'    => $cat->id,
+					'segment_type'   => 'category',
+					'products_from'  => $from,
+					'products_to'    => $to,
+					'sort_order'     => 1,
+				] );
+			}
+		}
+
+		// Tree pages: category index for /samtec/, /samtec-2/, etc.
+		$all_names = $wpdb->get_results( $wpdb->prepare(
+			"SELECT id, name, slug, parent_id, level, products_count FROM $table_cat WHERE manufacturer_id = %d ORDER BY level ASC, name ASC",
+			$manufacturer_id
+		) );
+		if ( ! empty( $all_names ) ) {
+			$tree_page    = 1;
+			$tree_accum   = 0;
+			$tree_segments = [];
+			foreach ( $all_names as $cat ) {
+				if ( $tree_accum >= 200 ) {
+					$tree_slug = $manufacturer_slug . ( $tree_page > 1 ? '-' . $tree_page : '' );
+					$page_id   = PageRepository::insert( [
+						'manufacturer_id' => $manufacturer_id,
+						'type'            => 'tree',
+						'slug'            => $tree_slug,
+						'page_number'     => $tree_page,
+						'link_count'      => $tree_accum,
+					] );
+					foreach ( $tree_segments as $seg ) {
+						$seg['page_id'] = $page_id;
+						PageSegmentRepository::insert( $seg );
+					}
+					$tree_page++;
+					$tree_accum   = 0;
+					$tree_segments = [];
+				}
+				$tree_segments[] = [
+					'manufacturer_id' => $manufacturer_id,
+					'category_id'    => $cat->id,
+					'segment_type'   => 'category',
+					'products_from'  => 0,
+					'products_to'    => (int) $cat->products_count,
+					'sort_order'     => $tree_accum + 1,
+				];
+				$tree_accum++;
+			}
+			if ( ! empty( $tree_segments ) ) {
+				$tree_slug = $manufacturer_slug . ( $tree_page > 1 ? '-' . $tree_page : '' );
+				$page_id   = PageRepository::insert( [
+					'manufacturer_id' => $manufacturer_id,
+					'type'            => 'tree',
+					'slug'            => $tree_slug,
+					'page_number'     => $tree_page,
+					'link_count'      => $tree_accum,
+				] );
+				foreach ( $tree_segments as $seg ) {
+					$seg['page_id'] = $page_id;
+					PageSegmentRepository::insert( $seg );
+				}
+			}
+		}
+
+		// Small categories: pack into grouped pages
+		if ( ! empty( $small ) ) {
+			$group_page    = 1;
+			$group_accum   = 0;
+			$group_segments = [];
+			$page_id        = null;
+
+			foreach ( $small as $cat ) {
+				$count = (int) $cat->products_count;
+				if ( $group_accum + $count > $per_page && $group_accum > 0 ) {
+					// Finalize current grouped page
+					$page_slug = $manufacturer_slug . '/productos' . ( $group_page > 1 ? '-' . $group_page : '' );
+					$page_id = PageRepository::insert( [
+						'manufacturer_id' => $manufacturer_id,
+						'type'            => 'grouped',
+						'slug'            => $page_slug,
+						'page_number'     => $group_page,
+						'link_count'      => $group_accum,
+					] );
+					foreach ( $group_segments as $seg ) {
+						$seg['page_id'] = $page_id;
+						PageSegmentRepository::insert( $seg );
+					}
+					$group_page++;
+					$group_accum    = 0;
+					$group_segments = [];
+				}
+				$group_segments[] = [
+					'manufacturer_id' => $manufacturer_id,
+					'category_id'    => $cat->id,
+					'segment_type'   => 'category',
+					'products_from'  => 0,
+					'products_to'    => $count,
+					'sort_order'     => count( $group_segments ) + 1,
+				];
+				$group_accum += $count;
+			}
+
+			// Finalize last grouped page
+			if ( ! empty( $group_segments ) ) {
+				$page_slug = $manufacturer_slug . '/productos' . ( $group_page > 1 ? '-' . $group_page : '' );
+				$page_id = PageRepository::insert( [
+					'manufacturer_id' => $manufacturer_id,
+					'type'            => 'grouped',
+					'slug'            => $page_slug,
+					'page_number'     => $group_page,
+					'link_count'      => $group_accum,
+				] );
+				foreach ( $group_segments as $seg ) {
+					$seg['page_id'] = $page_id;
+					PageSegmentRepository::insert( $seg );
+				}
+			}
+		}
 	}
 
 	private function send_json_error( $data ) {

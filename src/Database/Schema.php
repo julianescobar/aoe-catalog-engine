@@ -59,10 +59,41 @@ class Schema {
 			KEY idx_manufacturer_sku (manufacturer_id, sku)
 		) $charset_collate;";
 
+		$table_pages = $wpdb->prefix . 'aoe_catalog_pregenerated_pages';
+		$sql_pages = "CREATE TABLE $table_pages (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			manufacturer_id bigint(20) unsigned NOT NULL,
+			type varchar(50) NOT NULL DEFAULT 'category',
+			slug varchar(255) NOT NULL,
+			page_number int(11) NOT NULL DEFAULT 1,
+			link_count int(11) NOT NULL DEFAULT 0,
+			PRIMARY KEY  (id),
+			KEY manufacturer_id (manufacturer_id),
+			UNIQUE KEY manufacturer_slug (manufacturer_id, slug)
+		) $charset_collate;";
+
+		$table_segments = $wpdb->prefix . 'aoe_catalog_page_segments';
+		$sql_segments = "CREATE TABLE $table_segments (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			page_id bigint(20) unsigned NOT NULL,
+			manufacturer_id bigint(20) unsigned NOT NULL,
+			category_id bigint(20) unsigned NOT NULL,
+			segment_type varchar(50) NOT NULL DEFAULT 'category',
+			products_from int(11) NOT NULL DEFAULT 0,
+			products_to int(11) NOT NULL DEFAULT 0,
+			sort_order int(11) NOT NULL DEFAULT 0,
+			PRIMARY KEY  (id),
+			KEY page_id (page_id),
+			KEY manufacturer_id (manufacturer_id),
+			KEY category_id (category_id)
+		) $charset_collate;";
+
 		require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
 		
 		dbDelta( $sql_manufacturers );
 		dbDelta( $sql_categories );
 		dbDelta( $sql_products );
+		dbDelta( $sql_pages );
+		dbDelta( $sql_segments );
 	}
 }

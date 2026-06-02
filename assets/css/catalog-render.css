@@ -7,6 +7,10 @@
 	margin: 0 0 14px;
 }
 
+.aoe-catalog-render {
+	margin-top: 20px;
+}
+
 .aoe-catalog-assets {
 	display: flex;
 	flex-wrap: wrap;
@@ -359,4 +363,13 @@
 	.aoe-catalog-docs-grid {
 		grid-template-columns: 1fr;
 	}
+}
+
+.fila-producto {
+	cursor: pointer;
+
+}
+
+.fila-producto:hover {
+	background: rgb(223 223 223);
 }

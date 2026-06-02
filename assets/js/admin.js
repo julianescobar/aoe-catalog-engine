@@ -1,4 +1,4 @@
-jQuery(document).ready(function($) {
+jQuery(document).ready(function ($) {
 
 	/**
 	 * Auto-detect separator: tab or comma.
@@ -47,7 +47,7 @@ jQuery(document).ready(function($) {
 		var firstLine = content.split('\n')[0];
 		if (!firstLine) return [];
 		var sep = detectSeparator(content);
-		return parseCSVLine(firstLine, sep).filter(function(h) { return h !== ''; });
+		return parseCSVLine(firstLine, sep).filter(function (h) { return h !== ''; });
 	}
 
 	function parseCSVRows(content, headers, maxRows) {
@@ -61,7 +61,7 @@ jQuery(document).ready(function($) {
 			if (!line.trim()) continue;
 			var cols = parseCSVLine(line, sep);
 			var rowData = {};
-			headers.forEach(function(header, idx) {
+			headers.forEach(function (header, idx) {
 				rowData[header] = cols[idx] !== undefined ? cols[idx] : '';
 			});
 			rows.push(rowData);
@@ -97,8 +97,8 @@ jQuery(document).ready(function($) {
 		// Filter columns to only show the ones supported by the processor if defined
 		var columnsToShow = headers;
 		if (supportedCols && supportedCols.length > 0) {
-			columnsToShow = headers.filter(function(header) {
-				return supportedCols.some(function(sc) {
+			columnsToShow = headers.filter(function (header) {
+				return supportedCols.some(function (sc) {
 					return sc.toLowerCase() === header.trim().toLowerCase();
 				});
 			});
@@ -120,20 +120,20 @@ jQuery(document).ready(function($) {
 		var html = '<div class="aoe-preview-table-wrapper" style="overflow-x: auto; margin-top: 10px; border: 1px solid #dcdcde; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">';
 		html += '<table class="wp-list-table widefat fixed striped" style="margin: 0; min-width: 600px; border: none;">';
 		html += '<thead><tr>';
-		columnsToShow.forEach(function(header) {
+		columnsToShow.forEach(function (header) {
 			html += '<th style="font-weight: 600; background: #f6f7f7; padding: 10px 12px; border-bottom: 1px solid #dcdcde;">' + escHTML(header) + '</th>';
 		});
 		html += '</tr></thead>';
 		html += '<tbody>';
-		
-		previewRows.forEach(function(row) {
+
+		previewRows.forEach(function (row) {
 			html += '<tr>';
-			columnsToShow.forEach(function(header) {
+			columnsToShow.forEach(function (header) {
 				html += '<td style="padding: 10px 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px;">' + escHTML(row[header] || '') + '</td>';
 			});
 			html += '</tr>';
 		});
-		
+
 		html += '</tbody></table></div>';
 		$container.append(html);
 
@@ -146,12 +146,12 @@ jQuery(document).ready(function($) {
 	}
 
 	// Trigger detection on File upload
-	$('#csv_file').on('change', function(e) {
+	$('#csv_file').on('change', function (e) {
 		var file = e.target.files[0];
 		if (!file) return;
 
 		var reader = new FileReader();
-		reader.onload = function(evt) {
+		reader.onload = function (evt) {
 			var content = evt.target.result;
 			// Save parsed content in memory for batches
 			window.aoeImportContent = content;
@@ -162,7 +162,7 @@ jQuery(document).ready(function($) {
 	});
 
 	// Trigger detection on Text paste
-	$('#csv_paste').on('input', function() {
+	$('#csv_paste').on('input', function () {
 		var content = $(this).val();
 		window.aoeImportContent = content;
 		var headers = parseCSVHeaders(content);
@@ -192,7 +192,7 @@ jQuery(document).ready(function($) {
 			if (!line.trim()) continue;
 			var cols = parseCSVLine(line, sep);
 			var rowData = {};
-			headers.forEach(function(header, idx) {
+			headers.forEach(function (header, idx) {
 				rowData[header] = cols[idx] !== undefined ? cols[idx] : '';
 			});
 			rows.push(rowData);
@@ -253,14 +253,14 @@ jQuery(document).ready(function($) {
 					offset: processed,
 					total_rows: totalRows
 				},
-				success: function(response) {
+				success: function (response) {
 					if (response.success) {
 						processed += chunk.length;
 						var pct = Math.min(100, Math.round((processed / totalRows) * 100));
 						$('#aoe-progress-bar').css('width', pct + '%');
 						$('#aoe-progress-text').text(processed + ' / ' + totalRows + ' rows processed');
 						logMessage('Processed batch: ' + processed + ' / ' + totalRows + ' rows. ' + response.data.message);
-						
+
 						if (processed >= totalRows) {
 							if (isTest && response.data.test_url) {
 								$('#aoe-progress-text').html('<strong>¡Prueba completada con éxito!</strong> <a href="' + response.data.test_url + '" target="_blank" class="button button-secondary" style="margin-left: 10px;">Ver Página de Prueba</a>');
@@ -272,13 +272,13 @@ jQuery(document).ready(function($) {
 							}
 							return;
 						}
-						
+
 						sendBatch();
 					} else {
 						logMessage('ERROR: ' + response.data);
 					}
 				},
-				error: function(xhr, status, err) {
+				error: function (xhr, status, err) {
 					logMessage('AJAX Connection Error: ' + err);
 				}
 			});
@@ -295,12 +295,12 @@ jQuery(document).ready(function($) {
 	}
 
 	// Button Handlers
-	$('#aoe-btn-test').on('click', function(e) {
+	$('#aoe-btn-test').on('click', function (e) {
 		e.preventDefault();
 		runBatchProcess(true);
 	});
 
-	$('#aoe-btn-show-import').on('click', function(e) {
+	$('#aoe-btn-show-import').on('click', function (e) {
 		e.preventDefault();
 		$('#aoe-action-step').slideDown();
 		$('html, body').animate({
@@ -308,9 +308,9 @@ jQuery(document).ready(function($) {
 		}, 500);
 	});
 
-	$('#aoe-btn-import').on('click', function(e) {
+	$('#aoe-btn-import').on('click', function (e) {
 		e.preventDefault();
-		if (confirm('Are you sure you want to run the final import into the database?')) {
+		if (confirm('¿Está seguro de que desea ejecutar la importación final en la base de datos?')) {
 			runBatchProcess(false);
 		}
 	});
