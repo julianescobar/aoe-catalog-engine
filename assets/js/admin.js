@@ -239,6 +239,7 @@ jQuery(document).ready(function ($) {
 			}
 
 			var chunk = rows.slice(processed, processed + batchSize);
+			var isLastChunk = processed + chunk.length >= totalRows;
 
 			$.ajax({
 				url: ajaxurl,
@@ -249,9 +250,10 @@ jQuery(document).ready(function ($) {
 					import_mode: importMode,
 					is_test: isTest ? 1 : 0,
 					test_slug: testSlug,
-					rows: chunk,
+					is_last_chunk: isLastChunk ? 1 : 0,
 					offset: processed,
-					total_rows: totalRows
+					total_rows: totalRows,
+					rows_json: JSON.stringify(chunk)
 				},
 				success: function (response) {
 					if (response.success) {

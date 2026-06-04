@@ -3,6 +3,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 ?>
+<!--
 <div class="wrap aoe-wrap">
 	<div class="aoe-header">
 		<h1>Catálogo - Páginas Generadas</h1>
@@ -43,3 +44,4 @@ if ( ! defined( 'ABSPATH' ) ) {
 		</table>
 	</div>
 </div>
+-->

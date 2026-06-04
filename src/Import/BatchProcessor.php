@@ -31,7 +31,7 @@ class BatchProcessor {
 		$manufacturer_slug = sanitize_text_field( $_POST['manufacturer'] ?? '' );
 		$import_mode       = sanitize_text_field( $_POST['import_mode'] ?? 'incremental' );
 		$is_test           = intval( $_POST['is_test'] ?? 0 );
-		$rows              = isset( $_POST['rows'] ) && is_array( $_POST['rows'] ) ? $_POST['rows'] : [];
+		$rows              = isset( $_POST['rows_json'] ) ? json_decode( wp_unslash( $_POST['rows_json'] ), true ) : [];
 
 		$processor = $this->processor_manager->get_processor( $manufacturer_slug );
 		if ( ! $processor ) {
@@ -54,9 +54,8 @@ class BatchProcessor {
 		}
 
 		$offset         = isset( $_POST['offset'] ) ? intval( $_POST['offset'] ) : 0;
-		$total_rows     = isset( $_POST['total_rows'] ) ? intval( $_POST['total_rows'] ) : 0;
 		$is_first_chunk = ( 0 === $offset );
-		$is_last_chunk  = ( $offset + count( $rows ) >= $total_rows );
+		$is_last_chunk  = ! empty( $_POST['is_last_chunk'] );
 
 		if ( 'replace' === $import_mode && $is_first_chunk ) {
 			ProductRepository::clear_by_manufacturer( $manufacturer->id );
@@ -106,11 +105,10 @@ class BatchProcessor {
 	}
 
 	private function process_test_preview( $processor, $manufacturer, string $manufacturer_slug, array $rows ) {
-		$offset     = intval( $_POST['offset'] ?? 0 );
-		$total_rows = intval( $_POST['total_rows'] ?? 0 );
-		$is_first   = ( 0 === $offset );
-		$is_last    = ( $offset + count( $rows ) >= $total_rows );
-		$per_page   = 200;
+		$offset   = intval( $_POST['offset'] ?? 0 );
+		$is_first = ( 0 === $offset );
+		$is_last  = ! empty( $_POST['is_last_chunk'] );
+		$per_page = 200;
 
 		// First batch: set up slug and clean previous preview
 		if ( $is_first ) {

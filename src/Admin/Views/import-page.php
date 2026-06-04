@@ -40,7 +40,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 			<div class="aoe-btn-row" id="aoe-preview-action" style="margin-top: 15px; display:none; gap: 10px; align-items: center;">
 				<button type="button" class="button" id="aoe-btn-test" style="background: #e5f5fa; border-color: #007cba; color: #007cba;">Generar prueba</button>
 				<button type="button" class="button button-primary" id="aoe-btn-show-import">Seguir con importación</button>
-				<span class="description">Genera una p&aacute;gina temporal con el primer modelo detectado, hasta 200 productos.</span>
+				<!--<span class="description">Genera una p&aacute;gina temporal con el primer modelo detectado, hasta 200 productos.</span>-->
 			</div>
 		</div>
 
