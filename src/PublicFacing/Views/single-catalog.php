@@ -82,6 +82,13 @@ if ( 'grouped' === $catalog_type ) {
 	$page_slug      = $page_slug_base . ( $page_num > 1 ? '-' . $page_num : '' );
 }
 
+$cached = \AOE\CatalogEngine\PublicFacing\CacheCatalog::get( $manufacturer_slug, $page_slug );
+if ( null !== $cached ) {
+	echo $cached;
+	exit;
+}
+ob_start();
+
 $table_pages = $wpdb->prefix . 'aoe_catalog_pregenerated_pages';
 $table_seg   = $wpdb->prefix . 'aoe_catalog_page_segments';
 $table_cat   = $wpdb->prefix . 'aoe_catalog_categories';
@@ -110,6 +117,7 @@ if ( ! $page ) {
 	global $wp_query;
 	$wp_query->set_404();
 	status_header( 404 );
+	ob_end_clean();
 	get_template_part( '404' );
 	exit;
 }
@@ -233,6 +241,9 @@ if ( 'tree' === $page_type || ( empty( $display_category ) && empty( $page_produ
 	echo $content;
 	wp_reset_postdata();
 	get_footer();
+	$html = ob_get_clean();
+	\AOE\CatalogEngine\PublicFacing\CacheCatalog::set( $manufacturer_slug, $page_slug, $html );
+	echo $html;
 	exit;
 }
 
@@ -265,3 +276,6 @@ get_header();
 echo $content;
 wp_reset_postdata();
 get_footer();
+$html = ob_get_clean();
+\AOE\CatalogEngine\PublicFacing\CacheCatalog::set( $manufacturer_slug, $page_slug, $html );
+echo $html;

@@ -228,7 +228,8 @@ class BatchProcessor {
 	private function pack_catalog( int $manufacturer_id, string $manufacturer_slug ) {
 		global $wpdb;
 
-		// Clear previous pages for this manufacturer
+		// Clear previous cache and pages for this manufacturer
+		\AOE\CatalogEngine\PublicFacing\CacheCatalog::invalidate( $manufacturer_slug );
 		PageRepository::clear_by_manufacturer( $manufacturer_id );
 		PageSegmentRepository::clear_by_manufacturer( $manufacturer_id );
 
@@ -391,7 +392,28 @@ class BatchProcessor {
 				}
 			}
 		}
+
+		// Sitemap cache invalidation desactivado durante pruebas.
+		// $this->invalidate_rankmath_sitemap( $manufacturer_slug );
 	}
+
+	/* Activar al final:
+	private function invalidate_rankmath_sitemap( $manufacturer_slug ) {
+		$sitemap_type = 'catalogo-' . $manufacturer_slug;
+		if ( class_exists( '\RankMath\Sitemap\Cache' ) && is_callable( [ '\RankMath\Sitemap\Cache', 'invalidate_storage' ] ) ) {
+			\RankMath\Sitemap\Cache::invalidate_storage( $sitemap_type );
+			\RankMath\Sitemap\Cache::invalidate_storage( '1' );
+		} else {
+			$upload_dir = wp_upload_dir();
+			$cache_dir  = $upload_dir['basedir'] . '/rank-math';
+			if ( is_dir( $cache_dir ) ) {
+				array_map( 'unlink', glob( $cache_dir . '/*.xml' ) ?: [] );
+				array_map( 'unlink', glob( $cache_dir . '/*.html' ) ?: [] );
+			}
+			delete_option( 'rank_math_sitemap_cache' );
+		}
+	}
+	*/
 
 	private function send_json_error( $data ) {
 		if ( ob_get_length() ) {

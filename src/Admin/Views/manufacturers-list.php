@@ -52,6 +52,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 								<a href="<?php echo esc_url( $edit_url ); ?>">Ver/Editar</a> | 
 								<a href="<?php echo esc_url( $delete_url ); ?>" class="submitdelete" onclick="return confirm('¿Seguro que deseas eliminar este fabricante?');" style="color: #b32d2e;">Eliminar</a> | 
 								<a href="<?php echo esc_url( $import_url ); ?>" style="font-weight: 600;">Importar catálogo</a> | 
+								<a href="#" class="aoe-clear-cache" data-slug="<?php echo esc_attr( $m->slug ); ?>">Limpiar cache</a> | 
 								<a href="<?php echo esc_url( home_url( '/catalog/' . $m->slug ) ); ?>" target="_blank">Ver Catálogo</a>
 							</td>
 						</tr>

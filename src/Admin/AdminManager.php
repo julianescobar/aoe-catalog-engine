@@ -13,6 +13,8 @@ class AdminManager {
 		add_action( 'admin_menu', [ $this, 'add_plugin_admin_menu' ] );
 		add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_styles_scripts' ] );
 		add_action( 'admin_init', [ $this, 'handle_manufacturer_crud' ] );
+		add_action( 'wp_ajax_aoe_clear_cache', [ $this, 'ajax_clear_cache' ] );
+		add_action( 'save_post', [ $this, 'invalidate_cache_on_template_save' ], 10, 2 );
 	}
 
 	public function add_plugin_admin_menu() {
@@ -152,6 +154,39 @@ class AdminManager {
 		}
 	}
 
+	public function ajax_clear_cache() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( 'Acceso no autorizado' );
+		}
+
+		$slug = sanitize_text_field( $_POST['slug'] ?? '' );
+		if ( empty( $slug ) ) {
+			wp_send_json_error( 'Slug no proporcionado' );
+		}
+
+		\AOE\CatalogEngine\PublicFacing\CacheCatalog::invalidate( $slug );
+		wp_send_json_success( [ 'message' => 'Cache limpiado para ' . $slug ] );
+	}
+
+	public function invalidate_cache_on_template_save( $post_id, $post ) {
+		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+			return;
+		}
+		if ( wp_is_post_revision( $post_id ) ) {
+			return;
+		}
+
+		global $wpdb;
+		$table = $wpdb->prefix . 'aoe_catalog_manufacturers';
+		$manufacturer = $wpdb->get_row( $wpdb->prepare(
+			"SELECT slug FROM $table WHERE wp_post_id = %d LIMIT 1",
+			$post_id
+		) );
+		if ( $manufacturer ) {
+			\AOE\CatalogEngine\PublicFacing\CacheCatalog::invalidate( $manufacturer->slug );
+		}
+	}
+
 	/**
 	 * Enqueue admin scripts & styles
 	 */
@@ -163,5 +198,8 @@ class AdminManager {
 
 		wp_enqueue_style( 'aoe-catalog-admin-style', plugin_dir_url( dirname( __DIR__ ) ) . 'assets/css/admin.css', [], '1.0.0' );
 		wp_enqueue_script( 'aoe-catalog-admin-js', plugin_dir_url( dirname( __DIR__ ) ) . 'assets/js/admin.js', [ 'jquery' ], '1.0.0', true );
+		wp_localize_script( 'aoe-catalog-admin-js', 'aoe_catalog', [
+			'ajax_url' => admin_url( 'admin-ajax.php' ),
+		] );
 	}
 }

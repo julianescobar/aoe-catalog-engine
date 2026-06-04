@@ -268,7 +268,7 @@ jQuery(document).ready(function ($) {
 								$('#aoe-progress-text').html('<strong>¡Prueba completada con éxito!</strong> <a href="' + response.data.test_url + '" target="_blank" class="button button-secondary" style="margin-left: 10px;">Ver Página de Prueba</a>');
 								logMessage('Preview URL: ' + response.data.test_url);
 							} else if (!isTest) {
-								var prodUrl = window.location.origin + '/catalog/' + manufacturer;
+								var prodUrl = window.location.origin + '/catalogo/' + manufacturer;
 								$('#aoe-progress-text').html('<strong>¡Importación completada!</strong> <a href="' + prodUrl + '" target="_blank" class="button button-secondary" style="margin-left: 10px;">Ver Catálogo Principal</a>');
 								logMessage('Production Catalog URL: ' + prodUrl);
 							}
@@ -315,5 +315,25 @@ jQuery(document).ready(function ($) {
 		if (confirm('¿Está seguro de que desea ejecutar la importación final en la base de datos?')) {
 			runBatchProcess(false);
 		}
+	});
+
+	// Clear cache per manufacturer
+	$(document).on('click', '.aoe-clear-cache', function (e) {
+		e.preventDefault();
+		var $link = $(this);
+		var slug = $link.data('slug');
+		if (!slug) return;
+		if (!confirm('¿Limpiar cache de ' + slug + '?')) return;
+		$.post(aoe_catalog.ajax_url, {
+			action: 'aoe_clear_cache',
+			slug: slug
+		}, function (resp) {
+			if (resp.success) {
+				$link.after(' <span style="color:#46b450;font-weight:600;">✓</span>');
+				setTimeout(function () { $link.next('span').fadeOut(); }, 2000);
+			} else {
+				alert('Error: ' + resp.data);
+			}
+		});
 	});
 });

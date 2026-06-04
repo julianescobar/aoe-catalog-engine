@@ -367,9 +367,8 @@
 
 .fila-producto {
 	cursor: pointer;
-
 }
 
-.fila-producto:hover {
+.aoe-catalog-table tr.fila-producto:hover {
 	background: rgb(223 223 223);
 }

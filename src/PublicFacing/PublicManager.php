@@ -11,6 +11,8 @@ class PublicManager {
 		add_filter( 'template_include', [ $this, 'load_catalog_templates' ] );
 		add_action( 'template_redirect', [ $this, 'intercept_catalog_request' ], 1 );
 		add_filter( 'redirect_canonical', [ $this, 'disable_redirect_for_catalog' ], 10, 2 );
+		// Sitemap provider desactivado durante pruebas. Activar al final:
+		// add_filter( 'rank_math/sitemap/providers', [ $this, 'register_catalog_sitemap_provider' ] );
 	}
 
 	public function register_rewrite_rules() {
@@ -97,5 +99,10 @@ class PublicManager {
 		}
 
 		return $redirect_url;
+	}
+
+	public function register_catalog_sitemap_provider( $providers ) {
+		$providers[] = new CatalogSitemapProvider();
+		return $providers;
 	}
 }
