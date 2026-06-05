@@ -188,13 +188,26 @@ class AdminManager {
 	 * Enqueue admin scripts & styles
 	 */
 	public function enqueue_styles_scripts( $hook ) {
-		// Only load assets on our plugin pages
 		if ( strpos( $hook, 'aoe-catalog' ) === false ) {
 			return;
 		}
 
-		wp_enqueue_style( 'aoe-catalog-admin-style', plugin_dir_url( dirname( __DIR__ ) ) . 'assets/css/admin.css', [], '1.0.0' );
-		wp_enqueue_script( 'aoe-catalog-admin-js', plugin_dir_url( dirname( __DIR__ ) ) . 'assets/js/admin.js', [ 'jquery' ], '1.0.0', true );
+		$css_path = dirname( dirname( __DIR__ ) ) . '/assets/css/admin.css';
+		$js_path  = dirname( dirname( __DIR__ ) ) . '/assets/js/admin.js';
+
+		wp_enqueue_style(
+			'aoe-catalog-admin-style',
+			plugin_dir_url( dirname( __DIR__ ) ) . 'assets/css/admin.css',
+			[],
+			file_exists( $css_path ) ? filemtime( $css_path ) : '1.0.0'
+		);
+		wp_enqueue_script(
+			'aoe-catalog-admin-js',
+			plugin_dir_url( dirname( __DIR__ ) ) . 'assets/js/admin.js',
+			[ 'jquery' ],
+			file_exists( $js_path ) ? filemtime( $js_path ) : '1.0.0',
+			true
+		);
 		wp_localize_script( 'aoe-catalog-admin-js', 'aoe_catalog', [
 			'ajax_url' => admin_url( 'admin-ajax.php' ),
 		] );
