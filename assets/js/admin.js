@@ -199,13 +199,12 @@ jQuery(document).ready(function ($) {
 		}
 
 		if (isTest) {
-			// Send all rows; server handles pagination
-			logMessage('Test mode: all categories and products will be processed for preview.');
-
 			if (rows.length === 0) {
 				alert('No valid Samtec rows found for test generation. Make sure the CSV has a Part column.');
 				return;
 			}
+			rows = rows.slice(0, 500);
+			logMessage('Test mode: processing first ' + rows.length + ' rows for preview.');
 		}
 
 		// Configure batching
@@ -222,13 +221,13 @@ jQuery(document).ready(function ($) {
 
 		$('#aoe-import-progress').slideDown();
 		$('#aoe-progress-bar').css('width', '0%');
-		$('#aoe-progress-text').text('0 / ' + totalRows + ' rows processed');
+		$('#aoe-progress-text').text(isTest ? '🧪 MODO TEST — Procesando ' + totalRows + ' filas (primeras 500)' : '0 / ' + totalRows + ' rows processed');
 		$('#aoe-log-box').empty().show();
 
 		logMessage('Starting process: Manufacturer=' + manufacturer + ' | Type=' + (isTest ? 'TEST' : 'PRODUCTION') + ' | Mode=' + importMode);
 		logMessage('Total rows loaded: ' + totalRows);
 		if (isTest) {
-			logMessage('Test mode: all ' + totalRows + ' rows will be processed to generate paginated preview.');
+			logMessage('Procesando ' + totalRows + ' filas.');
 		}
 
 		function sendBatch() {

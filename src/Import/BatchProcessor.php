@@ -82,7 +82,9 @@ class BatchProcessor {
 			$product_id = ProductRepository::save( $product_data );
 
 			if ( $product_id ) {
-				CategoryRepository::increment_count( $category_id, 1 );
+				if ( $product_id > 0 ) {
+					CategoryRepository::increment_count( $category_id, 1 );
+				}
 				$processed_count++;
 			}
 		}
@@ -233,11 +235,21 @@ class BatchProcessor {
 		PageRepository::clear_by_manufacturer( $manufacturer_id );
 		PageSegmentRepository::clear_by_manufacturer( $manufacturer_id );
 
+		// Recalculate products_count from actual products
+		$table_cat   = $wpdb->prefix . 'aoe_catalog_categories';
+		$table_prod  = $wpdb->prefix . 'aoe_catalog_products';
+		$wpdb->query( $wpdb->prepare(
+			"UPDATE $table_cat c SET c.products_count = (
+				SELECT COUNT(*) FROM $table_prod p WHERE p.category_id = c.id AND p.manufacturer_id = %d
+			) WHERE c.manufacturer_id = %d",
+			$manufacturer_id,
+			$manufacturer_id
+		) );
+
 		$threshold = 190;
 		$per_page  = 200;
 
 		// Get categories with product counts
-		$table_cat = $wpdb->prefix . 'aoe_catalog_categories';
 		$categories = $wpdb->get_results( $wpdb->prepare(
 			"SELECT id, name, slug, products_count FROM $table_cat WHERE manufacturer_id = %d AND products_count > 0 ORDER BY products_count DESC",
 			$manufacturer_id

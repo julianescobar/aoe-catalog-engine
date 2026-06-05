@@ -32,7 +32,6 @@ class ProductRepository {
 		];
 
 		if ( $id ) {
-			// Update
 			$wpdb->update(
 				$table,
 				$db_data,
@@ -40,9 +39,8 @@ class ProductRepository {
 				[ '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s' ],
 				[ '%d' ]
 			);
-			return (int) $id;
+			return -1 * (int) $id;
 		} else {
-			// Insert
 			$wpdb->insert(
 				$table,
 				$db_data,

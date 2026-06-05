@@ -54,9 +54,6 @@ class AdminManager {
 	 * Display Catalog generated pages
 	 */
 	public function display_catalog_pages() {
-		// Query generated pages mock data for MVP/Test
-		// Later this queries database categories/products URLs.
-		$generated_pages = get_option( 'aoe_catalog_generated_pages', [] );
 		require_once __DIR__ . '/Views/catalog-list.php';
 	}
 

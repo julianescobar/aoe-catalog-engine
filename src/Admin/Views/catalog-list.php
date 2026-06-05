@@ -2,41 +2,42 @@
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
+
+global $wpdb;
+$table = $wpdb->prefix . 'aoe_catalog_manufacturers';
+$manufacturers = $wpdb->get_results( "SELECT * FROM $table ORDER BY name ASC" );
 ?>
-<!--
 <div class="wrap aoe-wrap">
 	<div class="aoe-header">
 		<h1>Catálogo - Páginas Generadas</h1>
 	</div>
 
 	<div class="aoe-card">
-		<p class="description">Aquí se listan las páginas públicas generadas dinámicamente para los catálogos de los fabricantes.</p>
-		
+		<p class="description">Sitemaps XML generados por fabricante (Rank Math).</p>
+
 		<table class="wp-list-table widefat fixed striped">
 			<thead>
 				<tr>
-					<th>URL</th>
-					<th>Tipo de Página</th>
 					<th>Fabricante</th>
-					<th>Número de Productos</th>
-					<th>Acciones</th>
+					<th>URL del Sitemap</th>
+					<th>URL del Catálogo</th>
 				</tr>
 			</thead>
 			<tbody>
-				<?php if ( empty( $generated_pages ) ) : ?>
+				<?php if ( empty( $manufacturers ) ) : ?>
 					<tr>
-						<td colspan="5">No se han generado páginas de catálogo todavía. Importa un catálogo para empezar.</td>
+						<td colspan="3">No hay fabricantes registrados.</td>
 					</tr>
 				<?php else : ?>
-					<?php foreach ( $generated_pages as $page ) : ?>
+					<?php foreach ( $manufacturers as $m ) : ?>
+						<?php
+						$catalog_url = home_url( '/catalogo/' . $m->slug . '/' );
+						$sitemap_url = home_url( '/catalogo-' . $m->slug . '-sitemap.xml' );
+						?>
 						<tr>
-							<td><strong><a href="<?php echo esc_url( $page['url'] ); ?>" target="_blank"><?php echo esc_html( $page['url'] ); ?></a></strong></td>
-							<td><?php echo esc_html( ucfirst( $page['type'] ) ); ?></td>
-							<td><?php echo esc_html( $page['manufacturer'] ); ?></td>
-							<td><?php echo esc_html( $page['products_count'] ); ?></td>
-							<td>
-								<a class="button button-small" href="<?php echo esc_url( $page['url'] ); ?>" target="_blank">Ir al enlace</a>
-							</td>
+							<td><strong><?php echo esc_html( $m->name ); ?></strong></td>
+							<td><a href="<?php echo esc_url( $sitemap_url ); ?>" target="_blank"><code><?php echo esc_html( $sitemap_url ); ?></code></a></td>
+							<td><a href="<?php echo esc_url( $catalog_url ); ?>" target="_blank"><code><?php echo esc_html( $catalog_url ); ?></code></a></td>
 						</tr>
 					<?php endforeach; ?>
 				<?php endif; ?>
@@ -44,4 +45,3 @@ if ( ! defined( 'ABSPATH' ) ) {
 		</table>
 	</div>
 </div>
--->
