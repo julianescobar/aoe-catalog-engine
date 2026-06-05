@@ -74,7 +74,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 	<div class="aoe-catalog-render">
 		<header>
 			<h2>Catálogo de <?php echo esc_html( $manufacturer_name ); ?><?php echo ! empty( $category_display_name ) ? ' ' . esc_html( $category_display_name ) : ''; ?></h2>
-			<p>Listado para <?php echo esc_html( $manufacturer_name ); ?>, pagina <?php echo $current_page; ?> de <?php echo $total_pages; ?>.</p>
+			<!--<p>Listado para <?php /*echo esc_html( $manufacturer_name );*/ ?>, pagina <?php /*echo $current_page;*/ ?> de <?php /*echo $total_pages;*/ ?>.</p>-->
 
 			<div class="aoe-catalog-row">
 				<div class="aoe-catalog-title">
