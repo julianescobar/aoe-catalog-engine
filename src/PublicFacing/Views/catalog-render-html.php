@@ -179,7 +179,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 									<p class="aoe-catalog-manufacturer"><strong>Fabricante:</strong> <?php echo esc_html( $manufacturer_name ); ?></p>
 									<div class="aoe-catalog-contact-wrap">
 										<a id="btn-contacto-modal" class="fusion-button button-flat fusion-button-default-size button-default fusion-button-default btn-catalogo-generico aoe-catalog-contact-button" title="" href="#" data-toggle="modal" data-target=".fusion-modal.modal-productos-formulario" data-sku-link="">
-											<span id="btn-texto-dinamique" class="fusion-button-text">Quiero más información</span>
+											<span id="btn-texto-dinamico" class="fusion-button-text">Quiero más información</span>
 										</a>
 									</div>
 									<p class="aoe-catalog-support-text">TC Componentes es proveedor industrial de este producto. Podemos facilitarte muestras, ayudarte en tu diseño y proporcionar un suministro estable al mejor precio.</p>
@@ -194,69 +194,47 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 				</div>
 			</div>
 		</div>
+
+		<!--<div class="fusion-modal modal modal-productos-formulario aoe-catalog-modal" tabindex="-1" role="dialog" aria-hidden="true">
+			<div class="modal-dialog modal-lg" role="document">
+				<div class="modal-content fusion-modal-content">
+					<div class="modal-header">
+						<button class="close" type="button" data-dismiss="modal" aria-hidden="true">&times;</button>
+						<h3 class="modal-title">Quiero más información</h3>
+					</div>
+					<div class="modal-body fusion-clearfix">
+						<p id="modal-contacto-sku-info" class="aoe-catalog-contact-sku"></p>
+						<?php
+						// Reemplazar con el shortcode del formulario Avada:
+						// echo do_shortcode( '[fusion_form form_post_id="XXX" /]' );
+						?>
+						<form id="aoe-contacto-form" class="aoe-catalog-form">
+							<input type="hidden" name="sku" id="aoe-contacto-sku" value="">
+							<div class="aoe-form-row">
+								<label for="aoe-contacto-nombre">Nombre *</label>
+								<input type="text" name="nombre" id="aoe-contacto-nombre" required>
+							</div>
+							<div class="aoe-form-row">
+								<label for="aoe-contacto-email">Email *</label>
+								<input type="email" name="email" id="aoe-contacto-email" required>
+							</div>
+							<div class="aoe-form-row">
+								<label for="aoe-contacto-telefono">Teléfono</label>
+								<input type="tel" name="telefono" id="aoe-contacto-telefono">
+							</div>
+							<div class="aoe-form-row">
+								<label for="aoe-contacto-mensaje">Mensaje *</label>
+								<textarea name="mensaje" id="aoe-contacto-mensaje" rows="4" required></textarea>
+							</div>
+							<div class="aoe-form-row">
+								<button type="submit" class="fusion-button button-flat fusion-button-default-size button-default fusion-button-default">Enviar</button>
+							</div>
+						</form>
+					</div>
+				</div>
+			</div>
+		</div>-->
 	</div>
-
-	<script>
-		document.addEventListener('click', function(event) {
-			var skuTarget = event.target.closest('.abrir-modal-dinamico, .fila-producto');
-			var closeTarget = event.target.closest('.aoe-catalog-modal__close');
-			var modal = document.getElementById('aoe-catalog-modal');
-
-			if (!modal) return;
-
-			if (closeTarget || event.target === modal) {
-				if (typeof jQuery !== 'undefined') {
-					jQuery(modal).modal('hide');
-				}
-				return;
-			}
-
-			if (!skuTarget) return;
-
-			var row = skuTarget.closest('tr');
-			var sku = row.getAttribute('data-sku') || '';
-			var name = row.getAttribute('data-nombre') || '';
-			var image = row.getAttribute('data-img') || '';
-			var pdfs = [
-				['Print', row.getAttribute('data-pdf-print') || ''],
-				['Footprint', row.getAttribute('data-pdf-foot') || ''],
-				['Catalog Page', row.getAttribute('data-pdf-cat') || ''],
-				['Spec Sheet', row.getAttribute('data-pdf-spec') || '']
-			];
-			var pdfHtml = '';
-			var firstPdf = '';
-			var docsContainer = document.getElementById('lista-pdfs-dinamica');
-			var docsBlock = document.getElementById('contenedor-documentacion-bloque');
-
-			pdfs.forEach(function(item) {
-				if (!item[1]) return;
-				if (!firstPdf) firstPdf = item[1];
-				pdfHtml += '<a class="aoe-catalog-doc-card" href="' + item[1] + '" target="_blank" rel="noopener">'
-					+ '<i class="fas fa-file-pdf"></i>'
-					+ '<span><strong>' + item[0] + '</strong><em>Oficial <?php echo esc_js( $manufacturer_name ); ?> Document</em></span>'
-					+ '</a>';
-			});
-
-			document.getElementById('modal-heading-1').textContent = sku;
-			document.getElementById('modal-sku-titulo').textContent = sku;
-			document.getElementById('modal-nombre-subtitulo').textContent = name;
-			document.getElementById('modal-img-producto').src = image;
-			document.getElementById('modal-img-producto').alt = sku;
-			document.getElementById('titulo-documentacion').textContent = 'Descarga de catálogos de ' + sku;
-			document.getElementById('btn-contacto-modal').setAttribute('title', 'Quiero más información sobre <?php echo esc_js( $manufacturer_name ); ?> ' + sku);
-			document.getElementById('btn-contacto-modal').setAttribute('data-sku-link', sku);
-			if (docsContainer) {
-				docsContainer.innerHTML = pdfHtml;
-			}
-			if (docsBlock) {
-				docsBlock.hidden = !pdfHtml;
-			}
-
-			if (typeof jQuery !== 'undefined') {
-				jQuery(modal).modal('show');
-			}
-		});
-	</script>
 	<?php
 	return ob_get_clean();
 }

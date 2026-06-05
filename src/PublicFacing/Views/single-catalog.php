@@ -15,6 +15,23 @@ wp_enqueue_style(
 );
 
 $manufacturer_slug = get_query_var( 'aoe_catalog_manufacturer' ) ?: get_query_var( 'aoe_catalog' );
+
+$catalog_js_path = dirname( dirname( dirname( __DIR__ ) ) ) . '/assets/js/catalog.js';
+wp_enqueue_script(
+	'aoe-catalog-js',
+	plugin_dir_url( dirname( dirname( dirname( __DIR__ ) ) ) . '/aoe-catalog-engine.php' ) . 'assets/js/catalog.js',
+	[ 'jquery' ],
+	file_exists( $catalog_js_path ) ? filemtime( $catalog_js_path ) : '1.0.0',
+	true
+);
+
+$manufacturer_row = $wpdb->get_row( $wpdb->prepare(
+	"SELECT name FROM {$wpdb->prefix}aoe_catalog_manufacturers WHERE slug = %s",
+	$manufacturer_slug
+) );
+wp_localize_script( 'aoe-catalog-js', 'aoeCatalog', [
+	'manufacturerName' => $manufacturer_row ? $manufacturer_row->name : '',
+] );
 $category_slug     = get_query_var( 'aoe_catalog_category' );
 $page_num          = max( 1, intval( get_query_var( 'aoe_catalog_page', 1 ) ) );
 $is_test           = ( strpos( $manufacturer_slug, 'test-' ) === 0 );
