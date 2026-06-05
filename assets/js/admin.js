@@ -208,7 +208,7 @@ jQuery(document).ready(function ($) {
 		}
 
 		// Configure batching
-		var batchSize = 50;
+		var batchSize = 500;
 		var totalRows = rows.length;
 		var processed = 0;
 		var manufacturer = $('#manufacturer_slug').val();
