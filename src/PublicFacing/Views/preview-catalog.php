@@ -48,6 +48,18 @@ wp_enqueue_style(
 	file_exists( $catalog_css_path ) ? filemtime( $catalog_css_path ) : '1.0.0'
 );
 
+$catalog_js_path = dirname( dirname( dirname( __DIR__ ) ) ) . '/assets/js/catalog.js';
+wp_enqueue_script(
+	'aoe-catalog-preview-js',
+	plugin_dir_url( dirname( dirname( dirname( __DIR__ ) ) ) . '/aoe-catalog-engine.php' ) . 'assets/js/catalog.js',
+	[ 'jquery' ],
+	file_exists( $catalog_js_path ) ? filemtime( $catalog_js_path ) : '1.0.0',
+	true
+);
+wp_localize_script( 'aoe-catalog-preview-js', 'aoeCatalog', [
+	'manufacturerName' => $preview_data['manufacturer_name'] ?? '',
+] );
+
 global $post;
 $post = $template_post;
 setup_postdata( $post );

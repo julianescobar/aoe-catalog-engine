@@ -121,13 +121,16 @@ $page = $wpdb->get_row( $wpdb->prepare(
 ) );
 
 if ( ! $page ) {
-	$page = $wpdb->get_row( $wpdb->prepare(
-		"SELECT p.*, m.name AS manufacturer_name, m.wp_post_id AS template_post_id
-		 FROM $table_pages p
-		 JOIN $table_m m ON p.manufacturer_id = m.id
-		 WHERE p.slug = %s",
-		$manufacturer_slug
-	) );
+	// Only fall back to manufacturer tree if no specific category/grouped was requested
+	if ( empty( $category_slug ) && 'grouped' !== $catalog_type ) {
+		$page = $wpdb->get_row( $wpdb->prepare(
+			"SELECT p.*, m.name AS manufacturer_name, m.wp_post_id AS template_post_id
+			 FROM $table_pages p
+			 JOIN $table_m m ON p.manufacturer_id = m.id
+			 WHERE p.slug = %s",
+			$manufacturer_slug
+		) );
+	}
 }
 
 if ( ! $page ) {
@@ -151,7 +154,7 @@ $current_page      = $page_num;
 $total_pages       = 1;
 
 $segments = $wpdb->get_results( $wpdb->prepare(
-	"SELECT s.*, c.name AS category_name, c.slug AS category_slug
+	"SELECT s.*, c.name AS category_name, c.slug AS category_slug, c.parent_id, c.level
 	 FROM $table_seg s
 	 JOIN $table_cat c ON s.category_id = c.id
 	 WHERE s.page_id = %d
@@ -160,6 +163,7 @@ $segments = $wpdb->get_results( $wpdb->prepare(
 ) );
 
 $page_products = [];
+$grouped_segments = [];
 $display_category = '';
 
 if ( 'category' === $page_type ) {
@@ -181,12 +185,36 @@ if ( 'category' === $page_type ) {
 		) );
 	}
 } elseif ( 'grouped' === $page_type ) {
+	// Build category hierarchy lookup
+	$all_cats = $wpdb->get_results( $wpdb->prepare(
+		"SELECT id, name, parent_id FROM $table_cat WHERE manufacturer_id = %d",
+		$page->manufacturer_id
+	) );
+	$cat_name = [];
+	$cat_parent = [];
+	foreach ( $all_cats as $c ) {
+		$cat_name[ (int) $c->id ] = $c->name;
+		$cat_parent[ (int) $c->id ] = (int) $c->parent_id;
+	}
+	$cat_hierarchies = [];
 	foreach ( $segments as $seg ) {
+		$cid = (int) $seg->category_id;
+		$path = [];
+		$cur = $cid;
+		while ( $cur && isset( $cat_name[ $cur ] ) ) {
+			array_unshift( $path, $cat_name[ $cur ] );
+			$cur = $cat_parent[ $cur ] ?? 0;
+		}
+		$cat_hierarchies[ $cid ] = $path;
+
 		$seg_prods = $wpdb->get_results( $wpdb->prepare(
 			"SELECT * FROM $table_prod WHERE category_id = %d ORDER BY sku ASC LIMIT %d",
 			$seg->category_id, (int) $seg->products_to
 		) );
-		$page_products = array_merge( $page_products, $seg_prods );
+		$grouped_segments[] = [
+			'category_path' => $path,
+			'products'      => $seg_prods,
+		];
 	}
 	$total_grouped = $wpdb->get_var( $wpdb->prepare(
 		"SELECT COUNT(*) FROM $table_pages WHERE manufacturer_id = %d AND type = 'grouped'",
@@ -196,7 +224,7 @@ if ( 'category' === $page_type ) {
 }
 
 // If tree page, show category list and exit without render table
-if ( 'tree' === $page_type || ( empty( $display_category ) && empty( $page_products ) ) ) {
+if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_category ) && empty( $page_products ) ) ) {
 	$tree_pages = $wpdb->get_results( $wpdb->prepare(
 		"SELECT page_number, link_count FROM $table_pages
 		 WHERE manufacturer_id = %d AND type = 'tree'
@@ -230,19 +258,56 @@ if ( 'tree' === $page_type || ( empty( $display_category ) && empty( $page_produ
 	?>
 	<div class="aoe-tree">
 		<h3>Categorías</h3>
-		<ul class="aoe-cat-list">
-			<?php foreach ( $segments as $seg ) : ?>
+		<?php if ( $total_pages > 1 ) : ?>
+		<nav class="aoe-catalog-pagination" aria-label="Paginacion de categorias">
+			<span class="aoe-catalog-bold">Ir a la pagina:</span>
+			<?php for ( $i = 1; $i <= $total_pages; $i++ ) : ?>
 				<?php
-				$cat_url = isset( $cat_page_map[ $seg->category_id ] )
-					? home_url( '/catalogo/' . $cat_page_map[ $seg->category_id ] . '/' )
-					: '#';
+				$page_url = ( $i === 1 )
+					? home_url( '/catalogo/' . $manufacturer_slug . '/' )
+					: home_url( '/catalogo/' . $manufacturer_slug . '-' . $i . '/' );
 				?>
-				<li>
-					<a href="<?php echo esc_url( $cat_url ); ?>"><?php echo esc_html( $seg->category_name ); ?></a>
-					<span class="count"><?php echo esc_html( $seg->products_to ?? 0 ); ?></span>
-				</li>
-			<?php endforeach; ?>
-		</ul>
+				<?php if ( $i === (int) $page->page_number ) : ?>
+					<span class="aoe-catalog-page-link current"><?php echo $i; ?></span>
+				<?php else : ?>
+					<a class="aoe-catalog-page-link" href="<?php echo esc_url( $page_url ); ?>"><?php echo $i; ?></a>
+				<?php endif; ?>
+			<?php endfor; ?>
+		</nav>
+		<?php endif; ?>
+		<?php
+		$tree_by_parent = [];
+		foreach ( $segments as $seg ) {
+			$pid = (int) $seg->parent_id;
+			if ( ! isset( $tree_by_parent[ $pid ] ) ) {
+				$tree_by_parent[ $pid ] = [];
+			}
+			$tree_by_parent[ $pid ][] = $seg;
+		}
+
+		function aoe_render_cat_tree( array $items, array $tree_by_parent, array $cat_page_map, int $level = 0 ) {
+			if ( empty( $items ) ) return;
+			echo '<ul class="aoe-cat-list' . ( $level > 0 ? ' aoe-cat-sublist' : '' ) . '">';
+			foreach ( $items as $item ) {
+				$cat_url = isset( $cat_page_map[ $item->category_id ] )
+					? home_url( '/catalogo/' . $cat_page_map[ $item->category_id ] . '/' )
+					: '#';
+				$children = $tree_by_parent[ $item->category_id ] ?? [];
+				echo '<li class="aoe-cat-item aoe-cat-level-' . (int) $item->level . '">';
+				echo '<a href="' . esc_url( $cat_url ) . '">' . esc_html( $item->category_name ) . '</a>';
+				echo ' <span class="count">(' . esc_html( $item->products_to ?? 0 ) . ')</span>';
+				aoe_render_cat_tree( $children, $tree_by_parent, $cat_page_map, $level + 1 );
+				echo '</li>';
+			}
+			echo '</ul>';
+		}
+
+		$root_items = $tree_by_parent[0] ?? $tree_by_parent[ null ] ?? $tree_by_parent[ '' ] ?? [];
+		if ( empty( $root_items ) ) {
+			$root_items = $segments;
+		}
+		aoe_render_cat_tree( $root_items, $tree_by_parent, $cat_page_map );
+		?>
 	</div>
 	<?php
 	$tree_html = ob_get_clean();
@@ -279,7 +344,9 @@ $catalog_html = aoe_catalog_render_html(
 	$page_products,
 	$current_page,
 	$total_pages,
-	false
+	false,
+	$manufacturer_slug_base,
+	$grouped_segments
 );
 
 global $post;

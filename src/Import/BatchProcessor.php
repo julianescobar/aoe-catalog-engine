@@ -71,8 +71,17 @@ class BatchProcessor {
 				continue;
 			}
 
-			$category_name = ! empty( $normalized['category'] ) ? $normalized['category'] : 'Uncategorized';
-			$category_id   = CategoryRepository::find_or_create( $manufacturer->id, $category_name );
+			$category_path = ! empty( $normalized['category_path'] ) ? $normalized['category_path'] : [];
+			if ( ! empty( $category_path ) ) {
+				$parent_cat_id = null;
+				foreach ( $category_path as $path_name ) {
+					$parent_cat_id = CategoryRepository::find_or_create( $manufacturer->id, $path_name, 'category', $parent_cat_id );
+				}
+				$category_id = $parent_cat_id;
+			} else {
+				$category_name = ! empty( $normalized['category'] ) ? $normalized['category'] : 'Uncategorized';
+				$category_id   = CategoryRepository::find_or_create( $manufacturer->id, $category_name );
+			}
 
 			$product_data = array_merge( $normalized, [
 				'manufacturer_id' => $manufacturer->id,
@@ -131,7 +140,7 @@ class BatchProcessor {
 			$first_category = $existing['first_category'] ?? null;
 		}
 
-		// Process current batch — only keep rows of the first category detected
+		// Process current batch — keep all products from all categories
 		foreach ( $rows as $row ) {
 			$normalized = $processor->process_row( $row );
 			if ( empty( $normalized['sku'] ) ) {
@@ -139,14 +148,8 @@ class BatchProcessor {
 			}
 			$cat = ! empty( $normalized['category'] ) ? $normalized['category'] : 'uncategorized';
 
-			// Lock first category on the very first valid product across all batches
 			if ( $first_category === null ) {
 				$first_category = $cat;
-			}
-
-			// Skip rows that don't belong to the first category
-			if ( $cat !== $first_category ) {
-				continue;
 			}
 
 			$products[] = [
@@ -159,7 +162,7 @@ class BatchProcessor {
 			];
 		}
 
-		$display_category = ! empty( $first_category ) ? $first_category : 'catalogo';
+		$display_category = $first_category;
 
 		// Store accumulated state
 		$payload = [
@@ -181,6 +184,26 @@ class BatchProcessor {
 				delete_option( 'aoe_preview_current_' . $manufacturer_slug );
 				$this->send_json_error( 'No se encontraron productos validos para generar la prueba.' );
 			}
+
+			// Pick the category with the most products for the preview
+			$cat_counts = [];
+			foreach ( $products as $p ) {
+				$cat_name = $p['category'] ?? 'uncategorized';
+				if ( ! isset( $cat_counts[ $cat_name ] ) ) {
+					$cat_counts[ $cat_name ] = 0;
+				}
+				$cat_counts[ $cat_name ]++;
+			}
+			arsort( $cat_counts );
+			$display_category = key( $cat_counts );
+			$products = array_values( array_filter( $products, function( $p ) use ( $display_category ) {
+				return ( $p['category'] ?? '' ) === $display_category;
+			} ) );
+
+			// Update transient with filtered products
+			$payload['products']       = $products;
+			$payload['first_category'] = $display_category;
+			set_transient( 'aoe_preview_' . $test_slug, $payload, 12 * HOUR_IN_SECONDS );
 
 			$first_cat_slug   = sanitize_title( $display_category );
 			$test_url         = home_url( '/catalogo/' . $test_slug . '/' . $first_cat_slug . '/' );

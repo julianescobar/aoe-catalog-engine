@@ -19,6 +19,7 @@ abstract class BaseProcessor implements ProcessorInterface {
 			'sku'             => '',
 			'name'            => '',
 			'category'        => '',
+			'category_path'   => [],
 			'description'     => '',
 			'images'          => [],
 			'pdf'             => [],

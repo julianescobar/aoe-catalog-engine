@@ -16,6 +16,9 @@ class PublicManager {
 	}
 
 	public function register_rewrite_rules() {
+		// Root catalog page: /catalogo/
+		add_rewrite_rule( '^catalogo/?$', 'index.php?aoe_catalog=root', 'top' );
+
 		// Test preview
 		add_rewrite_rule( '^catalogo/(test-[^/]+)/([^/]+)-([0-9]+)/?', 'index.php?aoe_catalog_preview=$matches[1]&aoe_catalog_category=$matches[2]&aoe_catalog_page=$matches[3]', 'top' );
 		add_rewrite_rule( '^catalogo/(test-[^/]+)/([^/]+)/?', 'index.php?aoe_catalog_preview=$matches[1]&aoe_catalog_category=$matches[2]', 'top' );
@@ -26,8 +29,13 @@ class PublicManager {
 		// Production: category paginated  /samtec/erf8-2/
 		add_rewrite_rule( '^catalogo/([^/]+)/([^/]+)-([0-9]+)/?', 'index.php?aoe_catalog_manufacturer=$matches[1]&aoe_catalog_category=$matches[2]&aoe_catalog_page=$matches[3]', 'top' );
 
-		// Production: category single  /samtec/erf8/  or manufacturer index  /samtec/
+		// Production: category single  /samtec/erf8/
 		add_rewrite_rule( '^catalogo/([^/]+)/([^/]+)/?', 'index.php?aoe_catalog_manufacturer=$matches[1]&aoe_catalog_category=$matches[2]', 'top' );
+
+		// Tree paginated: /camdenboss-2/, /camdenboss-3/, etc.
+		add_rewrite_rule( '^catalogo/([^/]+)-([0-9]+)/?', 'index.php?aoe_catalog_manufacturer=$matches[1]&aoe_catalog_page=$matches[2]', 'top' );
+
+		// Tree index: /samtec/
 		add_rewrite_rule( '^catalogo/([^/]+)/?', 'index.php?aoe_catalog_manufacturer=$matches[1]', 'top' );
 	}
 
@@ -54,6 +62,14 @@ class PublicManager {
 	}
 
 	public function load_catalog_templates( $template ) {
+		// Root catalog page: /catalogo/
+		if ( get_query_var( 'aoe_catalog' ) === 'root' ) {
+			$view_path = __DIR__ . '/Views/catalog-index.php';
+			if ( file_exists( $view_path ) ) {
+				return $view_path;
+			}
+		}
+
 		$manufacturer_slug = get_query_var( 'aoe_catalog_manufacturer' );
 		if ( ! empty( $manufacturer_slug ) ) {
 			$view_path = __DIR__ . '/Views/single-catalog.php';
@@ -81,7 +97,7 @@ class PublicManager {
 	}
 
 	public function intercept_catalog_request() {
-		if ( get_query_var( 'aoe_catalog_manufacturer' ) || get_query_var( 'aoe_catalog_preview' ) || get_query_var( 'aoe_catalog' ) ) {
+		if ( get_query_var( 'aoe_catalog' ) === 'root' || get_query_var( 'aoe_catalog_manufacturer' ) || get_query_var( 'aoe_catalog_preview' ) || get_query_var( 'aoe_catalog' ) ) {
 			status_header( 200 );
 			nocache_headers();
 		}
@@ -94,7 +110,7 @@ class PublicManager {
 
 		// Also check the request path directly, in case rewrite rules didn't match
 		$path = trim( parse_url( $requested_url, PHP_URL_PATH ), '/' );
-		if ( preg_match( '#^catalogo/(test-[^/]+|[^/]+)#', $path ) ) {
+		if ( preg_match( '#^catalogo(?:/|/(test-[^/]+|[^/]+))#', $path ) ) {
 			return false;
 		}
 

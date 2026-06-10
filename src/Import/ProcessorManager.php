@@ -15,6 +15,7 @@ class ProcessorManager {
 	private function register_default_processors() {
 		$this->register_processor( new Processors\SamtecProcessor() );
 		$this->register_processor( new Processors\AmphenolProcessor() );
+		$this->register_processor( new Processors\CamdenBossProcessor() );
 
 		// Allow other plugins/themes to register their own processors
 		do_action( 'aoe_catalog_register_processors', $this );

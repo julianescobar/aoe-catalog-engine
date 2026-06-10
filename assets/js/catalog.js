@@ -18,18 +18,22 @@ jQuery(document).ready(function ($) {
 		$('#btn-contacto-modal').attr('data-sku-link', sku);
 		$('#btn-contacto-modal').attr('title', 'Quiero más información sobre ' + manufacturerName + ' ' + sku + ' ' + nombre);
 
-		var pdfs = [
-			['Print', $btn.attr('data-pdf-print') || ''],
-			['Footprint', $btn.attr('data-pdf-foot') || ''],
-			['Catalog Page', $btn.attr('data-pdf-cat') || ''],
-			['Spec Sheet', $btn.attr('data-pdf-spec') || '']
-		];
+		var pdfLabels = {
+			'datasheet': 'Datasheet',
+			'print': 'Print',
+			'footprint': 'Footprint',
+			'catalog_page': 'Catalog Page',
+			'spec_sheet': 'Spec Sheet'
+		};
+		var pdfData = {};
+		try { pdfData = JSON.parse($btn.attr('data-pdf-json') || '{}'); } catch(e) {}
 		var pdfHtml = '';
-		$.each(pdfs, function (i, item) {
-			if (!item[1]) return;
-			pdfHtml += '<a class="aoe-catalog-doc-card" href="' + item[1] + '" target="_blank" rel="noopener">'
+		$.each(pdfData, function (key, url) {
+			if (!url) return;
+			var label = pdfLabels[key] || key.replace(/_/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+			pdfHtml += '<a class="aoe-catalog-doc-card" href="' + url + '" target="_blank" rel="noopener">'
 				+ '<i class="fas fa-file-pdf"></i>'
-				+ '<span><strong>' + item[0] + '</strong><em>Oficial ' + manufacturerName + ' Document</em></span>'
+				+ '<span><strong>' + label + '</strong><em>Oficial ' + manufacturerName + ' Document</em></span>'
 				+ '</a>';
 		});
 		$('#titulo-documentacion').text('Descarga de catálogos de ' + sku);
