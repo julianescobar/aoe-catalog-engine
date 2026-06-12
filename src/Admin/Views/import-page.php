@@ -30,11 +30,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 			</div>
 
 			<!-- Dynamic Column Detection / Preview -->
-			<div id="aoe-detected-columns" style="margin-top: 20px;">
+			<div id="aoe-detected-columns" style="margin-top: 20px; display: none;">
 				<div style="font-weight: 600; margin-bottom: 8px; font-size: 14px;">Vista previa de datos (primeros 5 registros):</div>
-				<div class="aoe-detected-columns" id="aoe-detected-columns-list">
-					<span class="description">No se han cargado datos aún. Sube un archivo o pega el contenido para ver una vista previa.</span>
-				</div>
+				<div class="aoe-detected-columns" id="aoe-detected-columns-list"></div>
 			</div>
 
 			<div class="aoe-btn-row" id="aoe-preview-action" style="margin-top: 15px; display:none; gap: 10px; align-items: center;">

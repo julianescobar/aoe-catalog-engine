@@ -379,12 +379,15 @@
 	margin: 0;
 	padding: 0;
 }
+
 .aoe-cat-list li {
 	padding: 6px 0;
 }
+
 .aoe-cat-sublist {
 	margin: 4px 0 4px 24px;
 }
+
 .aoe-cat-item .count {
 	color: #888;
 	font-size: 0.9em;
@@ -394,6 +397,7 @@
 .aoe-catalog-group-section {
 	margin-bottom: 30px;
 }
+
 .aoe-cat-breadcrumb {
 	font-size: 16px;
 	color: #555;
@@ -402,4 +406,60 @@
 	background: #f5f5f5;
 	border-left: 4px solid #20acdb;
 	font-weight: 600;
+}
+
+/* Technical specs */
+.aoe-catalog-specs {
+	margin-top: 25px;
+	padding: 20px;
+	background: #f9f9f9;
+	border-radius: 8px;
+	border: 1px solid #f0f0f0;
+}
+
+.aoe-catalog-specs h3 {
+	font-size: 18px;
+	color: #333;
+	margin: 0 0 15px;
+	border-left: 4px solid #20acdb;
+	padding: 0 0 0 10px;
+	text-transform: uppercase;
+	font-weight: bold;
+	line-height: 1;
+}
+
+.aoe-catalog-specs-table {
+	width: 100%;
+	border-collapse: collapse;
+}
+
+.aoe-catalog-specs-table-wrapper {
+	max-height: 200px;
+	overflow-y: auto;
+	border: 1px solid #ddd;
+	border-radius: 4px;
+}
+
+.aoe-catalog-specs-table tr:nth-child(even) {
+	background: #fff;
+}
+
+.aoe-catalog-specs-table td {
+	padding: 8px 12px;
+	border: 1px solid #ddd;
+	font-size: 14px;
+}
+
+.aoe-spec-key {
+	font-weight: 600;
+	color: #333;
+	width: 40%;
+}
+
+.aoe-spec-value {
+	color: #555;
+}
+
+.aoe-catalog-specs-icon i {
+	color: #20acdb;
 }

@@ -77,9 +77,12 @@ jQuery(document).ready(function ($) {
 		var $container = $('#aoe-detected-columns-list');
 		$container.empty();
 		if (headers.length === 0) {
-			$container.append('<span class="description">No se detectaron columnas. Asegúrate de que el formato CSV sea correcto.</span>');
+			$('#aoe-detected-columns').hide();
 			$('#aoe-preview-action').slideUp();
 			$('#aoe-action-step').slideUp();
+			$('#aoe-import-progress').slideUp().find('#aoe-progress-bar').css('width', '0%');
+			$('#aoe-progress-text').text('0 / 0 filas procesadas');
+			$('#aoe-log-box').empty().hide();
 			return;
 		}
 
@@ -111,9 +114,12 @@ jQuery(document).ready(function ($) {
 
 		var previewRows = parseCSVRows(window.aoeImportContent, headers, 5);
 		if (previewRows.length === 0) {
-			$container.append('<span class="description">No se encontraron registros.</span>');
+			$('#aoe-detected-columns').hide();
 			$('#aoe-preview-action').slideUp();
 			$('#aoe-action-step').slideUp();
+			$('#aoe-import-progress').slideUp().find('#aoe-progress-bar').css('width', '0%');
+			$('#aoe-progress-text').text('0 / 0 filas procesadas');
+			$('#aoe-log-box').empty().hide();
 			return;
 		}
 
@@ -137,13 +143,29 @@ jQuery(document).ready(function ($) {
 		html += '</tbody></table></div>';
 		$container.append(html);
 
+		$('#aoe-detected-columns').show();
 		$('#aoe-preview-action').slideDown();
 		$('#aoe-action-step').slideUp();
+		$('#aoe-import-progress').slideUp().find('#aoe-progress-bar').css('width', '0%');
+		$('#aoe-progress-text').text('0 / 0 filas procesadas');
+		$('#aoe-log-box').empty().hide();
 	}
 
 	function escHTML(str) {
 		return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 	}
+
+	// Clear file input and preview on click so re-selecting same file triggers change
+	$('#csv_file').on('click', function () {
+		this.value = '';
+		$('#aoe-detected-columns').hide();
+		$('#aoe-detected-columns-list').empty();
+		$('#aoe-preview-action').slideUp();
+		$('#aoe-action-step').slideUp();
+		$('#aoe-import-progress').slideUp().find('#aoe-progress-bar').css('width', '0%');
+		$('#aoe-progress-text').text('0 / 0 filas procesadas');
+		$('#aoe-log-box').empty().hide();
+	});
 
 	// Trigger detection on File upload
 	$('#csv_file').on('change', function (e) {

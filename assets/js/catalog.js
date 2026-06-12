@@ -41,6 +41,17 @@ jQuery(document).ready(function ($) {
 		if ($docs.length) $docs.html(pdfHtml);
 		$('#contenedor-documentacion-bloque').toggle(!!pdfHtml);
 
+		var specsData = {};
+		try { specsData = JSON.parse($btn.attr('data-specs-json') || '{}'); } catch(e) {}
+		var specsHtml = '';
+		$.each(specsData, function (key, value) {
+			if (!value) return;
+			specsHtml += '<tr><td class="aoe-spec-key">' + key + '</td><td class="aoe-spec-value">' + value + '</td></tr>';
+		});
+		var $specsList = $('#lista-specs-dinamica');
+		if ($specsList.length) $specsList.html(specsHtml);
+		$('#contenedor-specs-bloque').toggle(!!specsHtml);
+
 		$('#aoe-catalog-modal').modal('show');
 	});
 

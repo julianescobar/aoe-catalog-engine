@@ -37,10 +37,14 @@ function aoe_catalog_render_pdf_links( array $pdf ): string {
 	return $html;
 }
 
-function aoe_catalog_render_pdf_icon_links( array $pdf ): string {
+function aoe_catalog_render_pdf_icon_links( array $pdf, bool $has_specs = false ): string {
 	$first_pdf = aoe_catalog_get_first_value( $pdf );
-	return '	<a class="abrir-modal-dinamico aoe-catalog-icon-link" href="#" aria-label="Ver imagen del producto"><i class="fas fa-image"></i></a>'
+	$html = '	<a class="abrir-modal-dinamico aoe-catalog-icon-link" href="#" aria-label="Ver imagen del producto"><i class="fas fa-image"></i></a>'
 		. '<a class="abrir-modal-dinamico aoe-catalog-icon-link" href="' . esc_url( $first_pdf ? $first_pdf : '#' ) . '" aria-label="Ver documentos del producto"><i class="fas fa-file-pdf"></i></a>';
+	if ( $has_specs ) {
+		$html .= '<a class="abrir-modal-dinamico aoe-catalog-icon-link aoe-catalog-specs-icon" href="#" aria-label="Ver ficha tecnica"><i class="fas fa-clipboard-list"></i></a>';
+	}
+	return $html;
 }
 
 if ( ! defined( 'AOE_CATALOG_MEDIA_URL' ) ) {
@@ -174,7 +178,10 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 									$name      = (string) ( $product->name ?? '' );
 									$images    = (array) ( json_decode( $product->urls_images ?? '[]', true ) ?: [] );
 									$pdf       = (array) ( json_decode( $product->url_pdf ?? '[]', true ) ?: [] );
+									$additional = (array) ( json_decode( $product->additional_data ?? '{}', true ) ?: [] );
+									$specs     = $additional['specs'] ?? [];
 								}
+								$has_specs = ! empty( $specs );
 								$images = array_map( function( $img ) use ( $manufacturer_slug ) {
 									return aoe_catalog_resolve_media_url( $img, $manufacturer_slug, 'images' );
 								}, $images );
@@ -182,12 +189,14 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 								$image_url       = aoe_catalog_get_first_value( $images );
 								$product_description = 'Conector ' . $manufacturer_name . ' ' . $name;
 								$pdf_json = htmlspecialchars( json_encode( $pdf ), ENT_QUOTES, 'UTF-8' );
+								$specs_json = $has_specs ? htmlspecialchars( json_encode( $specs ), ENT_QUOTES, 'UTF-8' ) : '';
 								?>
 								<tr class="fila-producto no-lazyload" itemprop="itemListElement" itemscope itemtype="https://schema.org/Product"
 									data-sku="<?php echo esc_attr( $sku ); ?>"
 									data-nombre="<?php echo esc_attr( $name ); ?>"
 									data-img="<?php echo esc_url( $image_url ); ?>"
-									data-pdf-json="<?php echo $pdf_json; ?>">
+									data-pdf-json="<?php echo $pdf_json; ?>"
+									data-specs-json="<?php echo $specs_json; ?>">
 									<td>
 										<a class="aoe-catalog-sku" href="#">
 											<span itemprop="sku"><?php echo esc_html( $sku ); ?></span>
@@ -204,7 +213,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 										</div>
 									</td>
 									<td itemprop="brand" itemscope itemtype="https://schema.org/Brand"><span itemprop="name"><?php echo esc_html( ucfirst( $manufacturer_name ) ); ?></span></td>
-									<td class="aoe-catalog-actions"><?php echo aoe_catalog_render_pdf_icon_links( $pdf ); ?></td>
+									<td class="aoe-catalog-actions"><?php echo aoe_catalog_render_pdf_icon_links( $pdf, $has_specs ); ?></td>
 								</tr>
 							<?php endforeach; ?>
 						</tbody>
@@ -229,12 +238,16 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 						$name      = (string) ( $product['name'] ?? '' );
 						$images    = is_array( $product['images'] ?? null ) ? $product['images'] : [];
 						$pdf       = is_array( $product['pdf'] ?? null ) ? $product['pdf'] : [];
+						$specs     = [];
 					} else {
 						$sku       = (string) ( $product->sku ?? '' );
 						$name      = (string) ( $product->name ?? '' );
 						$images    = (array) ( json_decode( $product->urls_images ?? '[]', true ) ?: [] );
 						$pdf       = (array) ( json_decode( $product->url_pdf ?? '[]', true ) ?: [] );
+						$additional = (array) ( json_decode( $product->additional_data ?? '{}', true ) ?: [] );
+						$specs     = $additional['specs'] ?? [];
 					}
+					$has_specs = ! empty( $specs );
 					$images = array_map( function( $img ) use ( $manufacturer_slug ) {
 						return aoe_catalog_resolve_media_url( $img, $manufacturer_slug, 'images' );
 					}, $images );
@@ -242,12 +255,14 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 					$image_url       = aoe_catalog_get_first_value( $images );
 					$product_description = 'Conector ' . $manufacturer_name . ' ' . $name;
 					$pdf_json = htmlspecialchars( json_encode( $pdf ), ENT_QUOTES, 'UTF-8' );
+					$specs_json = $has_specs ? htmlspecialchars( json_encode( $specs ), ENT_QUOTES, 'UTF-8' ) : '';
 					?>
 					<tr class="fila-producto no-lazyload" itemprop="itemListElement" itemscope itemtype="https://schema.org/Product"
 						data-sku="<?php echo esc_attr( $sku ); ?>"
 						data-nombre="<?php echo esc_attr( $name ); ?>"
 						data-img="<?php echo esc_url( $image_url ); ?>"
-						data-pdf-json="<?php echo $pdf_json; ?>">
+						data-pdf-json="<?php echo $pdf_json; ?>"
+						data-specs-json="<?php echo $specs_json; ?>">
 						<td>
 							<a class="aoe-catalog-sku" href="#">
 								<span itemprop="sku"><?php echo esc_html( $sku ); ?></span>
@@ -264,7 +279,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 							</div>
 						</td>
 						<td itemprop="brand" itemscope itemtype="https://schema.org/Brand"><span itemprop="name"><?php echo esc_html( ucfirst( $manufacturer_name ) ); ?></span></td>
-						<td class="aoe-catalog-actions"><?php echo aoe_catalog_render_pdf_icon_links( $pdf ); ?></td>
+						<td class="aoe-catalog-actions"><?php echo aoe_catalog_render_pdf_icon_links( $pdf, $has_specs ); ?></td>
 					</tr>
 				<?php endforeach; ?>
 			</tbody>
@@ -294,6 +309,14 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 										</a>
 									</div>
 									<p class="aoe-catalog-support-text">TC Componentes es proveedor industrial de este producto. Podemos facilitarte muestras, ayudarte en tu diseño y proporcionar un suministro estable al mejor precio.</p>
+									<div id="contenedor-specs-bloque" class="aoe-catalog-specs" style="display:none;">
+										<h3>Ficha Técnica</h3>
+										<div class="aoe-catalog-specs-table-wrapper">
+											<table class="aoe-catalog-specs-table">
+												<tbody id="lista-specs-dinamica"></tbody>
+											</table>
+										</div>
+									</div>
 								</div>
 							</div>
 							<div id="contenedor-documentacion-bloque" class="aoe-catalog-docs">
