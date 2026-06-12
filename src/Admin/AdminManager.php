@@ -13,6 +13,7 @@ class AdminManager {
 		add_action( 'admin_menu', [ $this, 'add_plugin_admin_menu' ] );
 		add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_styles_scripts' ] );
 		add_action( 'admin_init', [ $this, 'handle_manufacturer_crud' ] );
+		add_action( 'admin_post_aoe_export_media_txt', [ $this, 'handle_export_media_txt' ] );
 		add_action( 'wp_ajax_aoe_clear_cache', [ $this, 'ajax_clear_cache' ] );
 		add_action( 'save_post', [ $this, 'invalidate_cache_on_template_save' ], 10, 2 );
 	}
@@ -47,6 +48,16 @@ class AdminManager {
 			'manage_options',
 			'aoe-catalog-logs',
 			[ $this, 'display_logs_page' ]
+		);
+
+		// Hidden page: Media Validator (accessible via URL, not shown in menu)
+		add_submenu_page(
+			null,
+			'Validar Media',
+			'Validar Media',
+			'manage_options',
+			'aoe-catalog-media-validator',
+			[ $this, 'display_media_validator_page' ]
 		);
 	}
 
@@ -105,6 +116,65 @@ class AdminManager {
 	/**
 	 * Handle CRUD save and delete requests for manufacturers
 	 */
+	public function handle_export_media_txt() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( 'Acceso no autorizado' );
+		}
+		if ( ! isset( $_GET['manufacturer'] ) || empty( $_GET['manufacturer'] ) ) {
+			wp_die( 'Fabricante no especificado' );
+		}
+
+		global $wpdb;
+		$mfr_slug = sanitize_text_field( $_GET['manufacturer'] );
+		$table_m  = $wpdb->prefix . 'aoe_catalog_manufacturers';
+		$table_p  = $wpdb->prefix . 'aoe_catalog_products';
+		$table_c  = $wpdb->prefix . 'aoe_catalog_categories';
+
+		$mfr = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $table_m WHERE slug = %s", $mfr_slug ) );
+		if ( ! $mfr ) {
+			wp_die( 'Fabricante no encontrado' );
+		}
+
+		$products = $wpdb->get_results( $wpdb->prepare(
+			"SELECT p.*, c.name AS category_name FROM $table_p p LEFT JOIN $table_c c ON p.category_id = c.id WHERE p.manufacturer_id = %d ORDER BY p.sku ASC",
+			$mfr->id
+		) );
+
+		$upload_dir = wp_upload_dir();
+		$base_dir   = $upload_dir['basedir'] . '/catalogo/' . $mfr_slug;
+
+		header( 'Content-Type: text/plain; charset=utf-8' );
+		header( 'Content-Disposition: attachment; filename="media-faltantes-' . $mfr_slug . '.txt"' );
+
+		echo "SKU\tNombre\tCategoria\tImagenes faltantes\tPDFs faltantes\r\n";
+
+		foreach ( $products as $prod ) {
+			$images = (array) ( json_decode( $prod->urls_images ?? '[]', true ) ?: [] );
+			$pdfs   = (array) ( json_decode( $prod->url_pdf ?? '[]', true ) ?: [] );
+
+			$missing_img = [];
+			foreach ( $images as $img ) {
+				if ( ! preg_match( '#^https?://#i', $img ) && ! file_exists( $base_dir . '/images/' . $img ) ) {
+					$missing_img[] = $img;
+				}
+			}
+			$missing_pdf = [];
+			foreach ( $pdfs as $key => $url ) {
+				if ( ! preg_match( '#^https?://#i', $url ) && ! file_exists( $base_dir . '/pdfs/' . $url ) ) {
+					$missing_pdf[] = $url;
+				}
+			}
+
+			if ( empty( $missing_img ) && empty( $missing_pdf ) ) {
+				continue;
+			}
+
+			echo $prod->sku . "\t" . $prod->name . "\t" . ( $prod->category_name ?? '-' ) . "\t" . implode( ', ', $missing_img ) . "\t" . implode( ', ', $missing_pdf ) . "\r\n";
+		}
+
+		exit;
+	}
+
 	public function handle_manufacturer_crud() {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
@@ -182,6 +252,13 @@ class AdminManager {
 		if ( $manufacturer ) {
 			\AOE\CatalogEngine\PublicFacing\CacheCatalog::invalidate( $manufacturer->slug );
 		}
+	}
+
+	/**
+	 * Display Media Validator page
+	 */
+	public function display_media_validator_page() {
+		require_once __DIR__ . '/Views/media-validator.php';
 	}
 
 	/**
