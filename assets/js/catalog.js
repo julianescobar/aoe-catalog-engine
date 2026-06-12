@@ -31,7 +31,11 @@ jQuery(document).ready(function ($) {
 		$.each(pdfData, function (key, url) {
 			if (!url) return;
 			var label = pdfLabels[key] || key.replace(/_/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
-			pdfHtml += '<a class="aoe-catalog-doc-card" href="' + url + '" target="_blank" rel="noopener">'
+			pdfHtml += '<a class="aoe-catalog-doc-card" href="#"'
+				+ ' data-doc="' + url + '"'
+				+ ' data-toggle="modal" data-target=".fusion-modal.descargar"'
+				+ ' title="' + label + '"'
+				+ ' aria-label="' + label + '">'
 				+ '<i class="fas fa-file-pdf"></i>'
 				+ '<span><strong>' + label + '</strong><em>Oficial ' + manufacturerName + ' Document</em></span>'
 				+ '</a>';
@@ -67,6 +71,24 @@ jQuery(document).ready(function ($) {
 
 	$(document).on('click', '#btn-contacto-modal', function () {
 		$('#quierodescargar textarea').val($(this).attr('title') || '');
+	});
+
+	// Fix heading for download modal regardless of Avada's ID numbering
+	$(document).on('click', 'a[data-toggle="modal"][data-target=".fusion-modal.descargar"]', function () {
+		var title = $(this).attr('title') || '';
+		if (title.toLowerCase() === 'datasheet') {
+			$('.fusion-modal.descargar').find('[id^="modal-heading-"]').text('Descargar ficha técnica');
+		} else {
+			$('.fusion-modal.descargar').find('[id^="modal-heading-"]').text('Descargar el documento "' + title + '"');
+		}
+	});
+
+	// Trigger PDF download after Avada form submits successfully
+	$(document).on('fusion-form-submit-success', '.fusion-modal.descargar form', function () {
+		var url = $(this).find('[name="archivo_a_descargar"]').val();
+		if (url) {
+			window.open(url, '_blank');
+		}
 	});
 
 });

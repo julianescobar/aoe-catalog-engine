@@ -37,10 +37,9 @@ function aoe_catalog_render_pdf_links( array $pdf ): string {
 	return $html;
 }
 
-function aoe_catalog_render_pdf_icon_links( array $pdf, bool $has_specs = false ): string {
-	$first_pdf = aoe_catalog_get_first_value( $pdf );
+function aoe_catalog_render_pdf_icon_links( bool $has_specs = false ): string {
 	$html = '	<a class="abrir-modal-dinamico aoe-catalog-icon-link" href="#" aria-label="Ver imagen del producto"><i class="fas fa-image"></i></a>'
-		. '<a class="abrir-modal-dinamico aoe-catalog-icon-link" href="' . esc_url( $first_pdf ? $first_pdf : '#' ) . '" aria-label="Ver documentos del producto"><i class="fas fa-file-pdf"></i></a>';
+		. '<a class="abrir-modal-dinamico aoe-catalog-icon-link" href="#" aria-label="Ver documentos del producto"><i class="fas fa-file-pdf"></i></a>';
 	if ( $has_specs ) {
 		$html .= '<a class="abrir-modal-dinamico aoe-catalog-icon-link aoe-catalog-specs-icon" href="#" aria-label="Ver ficha tecnica"><i class="fas fa-clipboard-list"></i></a>';
 	}
@@ -213,7 +212,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 										</div>
 									</td>
 									<td itemprop="brand" itemscope itemtype="https://schema.org/Brand"><span itemprop="name"><?php echo esc_html( ucfirst( $manufacturer_name ) ); ?></span></td>
-									<td class="aoe-catalog-actions"><?php echo aoe_catalog_render_pdf_icon_links( $pdf, $has_specs ); ?></td>
+									<td class="aoe-catalog-actions"><?php echo aoe_catalog_render_pdf_icon_links( $has_specs ); ?></td>
 								</tr>
 							<?php endforeach; ?>
 						</tbody>
@@ -279,7 +278,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 							</div>
 						</td>
 						<td itemprop="brand" itemscope itemtype="https://schema.org/Brand"><span itemprop="name"><?php echo esc_html( ucfirst( $manufacturer_name ) ); ?></span></td>
-						<td class="aoe-catalog-actions"><?php echo aoe_catalog_render_pdf_icon_links( $pdf, $has_specs ); ?></td>
+						<td class="aoe-catalog-actions"><?php echo aoe_catalog_render_pdf_icon_links( $has_specs ); ?></td>
 					</tr>
 				<?php endforeach; ?>
 			</tbody>
