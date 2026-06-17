@@ -68,30 +68,29 @@ function aoe_catalog_resolve_media_url( string $path, string $manufacturer_slug,
 	$is_remote = ( strpos( $path, 'http' ) === 0 || strpos( $path, '//' ) === 0 );
 
 	if ( $is_remote ) {
-		// Extract filename from URL
-		$parsed = parse_url( $path );
-		$filename = basename( $parsed['path'] ?? '' );
-		if ( '' === $filename ) {
+		$parsed  = parse_url( $path );
+		$filename_raw = basename( $parsed['path'] ?? '' );
+		if ( '' === $filename_raw ) {
 			return $path;
 		}
+		// Try both decoded (new files) and raw (existing downloads with URL-encoded names)
+		$filenames_to_try = [ urldecode( $filename_raw ), $filename_raw ];
 		$base_dir = aoe_catalog_get_upload_base() . '/' . $manufacturer_slug . '/' . $type . '/';
 
-		if ( 'images' === $type ) {
-			// Try .webp (converted from PNG/other)
-			$no_ext = pathinfo( $filename, PATHINFO_FILENAME );
-			$local_path = $base_dir . $no_ext . '.webp';
-			if ( file_exists( $local_path ) ) {
-				return trailingslashit( AOE_CATALOG_MEDIA_URL ) . $manufacturer_slug . '/images/' . $no_ext . '.webp';
+		foreach ( $filenames_to_try as $filename ) {
+			if ( 'images' === $type ) {
+				$no_ext    = pathinfo( $filename, PATHINFO_FILENAME );
+				$local_webp = $base_dir . $no_ext . '.webp';
+				if ( file_exists( $local_webp ) ) {
+					return trailingslashit( AOE_CATALOG_MEDIA_URL ) . $manufacturer_slug . '/images/' . rawurlencode( $no_ext ) . '.webp';
+				}
+			}
+			$local_orig = $base_dir . $filename;
+			if ( file_exists( $local_orig ) ) {
+				return trailingslashit( AOE_CATALOG_MEDIA_URL ) . $manufacturer_slug . '/' . $type . '/' . rawurlencode( $filename );
 			}
 		}
 
-		// Try original filename
-		$local_path = $base_dir . $filename;
-		if ( file_exists( $local_path ) ) {
-			return trailingslashit( AOE_CATALOG_MEDIA_URL ) . $manufacturer_slug . '/' . $type . '/' . $filename;
-		}
-
-		// Not found locally, fall back to remote URL
 		return $path;
 	}
 
@@ -186,7 +185,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 		</nav>
 		<?php endif; ?>
 
-		<?php if ( null !== $category_metadata ) : ?>
+		<?php if ( null !== $category_metadata && apply_filters( 'aoe_catalog_show_series_info', false ) ) : ?>
 		<div class="aoe-catalog-series-info">
 			<?php if ( ! empty( $category_metadata['description'] ) ) : ?>
 				<div class="aoe-series-description"><?php echo wp_kses_post( $category_metadata['description'] ); ?></div>

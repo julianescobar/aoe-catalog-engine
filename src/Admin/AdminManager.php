@@ -15,6 +15,7 @@ class AdminManager {
 		add_action( 'admin_init', [ $this, 'handle_manufacturer_crud' ] );
 		add_action( 'admin_post_aoe_export_media_txt', [ $this, 'handle_export_media_txt' ] );
 		add_action( 'wp_ajax_aoe_clear_cache', [ $this, 'ajax_clear_cache' ] );
+		add_action( 'wp_ajax_aoe_regenerate_pages', [ $this, 'ajax_regenerate_pages' ] );
 		add_action( 'wp_ajax_aoe_import_structure', [ $this, 'ajax_import_structure' ] );
 		add_action( 'save_post', [ $this, 'invalidate_cache_on_template_save' ], 10, 2 );
 	}
@@ -372,6 +373,45 @@ class AdminManager {
 				$created_series
 			),
 		] );
+	}
+
+	public function ajax_regenerate_pages() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( 'Acceso no autorizado' );
+		}
+
+		$slug = sanitize_text_field( $_POST['slug'] ?? '' );
+		if ( empty( $slug ) ) {
+			wp_send_json_error( 'Slug no proporcionado' );
+		}
+
+		// Ensure clean output buffer
+		while ( ob_get_level() ) { ob_end_clean(); }
+
+		try {
+			global $wpdb;
+			$table_m = $wpdb->prefix . 'aoe_catalog_manufacturers';
+			$manufacturer = $wpdb->get_row( $wpdb->prepare(
+				"SELECT * FROM $table_m WHERE slug = %s", $slug
+			) );
+			if ( ! $manufacturer ) {
+				wp_send_json_error( 'Fabricante no encontrado' );
+			}
+
+			$processor_mgr = new \AOE\CatalogEngine\Import\ProcessorManager();
+			$processor     = $processor_mgr->get_processor( $slug );
+			$batch         = new \AOE\CatalogEngine\Import\BatchProcessor( $processor_mgr );
+
+			$batch->pack_catalog( (int) $manufacturer->id, $slug, $processor );
+
+			// Clean again in case pack_catalog output something
+			while ( ob_get_level() ) { ob_end_clean(); }
+
+			wp_send_json_success( [ 'message' => 'Páginas regeneradas para ' . $slug ] );
+		} catch ( \Throwable $e ) {
+			while ( ob_get_level() ) { ob_end_clean(); }
+			wp_send_json_error( $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine() );
+		}
 	}
 
 	public function ajax_clear_cache() {

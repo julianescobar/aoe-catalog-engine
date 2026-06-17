@@ -257,7 +257,7 @@ class BatchProcessor {
 		wp_send_json_success( $data );
 	}
 
-	private function pack_catalog( int $manufacturer_id, string $manufacturer_slug, $processor = null ) {
+	public function pack_catalog( int $manufacturer_id, string $manufacturer_slug, $processor = null ) {
 		global $wpdb;
 
 		// Clear previous cache and pages for this manufacturer
@@ -333,11 +333,28 @@ class BatchProcessor {
 			$manufacturer_id
 		) );
 		if ( ! empty( $all_names ) ) {
-			$tree_page    = 1;
-			$tree_accum   = 0;
-			$tree_segments = [];
+			// Build parent lookup
+			$parent_lookup = [];
 			foreach ( $all_names as $cat ) {
+				$parent_lookup[ (int) $cat->id ] = (int) $cat->parent_id;
+			}
+
+			// Build cat_by_id lookup
+			$cat_by_id = [];
+			foreach ( $all_names as $cat ) {
+				$cat_by_id[ (int) $cat->id ] = $cat;
+			}
+
+			$tree_page     = 1;
+			$tree_accum    = 0;
+			$tree_segments = [];
+			$prepended_ids = [];
+
+			$i = 0;
+			while ( $i < count( $all_names ) ) {
+				// When starting a new page, prepend ancestor chain of the first item
 				if ( $tree_accum >= 200 ) {
+					// Finalize current page
 					$tree_slug = $manufacturer_slug . ( $tree_page > 1 ? '-' . $tree_page : '' );
 					$page_id   = PageRepository::insert( [
 						'manufacturer_id' => $manufacturer_id,
@@ -351,19 +368,49 @@ class BatchProcessor {
 						PageSegmentRepository::insert( $seg );
 					}
 					$tree_page++;
-					$tree_accum   = 0;
+					$tree_accum    = 0;
 					$tree_segments = [];
+					$prepended_ids = [];
+
+					// Prepend ancestors of the next item to the NEW page
+					$cur = (int) $all_names[ $i ]->parent_id;
+					$ancestors = [];
+					while ( $cur ) {
+						array_unshift( $ancestors, $cur );
+						$cur = $parent_lookup[ $cur ] ?? 0;
+					}
+					foreach ( $ancestors as $aid ) {
+						$prepended_ids[ $aid ] = true;
+						$acat = $cat_by_id[ $aid ] ?? null;
+						if ( $acat ) {
+							$tree_segments[] = [
+								'manufacturer_id' => $manufacturer_id,
+								'category_id'    => $aid,
+								'segment_type'   => 'category',
+								'products_from'  => 0,
+								'products_to'    => (int) $acat->products_count,
+								'sort_order'     => count( $tree_segments ) + 1,
+							];
+							$tree_accum++;
+						}
+					}
 				}
-				$tree_segments[] = [
-					'manufacturer_id' => $manufacturer_id,
-					'category_id'    => $cat->id,
-					'segment_type'   => 'category',
-					'products_from'  => 0,
-					'products_to'    => (int) $cat->products_count,
-					'sort_order'     => $tree_accum + 1,
-				];
-				$tree_accum++;
+
+				$cat = $all_names[ $i ];
+				if ( ! isset( $prepended_ids[ (int) $cat->id ] ) ) {
+					$tree_segments[] = [
+						'manufacturer_id' => $manufacturer_id,
+						'category_id'    => $cat->id,
+						'segment_type'   => 'category',
+						'products_from'  => 0,
+						'products_to'    => (int) $cat->products_count,
+						'sort_order'     => $tree_accum + 1,
+					];
+					$tree_accum++;
+				}
+				$i++;
 			}
+			// Finalize remaining
 			if ( ! empty( $tree_segments ) ) {
 				$tree_slug = $manufacturer_slug . ( $tree_page > 1 ? '-' . $tree_page : '' );
 				$page_id   = PageRepository::insert( [

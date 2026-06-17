@@ -104,7 +104,7 @@ while ( ( $row = fgetcsv( $csv, 0, ';' ) ) !== false ) {
 
 	if ( $hasImg ) {
 		$url        = trim( $row[ $colIdxImg ] );
-		$parsedPath = parse_url( $url, PHP_URL_PATH );
+		$parsedPath = urldecode( parse_url( $url, PHP_URL_PATH ) );
 		$ext        = strtolower( pathinfo( $parsedPath, PATHINFO_EXTENSION ) );
 		$nameNoExt  = pathinfo( basename( $parsedPath ), PATHINFO_FILENAME );
 		$dest       = $imageDir . $nameNoExt . ( $hasGd ? '.webp' : '.' . $ext );
@@ -115,7 +115,7 @@ while ( ( $row = fgetcsv( $csv, 0, ';' ) ) !== false ) {
 
 	if ( $hasPdf ) {
 		$url   = trim( $row[ $colIdxPdf ] );
-		$name  = basename( parse_url( $url, PHP_URL_PATH ) );
+		$name  = basename( urldecode( parse_url( $url, PHP_URL_PATH ) ) );
 		$dest  = $pdfDir . $name;
 		if ( ! file_exists( $dest ) ) {
 			$entry['pdf'] = [ 'url' => $url, 'dest' => $dest ];

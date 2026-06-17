@@ -479,6 +479,36 @@ jQuery(document).ready(function ($) {
 		});
 	}
 
+	// Regenerate pages per manufacturer
+	$(document).on('click', '.aoe-regenerate-pages', function (e) {
+		e.preventDefault();
+		var $link = $(this);
+		var slug = $link.data('slug');
+		if (!slug) return;
+		if (!confirm('¿Regenerar páginas de ' + slug + '? Esto no modifica productos ni categorías.')) return;
+		$link.text('Regenerando...');
+		$.ajax({
+			url: aoe_catalog.ajax_url,
+			method: 'POST',
+			timeout: 30000,
+			data: { action: 'aoe_regenerate_pages', slug: slug },
+			success: function (resp) {
+				if (resp.success) {
+					$link.after(' <span style="color:#46b450;font-weight:600;">✓</span>');
+					setTimeout(function () { $link.next('span').fadeOut(); }, 2000);
+					$link.text('Regenerar páginas');
+				} else {
+					alert('Error: ' + (resp.data || 'Error desconocido'));
+					$link.text('Regenerar páginas');
+				}
+			},
+			error: function (xhr, status, err) {
+				alert('Error de conexión: ' + status + ' - ' + err);
+				$link.text('Regenerar páginas');
+			}
+		});
+	});
+
 	// Clear cache per manufacturer
 	$(document).on('click', '.aoe-clear-cache', function (e) {
 		e.preventDefault();
