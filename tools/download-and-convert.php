@@ -32,9 +32,8 @@ if ( ! $hasGd ) {
 	echo "[WARN] PHP GD extension not found. Images will stay as original format.\n";
 }
 
-$uploadsBase = __DIR__ . '/../../../uploads/catalogo/' . $slug;
-$imageDir    = $uploadsBase . '/images/';
-$pdfDir      = $uploadsBase . '/pdfs/';
+$imageDir = __DIR__ . '/../../../uploads/catalogo/' . $slug . '/images/';
+$pdfDir   = __DIR__ . '/../../../uploads/pdf/' . $slug . '/originals/';
 
 if ( ! is_dir( $imageDir ) ) {
 	mkdir( $imageDir, 0755, true );

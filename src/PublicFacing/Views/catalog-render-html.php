@@ -98,10 +98,49 @@ function aoe_catalog_resolve_media_url( string $path, string $manufacturer_slug,
 	return trailingslashit( AOE_CATALOG_MEDIA_URL ) . $manufacturer_slug . '/' . $type . '/' . ltrim( $path, '/' );
 }
 
+function aoe_catalog_get_pdf_base(): string {
+	$upload = wp_upload_dir();
+	return trailingslashit( $upload['basedir'] ) . 'pdf';
+}
+
 function aoe_catalog_resolve_pdf_urls( array $pdf, string $manufacturer_slug ): array {
 	$resolved = [];
 	foreach ( $pdf as $key => $url ) {
-		$resolved[ $key ] = aoe_catalog_resolve_media_url( $url, $manufacturer_slug, 'pdfs' );
+		if ( '' === $url ) {
+			$resolved[ $key ] = '';
+			continue;
+		}
+
+		$parsed  = parse_url( $url );
+		$filename_raw = basename( $parsed['path'] ?? '' );
+		if ( '' === $filename_raw ) {
+			$resolved[ $key ] = $url;
+			continue;
+		}
+
+		$filenames = [ urldecode( $filename_raw ), $filename_raw ];
+		$base_pdf  = aoe_catalog_get_pdf_base() . '/' . $manufacturer_slug . '/';
+		$base_old  = aoe_catalog_get_upload_base() . '/' . $manufacturer_slug . '/pdfs/';
+
+		foreach ( $filenames as $fname ) {
+			// 1. Firmado
+			if ( file_exists( $base_pdf . $fname ) ) {
+				$resolved[ $key ] = trailingslashit( AOE_CATALOG_PDF_URL ) . $manufacturer_slug . '/' . rawurlencode( $fname );
+				continue 2;
+			}
+			// 2. Original nuevo
+			if ( file_exists( $base_pdf . 'originals/' . $fname ) ) {
+				$resolved[ $key ] = trailingslashit( AOE_CATALOG_PDF_URL ) . $manufacturer_slug . '/originals/' . rawurlencode( $fname );
+				continue 2;
+			}
+			// 3. Original viejo (backward compat)
+			if ( file_exists( $base_old . $fname ) ) {
+				$resolved[ $key ] = trailingslashit( AOE_CATALOG_MEDIA_URL ) . $manufacturer_slug . '/pdfs/' . rawurlencode( $fname );
+				continue 2;
+			}
+		}
+
+		$resolved[ $key ] = $url;
 	}
 	return $resolved;
 }

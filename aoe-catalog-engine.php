@@ -14,6 +14,7 @@ if ( ! defined( 'WPINC' ) ) {
 }
 
 define( 'AOE_CATALOG_MEDIA_URL', content_url( 'uploads/catalogo' ) );
+define( 'AOE_CATALOG_PDF_URL', content_url( 'uploads/pdf' ) );
 
 // Simple PSR-4 Autoloader fallback if composer is not used.
 if ( file_exists( __DIR__ . '/vendor/autoload.php' ) ) {
