@@ -17,6 +17,7 @@ class BatchProcessor {
 	}
 
 	public function ajax_process_batch() {
+		@set_time_limit( 0 );
 		@ini_set( 'display_errors', '0' );
 		if ( ob_get_length() ) {
 			ob_clean();
@@ -58,8 +59,14 @@ class BatchProcessor {
 		$is_last_chunk  = ! empty( $_POST['is_last_chunk'] );
 
 		if ( 'replace' === $import_mode && $is_first_chunk ) {
+			$has_structure = (bool) get_transient( 'aoe_structure_' . $manufacturer->id );
+			if ( $has_structure ) {
+				$this->reimport_structure( $manufacturer );
+			}
 			ProductRepository::clear_by_manufacturer( $manufacturer->id );
-			CategoryRepository::clear_by_manufacturer( $manufacturer->id );
+			if ( ! $has_structure ) {
+				CategoryRepository::clear_by_manufacturer( $manufacturer->id );
+			}
 		}
 
 		$processed_count = 0;
@@ -104,7 +111,7 @@ class BatchProcessor {
 				$manufacturer->id
 			) );
 
-			$this->pack_catalog( (int) $manufacturer->id, $manufacturer_slug );
+			$this->pack_catalog( (int) $manufacturer->id, $manufacturer_slug, $processor );
 
 			$this->add_log( 'Importacion Catalogo', $manufacturer->name, "Importacion completada. Modo: $import_mode. Total catalogo: $total_products." );
 		}
@@ -250,7 +257,7 @@ class BatchProcessor {
 		wp_send_json_success( $data );
 	}
 
-	private function pack_catalog( int $manufacturer_id, string $manufacturer_slug ) {
+	private function pack_catalog( int $manufacturer_id, string $manufacturer_slug, $processor = null ) {
 		global $wpdb;
 
 		// Clear previous cache and pages for this manufacturer
@@ -269,7 +276,7 @@ class BatchProcessor {
 			$manufacturer_id
 		) );
 
-		$threshold = 190;
+		$threshold = null !== $processor ? $processor->get_page_threshold() : 190;
 		$per_page  = 200;
 
 		// Get categories with product counts
@@ -462,6 +469,92 @@ class BatchProcessor {
 		add_rewrite_rule( '^catalogo/(test-[^/]+)/([^/]+)-([0-9]+)/?', 'index.php?aoe_catalog_preview=$matches[1]&aoe_catalog_category=$matches[2]&aoe_catalog_page=$matches[3]', 'top' );
 		add_rewrite_rule( '^catalogo/(test-[^/]+)/([^/]+)/?', 'index.php?aoe_catalog_preview=$matches[1]&aoe_catalog_category=$matches[2]', 'top' );
 		flush_rewrite_rules( false );
+	}
+
+	private function reimport_structure( $manufacturer ) {
+		global $wpdb;
+		$table_c = $wpdb->prefix . 'aoe_catalog_categories';
+		$mfr_id  = (int) $manufacturer->id;
+
+		$saved = get_transient( 'aoe_structure_' . $mfr_id );
+		if ( ! $saved ) {
+			return;
+		}
+
+		$rows_json = json_decode( $saved, true );
+		if ( empty( $rows_json ) ) {
+			return;
+		}
+
+		// Clear existing categories
+		$wpdb->delete( $table_c, [ 'manufacturer_id' => $mfr_id ], [ '%d' ] );
+
+		$cat_node_map    = [];
+		$subcat_node_map = [];
+
+		// Pass 1: categories (Level 1)
+		foreach ( $rows_json as $row ) {
+			$type = trim( $row['type'] ?? '' );
+			if ( 'category' !== $type ) { continue; }
+			$node_key = trim( $row['node_key'] ?? '' );
+			$name     = trim( $row['name'] ?? '' );
+			if ( empty( $node_key ) || empty( $name ) ) { continue; }
+			$wpdb->insert( $table_c, [
+				'manufacturer_id' => $mfr_id, 'parent_id' => null,
+				'name' => $name, 'slug' => sanitize_title( $name ),
+				'type' => 'category', 'description' => trim( $row['description'] ?? '' ),
+				'image' => trim( $row['image_url'] ?? '' ), 'level' => 1,
+				'products_count' => 0, 'metadata_json' => json_encode( [] ),
+			], [ '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%s' ] );
+			$cat_node_map[ $node_key ] = (int) $wpdb->insert_id;
+		}
+
+		// Pass 2: subcategories (Level 2)
+		foreach ( $rows_json as $row ) {
+			$type = trim( $row['type'] ?? '' );
+			if ( 'subcategory' !== $type ) { continue; }
+			$node_key   = trim( $row['node_key'] ?? '' );
+			$parent_key = trim( $row['parent_key'] ?? '' );
+			$name       = trim( $row['name'] ?? '' );
+			if ( empty( $node_key ) || empty( $name ) || ! isset( $cat_node_map[ $parent_key ] ) ) { continue; }
+			$wpdb->insert( $table_c, [
+				'manufacturer_id' => $mfr_id, 'parent_id' => $cat_node_map[ $parent_key ],
+				'name' => $name, 'slug' => sanitize_title( $name ),
+				'type' => 'category', 'description' => trim( $row['description'] ?? '' ),
+				'image' => trim( $row['image_url'] ?? '' ), 'level' => 2,
+				'products_count' => 0, 'metadata_json' => json_encode( [] ),
+			], [ '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%s' ] );
+			$subcat_node_map[ $node_key ] = (int) $wpdb->insert_id;
+		}
+
+		// Pass 3: series (Level 3)
+		foreach ( $rows_json as $row ) {
+			$type = trim( $row['type'] ?? '' );
+			if ( 'series' !== $type ) { continue; }
+			$node_key   = trim( $row['node_key'] ?? '' );
+			$parent_key = trim( $row['parent_key'] ?? '' );
+			$series_id  = trim( $row['series_id'] ?? '' );
+			$name       = trim( $row['name'] ?? '' );
+			if ( empty( $node_key ) || empty( $name ) ) { continue; }
+			$parent_id = isset( $subcat_node_map[ $parent_key ] ) ? $subcat_node_map[ $parent_key ] : null;
+			if ( null === $parent_id ) {
+				$parent_id = isset( $cat_node_map[ $parent_key ] ) ? $cat_node_map[ $parent_key ] : null;
+			}
+			$slug     = sanitize_title( $name );
+			$metadata = [
+				'series_id' => $series_id, 'series_url' => trim( $row['series_url'] ?? '' ),
+				'image_url' => trim( $row['image_url'] ?? '' ), 'image_large' => trim( $row['image_large_url'] ?? '' ),
+				'highlights' => trim( $row['highlights'] ?? '' ), 'features' => trim( $row['features'] ?? '' ),
+				'specifications' => trim( $row['specifications'] ?? '' ),
+			];
+			$wpdb->insert( $table_c, [
+				'manufacturer_id' => $mfr_id, 'parent_id' => $parent_id,
+				'name' => $name, 'slug' => $slug,
+				'description' => trim( $row['description'] ?? '' ), 'type' => 'series',
+				'image' => trim( $row['image_url'] ?? '' ), 'level' => 3,
+				'products_count' => 0, 'metadata_json' => json_encode( $metadata ),
+			], [ '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%s' ] );
+		}
 	}
 
 	private function add_log( string $event, string $manufacturer, string $details ) {

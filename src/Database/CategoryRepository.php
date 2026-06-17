@@ -9,12 +9,17 @@ class CategoryRepository {
 		$table = $wpdb->prefix . 'aoe_catalog_categories';
 		$slug = sanitize_title( $name );
 
-		$existing_id = $wpdb->get_var( $wpdb->prepare(
-			"SELECT id FROM $table WHERE manufacturer_id = %d AND slug = %s AND type = %s",
-			$manufacturer_id,
-			$slug,
-			$type
-		) );
+		if ( null !== $parent_id ) {
+			$existing_id = $wpdb->get_var( $wpdb->prepare(
+				"SELECT id FROM $table WHERE manufacturer_id = %d AND slug = %s AND parent_id = %d",
+				$manufacturer_id, $slug, $parent_id
+			) );
+		} else {
+			$existing_id = $wpdb->get_var( $wpdb->prepare(
+				"SELECT id FROM $table WHERE manufacturer_id = %d AND slug = %s AND type = %s",
+				$manufacturer_id, $slug, $type
+			) );
+		}
 
 		if ( $existing_id ) {
 			return (int) $existing_id;

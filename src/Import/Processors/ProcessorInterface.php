@@ -24,4 +24,12 @@ interface ProcessorInterface {
 	 * @return array
 	 */
 	public function get_supported_columns(): array;
+
+	/**
+	 * Minimum product count for a category to get its own page.
+	 * Categories below this threshold are packed into grouped pages.
+	 *
+	 * @return int
+	 */
+	public function get_page_threshold(): int;
 }

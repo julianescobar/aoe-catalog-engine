@@ -42,6 +42,10 @@ abstract class BaseProcessor implements ProcessorInterface {
 		return [];
 	}
 
+	public function get_page_threshold(): int {
+		return 190;
+	}
+
 	/**
 	 * Extract technical specifications from a CSV row (case-insensitive column matching).
 	 * Returns a key-value array of non-empty specs using the canonical column names.

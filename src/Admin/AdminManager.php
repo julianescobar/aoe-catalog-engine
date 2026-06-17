@@ -15,6 +15,7 @@ class AdminManager {
 		add_action( 'admin_init', [ $this, 'handle_manufacturer_crud' ] );
 		add_action( 'admin_post_aoe_export_media_txt', [ $this, 'handle_export_media_txt' ] );
 		add_action( 'wp_ajax_aoe_clear_cache', [ $this, 'ajax_clear_cache' ] );
+		add_action( 'wp_ajax_aoe_import_structure', [ $this, 'ajax_import_structure' ] );
 		add_action( 'save_post', [ $this, 'invalidate_cache_on_template_save' ], 10, 2 );
 	}
 
@@ -219,6 +220,158 @@ class AdminManager {
 			wp_safe_redirect( admin_url( 'admin.php?page=aoe-catalog-manufacturers' ) );
 			exit;
 		}
+	}
+
+	public function ajax_import_structure() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( 'Acceso no autorizado' );
+		}
+
+		global $wpdb;
+		$manufacturer_slug = sanitize_text_field( $_POST['manufacturer'] ?? '' );
+		$rows_json         = isset( $_POST['rows_json'] ) ? json_decode( wp_unslash( $_POST['rows_json'] ), true ) : [];
+
+		if ( empty( $manufacturer_slug ) || empty( $rows_json ) ) {
+			wp_send_json_error( 'Datos incompletos' );
+		}
+
+		$table_m = $wpdb->prefix . 'aoe_catalog_manufacturers';
+		$table_c = $wpdb->prefix . 'aoe_catalog_categories';
+
+		$manufacturer = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $table_m WHERE slug = %s", $manufacturer_slug ) );
+		if ( ! $manufacturer ) {
+			wp_send_json_error( 'Fabricante no encontrado' );
+		}
+
+		$mfr_id = (int) $manufacturer->id;
+
+		// Clear existing categories for this manufacturer to allow re-import
+		$wpdb->delete( $table_c, [ 'manufacturer_id' => $mfr_id ], [ '%d' ] );
+
+		$cat_node_map   = []; // node_key → category id
+		$subcat_node_map = []; // node_key → subcategory id
+		$created_series  = 0;
+
+		// First pass: categories (Level 1)
+		foreach ( $rows_json as $row ) {
+			$type = trim( $row['type'] ?? '' );
+			if ( 'category' !== $type ) {
+				continue;
+			}
+			$node_key = trim( $row['node_key'] ?? '' );
+			$name     = trim( $row['name'] ?? '' );
+			if ( empty( $node_key ) || empty( $name ) ) {
+				continue;
+			}
+
+			$slug = sanitize_title( $name );
+			$wpdb->insert( $table_c, [
+				'manufacturer_id' => $mfr_id,
+				'parent_id'       => null,
+				'name'            => $name,
+				'slug'            => $slug,
+				'type'            => 'category',
+				'description'     => trim( $row['description'] ?? '' ),
+				'image'           => trim( $row['image_url'] ?? '' ),
+				'level'           => 1,
+				'products_count'  => 0,
+				'metadata_json'   => json_encode( [] ),
+			], [ '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%s' ] );
+			$cat_node_map[ $node_key ] = (int) $wpdb->insert_id;
+		}
+
+		// Second pass: subcategories (Level 2)
+		foreach ( $rows_json as $row ) {
+			$type = trim( $row['type'] ?? '' );
+			if ( 'subcategory' !== $type ) {
+				continue;
+			}
+			$node_key   = trim( $row['node_key'] ?? '' );
+			$parent_key = trim( $row['parent_key'] ?? '' );
+			$name       = trim( $row['name'] ?? '' );
+			if ( empty( $node_key ) || empty( $name ) || ! isset( $cat_node_map[ $parent_key ] ) ) {
+				continue;
+			}
+
+			$slug = sanitize_title( $name );
+			$wpdb->insert( $table_c, [
+				'manufacturer_id' => $mfr_id,
+				'parent_id'       => $cat_node_map[ $parent_key ],
+				'name'            => $name,
+				'slug'            => $slug,
+				'type'            => 'category',
+				'description'     => trim( $row['description'] ?? '' ),
+				'image'           => trim( $row['image_url'] ?? '' ),
+				'level'           => 2,
+				'products_count'  => 0,
+				'metadata_json'   => json_encode( [] ),
+			], [ '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%s' ] );
+			$subcat_node_map[ $node_key ] = (int) $wpdb->insert_id;
+		}
+
+		// Third pass: series (Level 3)
+		foreach ( $rows_json as $row ) {
+			$type = trim( $row['type'] ?? '' );
+			if ( 'series' !== $type ) {
+				continue;
+			}
+			$node_key   = trim( $row['node_key'] ?? '' );
+			$parent_key = trim( $row['parent_key'] ?? '' );
+			$series_id  = trim( $row['series_id'] ?? '' );
+			$name       = trim( $row['name'] ?? '' );
+			if ( empty( $node_key ) || empty( $name ) ) {
+				continue;
+			}
+
+			$parent_id = isset( $subcat_node_map[ $parent_key ] ) ? $subcat_node_map[ $parent_key ] : null;
+			if ( null === $parent_id ) {
+				// Fall back to category-level parent
+				$parent_id = isset( $cat_node_map[ $parent_key ] ) ? $cat_node_map[ $parent_key ] : null;
+			}
+
+			$slug = sanitize_title( $name );
+			$metadata = [
+				'series_id'     => $series_id,
+				'series_url'    => trim( $row['series_url'] ?? '' ),
+				'image_url'     => trim( $row['image_url'] ?? '' ),
+				'image_large'   => trim( $row['image_large_url'] ?? '' ),
+				'highlights'    => trim( $row['highlights'] ?? '' ),
+				'features'      => trim( $row['features'] ?? '' ),
+				'specifications' => trim( $row['specifications'] ?? '' ),
+			];
+
+			$wpdb->insert( $table_c, [
+				'manufacturer_id' => $mfr_id,
+				'parent_id'       => $parent_id,
+				'name'            => $name,
+				'slug'            => $slug,
+				'type'            => 'series',
+				'description'     => trim( $row['description'] ?? '' ),
+				'image'           => trim( $row['image_url'] ?? '' ),
+				'level'           => 3,
+				'products_count'  => 0,
+				'metadata_json'   => json_encode( $metadata ),
+			], [ '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%s' ] );
+
+			if ( $wpdb->insert_id ) {
+				$created_series++;
+			}
+		}
+
+		// Save structure data in transient so Replace mode can re-import it
+		set_transient( 'aoe_structure_' . $mfr_id, $_POST['rows_json'], WEEK_IN_SECONDS );
+
+		$total_categories = count( $cat_node_map );
+		$total_subcategories = count( $subcat_node_map );
+
+		wp_send_json_success( [
+			'message' => sprintf(
+				'Estructura importada: %d categorías, %d subcategorías, %d series.',
+				$total_categories,
+				$total_subcategories,
+				$created_series
+			),
+		] );
 	}
 
 	public function ajax_clear_cache() {

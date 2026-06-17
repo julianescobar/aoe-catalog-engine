@@ -154,7 +154,7 @@ $current_page      = $page_num;
 $total_pages       = 1;
 
 $segments = $wpdb->get_results( $wpdb->prepare(
-	"SELECT s.*, c.name AS category_name, c.slug AS category_slug, c.parent_id, c.level
+	"SELECT s.*, c.name AS category_name, c.slug AS category_slug, c.parent_id, c.level, c.metadata_json
 	 FROM $table_seg s
 	 JOIN $table_cat c ON s.category_id = c.id
 	 WHERE s.page_id = %d
@@ -166,10 +166,63 @@ $page_products = [];
 $grouped_segments = [];
 $display_category = '';
 
+$category_metadata = null;
+$breadcrumb_path = [];
+
+// Build hierarchy lookup for breadcrumbs
+$all_cats_lookup = $wpdb->get_results( $wpdb->prepare(
+	"SELECT id, name, parent_id FROM $table_cat WHERE manufacturer_id = %d",
+	$page->manufacturer_id
+) );
+$cat_name_lookup = [];
+$cat_parent_lookup = [];
+foreach ( $all_cats_lookup as $c ) {
+	$cat_name_lookup[ (int) $c->id ] = $c->name;
+	$cat_parent_lookup[ (int) $c->id ] = (int) $c->parent_id;
+}
+
 if ( 'category' === $page_type ) {
 	$cat_seg = $segments[0] ?? null;
 	if ( $cat_seg ) {
+		// Redirect to linked WP page if configured
+		$meta = ! empty( $cat_seg->metadata_json ) ? json_decode( $cat_seg->metadata_json, true ) : [];
+		$wp_post_id = ! empty( $meta['wp_post_id'] ) ? intval( $meta['wp_post_id'] ) : 0;
+		if ( $wp_post_id ) {
+			ob_end_clean();
+			wp_redirect( get_permalink( $wp_post_id ), 301 );
+			exit;
+		}
+
 		$display_category = $cat_seg->category_name;
+
+		// Build breadcrumb from parent chain
+		$cur = (int) $cat_seg->category_id;
+		$debug_parents = [];
+		while ( $cur && isset( $cat_name_lookup[ $cur ] ) ) {
+			$debug_parents[] = "id=$cur name={$cat_name_lookup[$cur]}";
+			array_unshift( $breadcrumb_path, $cat_name_lookup[ $cur ] );
+			$cur = $cat_parent_lookup[ $cur ] ?? 0;
+		}
+		// DEBUG: print parent chain as HTML comment
+		echo "\n<!-- DEBUG breadcrumb: " . esc_html( implode( ' | ', $debug_parents ) ) . " -->\n";
+
+		// Fetch category metadata (series info for EDAC)
+		$cat_row = $wpdb->get_row( $wpdb->prepare(
+			"SELECT description, metadata_json FROM $table_cat WHERE id = %d",
+			$cat_seg->category_id
+		) );
+		if ( $cat_row && ! empty( $cat_row->metadata_json ) ) {
+			$cat_meta = json_decode( $cat_row->metadata_json, true );
+			if ( is_array( $cat_meta ) && ! empty( $cat_meta['series_id'] ) ) {
+				$category_metadata = [
+					'description'    => $cat_row->description,
+					'features'       => $cat_meta['features'] ?? '',
+					'specifications' => $cat_meta['specifications'] ?? '',
+					'highlights'     => $cat_meta['highlights'] ?? '',
+				];
+			}
+		}
+
 		$from    = (int) $cat_seg->products_from;
 		$to      = (int) $cat_seg->products_to;
 		$limit   = $to - $from;
@@ -285,18 +338,46 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 			$tree_by_parent[ $pid ][] = $seg;
 		}
 
-		function aoe_render_cat_tree( array $items, array $tree_by_parent, array $cat_page_map, int $level = 0 ) {
+		function aoe_has_visible_descendants( int $cat_id, array $tree_by_parent, array $segments_by_id ): bool {
+			$children = $tree_by_parent[ $cat_id ] ?? [];
+			foreach ( $children as $child ) {
+				$child_count = (int) ( $segments_by_id[ $child->category_id ]->products_to ?? 0 );
+				if ( $child_count > 0 ) return true;
+				if ( aoe_has_visible_descendants( $child->category_id, $tree_by_parent, $segments_by_id ) ) return true;
+			}
+			return false;
+		}
+
+		$segments_by_id = [];
+		foreach ( $segments as $seg ) {
+			$segments_by_id[ $seg->category_id ] = $seg;
+		}
+
+		function aoe_render_cat_tree( array $items, array $tree_by_parent, array $segments_by_id, array $cat_page_map, int $level = 0 ) {
 			if ( empty( $items ) ) return;
 			echo '<ul class="aoe-cat-list' . ( $level > 0 ? ' aoe-cat-sublist' : '' ) . '">';
 			foreach ( $items as $item ) {
-				$cat_url = isset( $cat_page_map[ $item->category_id ] )
-					? home_url( '/catalogo/' . $cat_page_map[ $item->category_id ] . '/' )
-					: '#';
+				$count = (int) ( $segments_by_id[ $item->category_id ]->products_to ?? 0 );
 				$children = $tree_by_parent[ $item->category_id ] ?? [];
+				$has_children_with_content = aoe_has_visible_descendants( $item->category_id, $tree_by_parent, $segments_by_id );
+				if ( $count === 0 && ! $has_children_with_content ) continue;
+
+				// Check if category has a linked WP page
+				$meta = ! empty( $item->metadata_json ) ? json_decode( $item->metadata_json, true ) : [];
+				$wp_post_id = ! empty( $meta['wp_post_id'] ) ? intval( $meta['wp_post_id'] ) : 0;
+
+				if ( $wp_post_id ) {
+					$cat_url = get_permalink( $wp_post_id );
+				} elseif ( isset( $cat_page_map[ $item->category_id ] ) ) {
+					$cat_url = home_url( '/catalogo/' . $cat_page_map[ $item->category_id ] . '/' );
+				} else {
+					$cat_url = '#';
+				}
+
 				echo '<li class="aoe-cat-item aoe-cat-level-' . (int) $item->level . '">';
 				echo '<a href="' . esc_url( $cat_url ) . '">' . esc_html( $item->category_name ) . '</a>';
-				echo ' <span class="count">(' . esc_html( $item->products_to ?? 0 ) . ')</span>';
-				aoe_render_cat_tree( $children, $tree_by_parent, $cat_page_map, $level + 1 );
+				echo ' <span class="count">(' . esc_html( $count ) . ')</span>';
+				aoe_render_cat_tree( $children, $tree_by_parent, $segments_by_id, $cat_page_map, $level + 1 );
 				echo '</li>';
 			}
 			echo '</ul>';
@@ -306,7 +387,7 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 		if ( empty( $root_items ) ) {
 			$root_items = $segments;
 		}
-		aoe_render_cat_tree( $root_items, $tree_by_parent, $cat_page_map );
+		aoe_render_cat_tree( $root_items, $tree_by_parent, $segments_by_id, $cat_page_map );
 		?>
 	</div>
 	<?php
@@ -346,7 +427,9 @@ $catalog_html = aoe_catalog_render_html(
 	$total_pages,
 	false,
 	$manufacturer_slug_base,
-	$grouped_segments
+	$grouped_segments,
+	$category_metadata,
+	$breadcrumb_path
 );
 
 global $post;

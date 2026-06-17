@@ -11,6 +11,20 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 	<input type="hidden" id="manufacturer_slug" value="<?php echo esc_attr( $manufacturer->slug ); ?>" data-supported-columns="<?php echo esc_attr( wp_json_encode( isset( $supported_columns ) ? $supported_columns : [] ) ); ?>" />
 
+	<?php if ( 'edac' === $manufacturer->slug ) : ?>
+	<div class="aoe-card" id="aoe-structure-card">
+		<div class="aoe-step active">
+			<div class="aoe-step-title">0. Importar estructura (categorías, subcategorías y series)</div>
+			<p>EDAC requiere importar primero la estructura del catálogo (archivo <strong>catalog.csv</strong>).</p>
+			<div class="aoe-form-group">
+				<label for="csv_structure">Subir archivo de estructura (catalog.csv)</label>
+				<input type="file" id="csv_structure" accept=".csv" />
+			</div>
+			<div id="aoe-structure-status" style="margin-top: 10px;"></div>
+		</div>
+	</div>
+	<?php endif; ?>
+
 	<div class="aoe-card">
 		<!-- Step 1: Fuente de Datos -->
 		<div class="aoe-step active" id="step-data-source">
@@ -58,6 +72,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 				</label>
 			</div>
 
+			<div class="aoe-form-group" style="margin-top:15px;">
+				<label style="font-weight:600;">Límite de filas (0 = todas):</label>
+				<input type="number" id="aoe-row-limit" value="2000" min="0" step="500" style="width:120px;" />
+				<span style="color:#888;font-size:12px;margin-left:8px;">Usa 2000 para validar, luego cambia a 0 para la completa</span>
+			</div>
 			<div class="aoe-btn-row">				
 				<button type="button" class="button button-primary" id="aoe-btn-import">Ejecutar importación</button>
 			</div>

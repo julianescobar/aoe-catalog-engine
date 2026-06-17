@@ -1,12 +1,42 @@
 jQuery(document).ready(function ($) {
 
 	/**
-	 * Auto-detect separator: tab or comma.
-	 * Checks the first line for tabs first.
+	 * Auto-detect separator: tab, semicolon, or comma.
 	 */
 	function detectSeparator(content) {
 		var firstLine = content.split('\n')[0] || '';
-		return (firstLine.indexOf('\t') !== -1) ? '\t' : ',';
+		if (firstLine.indexOf('\t') !== -1) return '\t';
+		if (firstLine.indexOf(';') !== -1) return ';';
+		return ',';
+	}
+
+	function getSeparatorLabel(sep) {
+		return sep === '\t' ? 'Tabulación' : sep === ';' ? 'Punto y coma' : 'Coma';
+	}
+
+	function renderSeparatorSelector(detected) {
+		window.aoeSeparator = detected;
+		var $container = $('#aoe-separator-row');
+		if (!$container.length) {
+			$container = $('<div id="aoe-separator-row" style="margin-bottom:10px;"></div>');
+			$('#aoe-detected-columns').prepend($container);
+		}
+		var html = '<label style="font-weight:600;">Separador: </label>';
+		html += '<select id="aoe-sep-select" style="margin-left:6px;">';
+		['\t', ';', ','].forEach(function (s) {
+			var label = getSeparatorLabel(s);
+			var selected = (s === detected) ? ' selected' : '';
+			html += '<option value="' + s + '"' + selected + '>' + label + '</option>';
+		});
+		html += '</select>';
+		html += ' <span style="color:#888;font-size:12px;">(auto-detectado)</span>';
+		$container.html(html);
+
+		$('#aoe-sep-select').off('change').on('change', function () {
+			window.aoeSeparator = $(this).val();
+			var headers = parseCSVHeaders(window.aoeImportContent);
+			displayDetectedColumns(headers);
+		});
 	}
 
 	/**
@@ -46,14 +76,14 @@ jQuery(document).ready(function ($) {
 		if (!content) return [];
 		var firstLine = content.split('\n')[0];
 		if (!firstLine) return [];
-		var sep = detectSeparator(content);
+		var sep = window.aoeSeparator || detectSeparator(content);
 		return parseCSVLine(firstLine, sep).filter(function (h) { return h !== ''; });
 	}
 
 	function parseCSVRows(content, headers, maxRows) {
 		if (!content) return [];
 		var lines = content.split('\n');
-		var sep = detectSeparator(content);
+		var sep = window.aoeSeparator || detectSeparator(content);
 		var rows = [];
 		var count = 0;
 		for (var i = 1; i < lines.length; i++) {
@@ -144,6 +174,7 @@ jQuery(document).ready(function ($) {
 		$container.append(html);
 
 		$('#aoe-detected-columns').show();
+		renderSeparatorSelector(window.aoeSeparator || detectSeparator(window.aoeImportContent));
 		$('#aoe-preview-action').slideDown();
 		$('#aoe-action-step').slideUp();
 		$('#aoe-import-progress').slideUp().find('#aoe-progress-bar').css('width', '0%');
@@ -174,7 +205,7 @@ jQuery(document).ready(function ($) {
 
 		var reader = new FileReader();
 		reader.onload = function (evt) {
-			var content = evt.target.result;
+			var content = evt.target.result.replace(/^\uFEFF/, '');
 			// Save parsed content in memory for batches
 			window.aoeImportContent = content;
 			var headers = parseCSVHeaders(content);
@@ -185,7 +216,7 @@ jQuery(document).ready(function ($) {
 
 	// Trigger detection on Text paste
 	$('#csv_paste').on('input', function () {
-		var content = $(this).val();
+		var content = $(this).val().replace(/^\uFEFF/, '');
 		window.aoeImportContent = content;
 		var headers = parseCSVHeaders(content);
 		displayDetectedColumns(headers);
@@ -207,8 +238,7 @@ jQuery(document).ready(function ($) {
 		var headers = parseCSVHeaders(window.aoeImportContent);
 		var rows = [];
 
-		// Parse lines into row objects using the RFC-4180 compliant parser
-		var sep = detectSeparator(window.aoeImportContent);
+		var sep = window.aoeSeparator || detectSeparator(window.aoeImportContent);
 		for (var i = 1; i < lines.length; i++) {
 			var line = lines[i];
 			if (!line.trim()) continue;
@@ -227,6 +257,12 @@ jQuery(document).ready(function ($) {
 			}
 			rows = rows.slice(0, 500);
 			logMessage('Test mode: processing first ' + rows.length + ' rows for preview.');
+		}
+
+		// Apply row limit
+		var rowLimit = parseInt($('#aoe-row-limit').val()) || 0;
+		if (rowLimit > 0 && rows.length > rowLimit) {
+			rows = rows.slice(0, rowLimit);
 		}
 
 		// Configure batching
@@ -262,49 +298,60 @@ jQuery(document).ready(function ($) {
 			var chunk = rows.slice(processed, processed + batchSize);
 			var isLastChunk = processed + chunk.length >= totalRows;
 
-			$.ajax({
-				url: ajaxurl,
-				method: 'POST',
-				data: {
-					action: 'aoe_process_batch',
-					manufacturer: manufacturer,
-					import_mode: importMode,
-					is_test: isTest ? 1 : 0,
-					test_slug: testSlug,
-					is_last_chunk: isLastChunk ? 1 : 0,
-					offset: processed,
-					total_rows: totalRows,
-					rows_json: JSON.stringify(chunk)
-				},
-				success: function (response) {
-					if (response.success) {
-						processed += chunk.length;
-						var pct = Math.min(100, Math.round((processed / totalRows) * 100));
-						$('#aoe-progress-bar').css('width', pct + '%');
-						$('#aoe-progress-text').text(processed + ' / ' + totalRows + ' rows processed');
-						logMessage('Processed batch: ' + processed + ' / ' + totalRows + ' rows. ' + response.data.message);
+			function doRequest(retries) {
+				$.ajax({
+					url: ajaxurl,
+					method: 'POST',
+					timeout: 120000,
+					data: {
+						action: 'aoe_process_batch',
+						manufacturer: manufacturer,
+						import_mode: importMode,
+						is_test: isTest ? 1 : 0,
+						test_slug: testSlug,
+						is_last_chunk: isLastChunk ? 1 : 0,
+						offset: processed,
+						total_rows: totalRows,
+						rows_json: JSON.stringify(chunk)
+					},
+					success: function (response) {
+						if (response.success) {
+							processed += chunk.length;
+							var pct = Math.min(100, Math.round((processed / totalRows) * 100));
+							$('#aoe-progress-bar').css('width', pct + '%');
+							$('#aoe-progress-text').text(processed + ' / ' + totalRows + ' rows processed');
+							logMessage('Processed batch: ' + processed + ' / ' + totalRows + ' rows. ' + response.data.message);
 
-						if (processed >= totalRows) {
-							if (isTest && response.data.test_url) {
-								$('#aoe-progress-text').html('<strong>¡Prueba completada con éxito!</strong> <a href="' + response.data.test_url + '" target="_blank" class="button button-secondary" style="margin-left: 10px;">Ver Página de Prueba</a>');
-								logMessage('Preview URL: ' + response.data.test_url);
-							} else if (!isTest) {
-								var prodUrl = window.location.origin + '/catalogo/' + manufacturer;
-								$('#aoe-progress-text').html('<strong>¡Importación completada!</strong> <a href="' + prodUrl + '" target="_blank" class="button button-secondary" style="margin-left: 10px;">Ver Catálogo Principal</a>');
-								logMessage('Production Catalog URL: ' + prodUrl);
+							if (processed >= totalRows) {
+								if (isTest && response.data.test_url) {
+									$('#aoe-progress-text').html('<strong>¡Prueba completada con éxito!</strong> <a href="' + response.data.test_url + '" target="_blank" class="button button-secondary" style="margin-left: 10px;">Ver Página de Prueba</a>');
+									logMessage('Preview URL: ' + response.data.test_url);
+								} else if (!isTest) {
+									var prodUrl = window.location.origin + '/catalogo/' + manufacturer;
+									$('#aoe-progress-text').html('<strong>¡Importación completada!</strong> <a href="' + prodUrl + '" target="_blank" class="button button-secondary" style="margin-left: 10px;">Ver Catálogo Principal</a>');
+									logMessage('Production Catalog URL: ' + prodUrl);
+								}
+								return;
 							}
-							return;
-						}
 
-						sendBatch();
-					} else {
-						logMessage('ERROR: ' + response.data);
+							setTimeout(sendBatch, 100);
+						} else {
+							logMessage('ERROR: ' + response.data);
+						}
+					},
+					error: function (xhr, status, err) {
+						if (retries > 0) {
+							logMessage('Reintentando lote (quedan ' + retries + ' intentos)...');
+							setTimeout(function () { doRequest(retries - 1); }, 2000);
+						} else {
+							logMessage('Error definitivo en lote ' + Math.floor(processed / batchSize + 1) + '. Recarga la página y continúa en modo Incremental.');
+							$('#aoe-progress-text').html('<strong style="color:#d63638;">Error. Recarga y continúa en Incremental desde el final.</strong>');
+						}
 					}
-				},
-				error: function (xhr, status, err) {
-					logMessage('AJAX Connection Error: ' + err);
-				}
-			});
+				});
+			}
+
+			doRequest(3);
 		}
 
 		sendBatch();
@@ -337,6 +384,100 @@ jQuery(document).ready(function ($) {
 			runBatchProcess(false);
 		}
 	});
+
+	// === EDAC: Structure Import ===
+	if ($('#csv_structure').length) {
+		var $sepRow = $('<div id="aoe-structure-sep" style="margin:10px 0;"></div>');
+		$('#csv_structure').after($sepRow);
+
+		function parseStructureCSV(content, sep) {
+			var lines = content.split('\n');
+			if (lines.length <= 1) return null;
+			var headers = parseCSVLine(lines[0], sep);
+			var rows = [];
+			for (var i = 1; i < lines.length; i++) {
+				var line = lines[i];
+				if (!line.trim()) continue;
+				var cols = parseCSVLine(line, sep);
+				var rowData = {};
+				headers.forEach(function (header, idx) {
+					rowData[header] = cols[idx] !== undefined ? cols[idx] : '';
+				});
+				rows.push(rowData);
+			}
+			return rows;
+		}
+
+		function sendStructureImport(content, sep) {
+			var $status = $('#aoe-structure-status');
+			var rows = parseStructureCSV(content, sep);
+			if (!rows || rows.length === 0) {
+				$status.html('<p style="color:#d63638;">El archivo no tiene datos.</p>');
+				return;
+			}
+			$status.html('<p><em>Importando ' + rows.length + ' registros de estructura...</em></p>');
+			$.ajax({
+				url: ajaxurl,
+				method: 'POST',
+				data: {
+					action: 'aoe_import_structure',
+					manufacturer: $('#manufacturer_slug').val(),
+					rows_json: JSON.stringify(rows)
+				},
+				success: function (resp) {
+					if (resp.success) {
+						$status.html('<p style="color:#46b450;font-weight:600;">✓ ' + resp.data.message + '</p>');
+					} else {
+						$status.html('<p style="color:#d63638;">Error: ' + resp.data + '</p>');
+					}
+				},
+				error: function () {
+					$status.html('<p style="color:#d63638;">Error de conexión al importar estructura.</p>');
+				}
+			});
+		}
+
+		$('#csv_structure').on('change', function (e) {
+			var file = e.target.files[0];
+			if (!file) return;
+
+			var reader = new FileReader();
+			reader.onload = function (evt) {
+				var content = evt.target.result.replace(/^\uFEFF/, '');
+				window.aoeStructureContent = content;
+				var firstLine = content.split('\n')[0] || '';
+				var sep = firstLine.indexOf('\t') !== -1 ? '\t' : firstLine.indexOf(';') !== -1 ? ';' : ',';
+
+				var html = '<label style="font-weight:600;">Separador: </label><select id="aoe-structure-sep-select">';
+				['\t', ';', ','].forEach(function (s) {
+					var label = s === '\t' ? 'Tabulación' : s === ';' ? 'Punto y coma' : 'Coma';
+					html += '<option value="' + s + '"' + (s === sep ? ' selected' : '') + '>' + label + '</option>';
+				});
+				html += '</select> <button type="button" class="button button-primary" id="aoe-btn-import-structure" style="margin-left:10px;">Importar estructura</button>';
+				$sepRow.html(html);
+
+				var $status = $('#aoe-structure-status');
+				var rows = parseStructureCSV(content, sep);
+				if (rows) {
+					$status.html('<p style="color:#888;">' + rows.length + ' registros detectados.</p>');
+				}
+
+				$('#aoe-structure-sep-select').off('change').on('change', function () {
+					var newSep = $(this).val();
+					var rows = parseStructureCSV(window.aoeStructureContent, newSep);
+					if (rows) {
+						$('#aoe-structure-status').html('<p style="color:#888;">' + rows.length + ' registros detectados.</p>');
+					}
+				});
+
+				$('#aoe-btn-import-structure').off('click').on('click', function () {
+					var chosenSep = $('#aoe-structure-sep-select').val();
+					sendStructureImport(window.aoeStructureContent, chosenSep);
+				});
+			};
+			reader.readAsText(file);
+		});
+	}
 
 	// Clear cache per manufacturer
 	$(document).on('click', '.aoe-clear-cache', function (e) {

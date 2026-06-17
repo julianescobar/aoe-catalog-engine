@@ -50,13 +50,52 @@ if ( ! defined( 'AOE_CATALOG_MEDIA_URL' ) ) {
 	define( 'AOE_CATALOG_MEDIA_URL', content_url( 'uploads/catalogo' ) );
 }
 
+function aoe_catalog_get_upload_base(): string {
+	$upload = wp_upload_dir();
+	return trailingslashit( $upload['basedir'] ) . 'catalogo';
+}
+
+/**
+ * Resolve media URL: prefers local files over remote URLs.
+ * - If remote URL, extracts filename and checks local first (with .webp fallback for images)
+ * - Falls back to original URL if local file doesn't exist
+ */
 function aoe_catalog_resolve_media_url( string $path, string $manufacturer_slug, string $type = 'images' ): string {
 	if ( '' === $path ) {
 		return '';
 	}
-	if ( strpos( $path, 'http' ) === 0 || strpos( $path, '//' ) === 0 ) {
+
+	$is_remote = ( strpos( $path, 'http' ) === 0 || strpos( $path, '//' ) === 0 );
+
+	if ( $is_remote ) {
+		// Extract filename from URL
+		$parsed = parse_url( $path );
+		$filename = basename( $parsed['path'] ?? '' );
+		if ( '' === $filename ) {
+			return $path;
+		}
+		$base_dir = aoe_catalog_get_upload_base() . '/' . $manufacturer_slug . '/' . $type . '/';
+
+		if ( 'images' === $type ) {
+			// Try .webp (converted from PNG/other)
+			$no_ext = pathinfo( $filename, PATHINFO_FILENAME );
+			$local_path = $base_dir . $no_ext . '.webp';
+			if ( file_exists( $local_path ) ) {
+				return trailingslashit( AOE_CATALOG_MEDIA_URL ) . $manufacturer_slug . '/images/' . $no_ext . '.webp';
+			}
+		}
+
+		// Try original filename
+		$local_path = $base_dir . $filename;
+		if ( file_exists( $local_path ) ) {
+			return trailingslashit( AOE_CATALOG_MEDIA_URL ) . $manufacturer_slug . '/' . $type . '/' . $filename;
+		}
+
+		// Not found locally, fall back to remote URL
 		return $path;
 	}
+
+	// Local path already
 	return trailingslashit( AOE_CATALOG_MEDIA_URL ) . $manufacturer_slug . '/' . $type . '/' . ltrim( $path, '/' );
 }
 
@@ -68,7 +107,7 @@ function aoe_catalog_resolve_pdf_urls( array $pdf, string $manufacturer_slug ): 
 	return $resolved;
 }
 
-function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, string $category, array $page_products, int $current_page, int $total_pages, bool $is_preview = false, string $manufacturer_slug = '', array $grouped_segments = [] ): string {
+function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, string $category, array $page_products, int $current_page, int $total_pages, bool $is_preview = false, string $manufacturer_slug = '', array $grouped_segments = [], ?array $category_metadata = null, array $breadcrumb_path = [] ): string {
 	$first        = $page_products[0] ?? null;
 	if ( $is_preview ) {
 		$first_images = is_array( $first['images'] ?? null ) ? $first['images'] : [];
@@ -147,6 +186,32 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 		</nav>
 		<?php endif; ?>
 
+		<?php if ( null !== $category_metadata ) : ?>
+		<div class="aoe-catalog-series-info">
+			<?php if ( ! empty( $category_metadata['description'] ) ) : ?>
+				<div class="aoe-series-description"><?php echo wp_kses_post( $category_metadata['description'] ); ?></div>
+			<?php endif; ?>
+			<?php if ( ! empty( $category_metadata['features'] ) ) : ?>
+				<div class="aoe-series-features">
+					<h3>Características</h3>
+					<?php echo wp_kses_post( $category_metadata['features'] ); ?>
+				</div>
+			<?php endif; ?>
+			<?php if ( ! empty( $category_metadata['specifications'] ) ) : ?>
+				<div class="aoe-series-specs">
+					<h3>Especificaciones</h3>
+					<?php echo wp_kses_post( $category_metadata['specifications'] ); ?>
+				</div>
+			<?php endif; ?>
+			<?php if ( ! empty( $category_metadata['highlights'] ) ) : ?>
+				<div class="aoe-series-highlights">
+					<h3>Destacados</h3>
+					<?php echo wp_kses_post( $category_metadata['highlights'] ); ?>
+				</div>
+			<?php endif; ?>
+		</div>
+		<?php endif; ?>
+
 		<?php if ( ! empty( $grouped_segments ) ) : ?>
 			<?php foreach ( $grouped_segments as $gseg ) : ?>
 				<?php
@@ -220,6 +285,9 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 				</div>
 			<?php endforeach; ?>
 		<?php else : ?>
+		<?php if ( ! empty( $breadcrumb_path ) ) : ?>
+			<h3 class="aoe-cat-breadcrumb"><?php echo esc_html( implode( ' > ', $breadcrumb_path ) ); ?></h3>
+		<?php endif; ?>
 		<table class="aoe-catalog-table" itemscope itemtype="https://schema.org/ItemList">
 			<thead>
 				<tr>

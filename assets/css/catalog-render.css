@@ -463,3 +463,52 @@
 .aoe-catalog-specs-icon i {
 	color: #20acdb;
 }
+
+/* Series metadata (EDAC) */
+.aoe-catalog-series-info {
+	margin-bottom: 30px;
+	padding: 20px;
+	background: #f9f9f9;
+	border-radius: 8px;
+	border: 1px solid #e0e0e0;
+}
+
+.aoe-catalog-series-info h3 {
+	font-size: 16px;
+	color: #333;
+	margin: 20px 0 10px;
+	padding-bottom: 5px;
+	border-bottom: 2px solid #20acdb;
+}
+
+.aoe-catalog-series-info h3:first-child {
+	margin-top: 0;
+}
+
+.aoe-series-description {
+	font-size: 15px;
+	line-height: 1.6;
+	color: #444;
+}
+
+.aoe-series-features,
+.aoe-series-specs,
+.aoe-series-highlights {
+	font-size: 14px;
+	line-height: 1.5;
+	color: #555;
+}
+
+.aoe-series-features ul,
+.aoe-series-specs ul,
+.aoe-series-highlights ul {
+	margin: 8px 0;
+	padding-left: 20px;
+	list-style: disc;
+}
+
+.aoe-series-features li,
+.aoe-series-specs li,
+.aoe-series-highlights li {
+	margin-bottom: 4px;
+}
