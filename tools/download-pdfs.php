@@ -2,7 +2,7 @@
 /**
  * Usage: php tools/download-pdfs.php <slug> <csv_path> [parallel=15]
  *
- * Downloads PDFs from datasheet_url column to uploads/catalogo/{slug}/pdfs/
+ * Downloads PDFs from datasheet_url column to pdf/{slug}/originals/
  * Skips existing files.
  */
 
@@ -24,7 +24,7 @@ if ( ! file_exists( $csvPath ) ) {
 	exit( 1 );
 }
 
-$pdfDir = __DIR__ . '/../../../uploads/pdf/' . $slug . '/originals/';
+$pdfDir = __DIR__ . '/../../../../pdf/' . $slug . '/originals/';
 if ( ! is_dir( $pdfDir ) ) {
 	mkdir( $pdfDir, 0755, true );
 	echo "Created: $pdfDir\n";

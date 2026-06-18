@@ -154,7 +154,7 @@ $current_page      = $page_num;
 $total_pages       = 1;
 
 $segments = $wpdb->get_results( $wpdb->prepare(
-	"SELECT s.*, c.name AS category_name, c.slug AS category_slug, c.parent_id, c.level, c.metadata_json
+	"SELECT s.*, c.name AS category_name, c.slug AS category_slug, c.parent_id, c.level, c.metadata_json, c.description AS category_description
 	 FROM $table_seg s
 	 JOIN $table_cat c ON s.category_id = c.id
 	 WHERE s.page_id = %d
@@ -310,7 +310,7 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 	ob_start();
 	?>
 	<div class="aoe-tree">
-		<h3>Categorías</h3>
+		<h2>Catálogo de <?php echo esc_html( $page->manufacturer_name ); ?></h2>
 		<?php if ( $total_pages > 1 ) : ?>
 		<nav class="aoe-catalog-pagination" aria-label="Paginacion de categorias">
 			<span class="aoe-catalog-bold">Ir a la pagina:</span>
@@ -353,16 +353,17 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 			$segments_by_id[ $seg->category_id ] = $seg;
 		}
 
-		function aoe_render_cat_tree( array $items, array $tree_by_parent, array $segments_by_id, array $cat_page_map, int $level = 0 ) {
+		function aoe_render_cat_tree( array $items, array $tree_by_parent, array $segments_by_id, array $cat_page_map, int $level = 0, bool $is_root = true ) {
 			if ( empty( $items ) ) return;
-			echo '<ul class="aoe-cat-list' . ( $level > 0 ? ' aoe-cat-sublist' : '' ) . '">';
+			if ( $is_root ) {
+				echo '<table class="aoe-cat-tree-table">';
+			}
 			foreach ( $items as $item ) {
 				$count = (int) ( $segments_by_id[ $item->category_id ]->products_to ?? 0 );
 				$children = $tree_by_parent[ $item->category_id ] ?? [];
 				$has_children_with_content = aoe_has_visible_descendants( $item->category_id, $tree_by_parent, $segments_by_id );
 				if ( $count === 0 && ! $has_children_with_content ) continue;
 
-				// Check if category has a linked WP page
 				$meta = ! empty( $item->metadata_json ) ? json_decode( $item->metadata_json, true ) : [];
 				$wp_post_id = ! empty( $meta['wp_post_id'] ) ? intval( $meta['wp_post_id'] ) : 0;
 
@@ -374,13 +375,48 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 					$cat_url = '#';
 				}
 
-				echo '<li class="aoe-cat-item aoe-cat-level-' . (int) $item->level . '">';
-				echo '<a href="' . esc_url( $cat_url ) . '">' . esc_html( $item->category_name ) . '</a>';
-				echo ' <span class="count">(' . esc_html( $count ) . ')</span>';
-				aoe_render_cat_tree( $children, $tree_by_parent, $segments_by_id, $cat_page_map, $level + 1 );
-				echo '</li>';
+				$is_series = ( (int) $item->level === 2 );
+				$row_class = 'aoe-cat-row aoe-cat-level-' . (int) $item->level;
+				if ( $is_series ) {
+					$row_class .= ( $level % 2 === 0 ) ? ' aoe-cat-row-even' : ' aoe-cat-row-odd';
+				}
+
+				echo '<tr class="' . $row_class . '">';
+				echo '<td class="aoe-cat-name">';
+
+				if ( (int) $item->level === 0 ) {
+					echo '<h3>';
+				} elseif ( (int) $item->level === 1 ) {
+					echo '<h4>';
+				}
+
+				if ( $cat_url !== '#' ) {
+					echo '<a href="' . esc_url( $cat_url ) . '">' . esc_html( $item->category_name ) . '</a>';
+				} else {
+					echo esc_html( $item->category_name );
+				}
+
+				if ( (int) $item->level === 0 ) {
+					echo '</h3>';
+				} elseif ( (int) $item->level === 1 ) {
+					echo '</h4>';
+				}
+
+				if ( $is_series && $count > 0 ) {
+					echo ' <span class="count">(' . esc_html( $count ) . ')</span>';
+				}
+
+				echo '</td>';
+
+				$desc = ! empty( $item->category_description ) ? $item->category_description : '';
+				echo '<td class="aoe-cat-desc">' . ( $desc ? esc_html( $desc ) : '&nbsp;' ) . '</td>';
+				echo '</tr>';
+
+				aoe_render_cat_tree( $children, $tree_by_parent, $segments_by_id, $cat_page_map, $level + 1, false );
 			}
-			echo '</ul>';
+			if ( $is_root ) {
+				echo '</table>';
+			}
 		}
 
 		$root_items = $tree_by_parent[0] ?? $tree_by_parent[ null ] ?? $tree_by_parent[ '' ] ?? [];

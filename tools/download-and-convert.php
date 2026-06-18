@@ -33,7 +33,7 @@ if ( ! $hasGd ) {
 }
 
 $imageDir = __DIR__ . '/../../../uploads/catalogo/' . $slug . '/images/';
-$pdfDir   = __DIR__ . '/../../../uploads/pdf/' . $slug . '/originals/';
+$pdfDir   = __DIR__ . '/../../../../pdf/' . $slug . '/originals/';
 
 if ( ! is_dir( $imageDir ) ) {
 	mkdir( $imageDir, 0755, true );

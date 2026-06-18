@@ -373,24 +373,65 @@
 	background: rgb(223 223 223);
 }
 
-/* Tree hierarchy */
-.aoe-cat-list {
-	list-style: none;
+/* Tree hierarchy table */
+.aoe-cat-tree-table {
+	width: 100%;
+	border-collapse: collapse;
+	margin: 20px 0;
+}
+
+.aoe-cat-tree-table td {
+	padding: 6px 12px;
+	vertical-align: middle;
+}
+
+.aoe-cat-level-0,
+.aoe-cat-level-1 {
+	background: #fff;
+	border: none;
+}
+
+.aoe-cat-level-2 {
+	border: 1px solid #ddd;
+}
+
+.aoe-cat-level-2.aoe-cat-row-even {
+	background: #f9f9f9;
+}
+
+.aoe-cat-level-2.aoe-cat-row-odd {
+	background: #fff;
+}
+
+.aoe-cat-name h3 {
 	margin: 0;
-	padding: 0;
+	font-size: 1.3em;
 }
 
-.aoe-cat-list li {
-	padding: 6px 0;
+.aoe-cat-name h4 {
+	margin: 0;
+	font-size: 1.1em;
 }
 
-.aoe-cat-sublist {
-	margin: 4px 0 4px 24px;
-}
-
-.aoe-cat-item .count {
+.aoe-cat-name .count {
 	color: #888;
 	font-size: 0.9em;
+	margin-left: 6px;
+}
+
+.aoe-cat-desc {
+	color: #666;
+	font-size: 0.9em;
+	text-align: right;
+	width: 40%;
+}
+
+.aoe-cat-name a {
+	text-decoration: none;
+}
+
+.aoe-cat-name a:hover {
+	text-decoration: underline;
 }
 
 /* Grouped page category breadcrumbs */
