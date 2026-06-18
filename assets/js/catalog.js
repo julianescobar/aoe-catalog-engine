@@ -79,16 +79,28 @@ jQuery(document).ready(function ($) {
 	$(document).on('click', 'a[data-toggle="modal"][data-target=".fusion-modal.descargar"]', function () {
 		aoeDownloadUrl = $(this).attr('data-doc') || '';
 		var title = $(this).attr('title') || '';
+		var $modal = $('.fusion-modal.descargar');
 
-		$('.fusion-modal.descargar').find('[name="archivo_a_descargar"]').val(aoeDownloadUrl);
+		$modal.find('[name="archivo_a_descargar"]').val(aoeDownloadUrl);
 
 		if (title.toLowerCase() === 'datasheet') {
-			$('.fusion-modal.descargar').find('[id^="modal-heading-"]').text('Descargar ficha técnica');
+			$modal.find('[id^="modal-heading-"]').text('Descargar ficha técnica');
 		} else {
-			$('.fusion-modal.descargar').find('[id^="modal-heading-"]').text('Descargar el documento "' + title + '"');
+			$modal.find('[id^="modal-heading-"]').text('Descargar el documento "' + title + '"');
 		}
 
 		$('#aoe-catalog-modal').modal('hide');
+
+		$('#aoe-catalog-modal').one('hidden.bs.modal', function () {
+			$modal.modal('show');
+			$modal.css('z-index', '100001');
+		});
+	});
+
+	$(document).on('shown.bs.modal', '.fusion-modal.descargar', function () {
+		$(this).css('z-index', '100001');
+		$('.modal-backdrop').last().css({ 'z-index': '100000', 'opacity': '0.85' });
+		$('body').children('.modal-backdrop').not(':last').hide();
 	});
 
 	$(document).on('hidden.bs.modal', '.fusion-modal.descargar', function () {

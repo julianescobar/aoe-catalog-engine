@@ -192,12 +192,13 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 				max-height: 90vh;
 				overflow-y: auto;
 			}
-			.fusion-modal.descargar {
-				z-index: 99999 !important;
+			.fusion-modal.descargar.in,
+			.fusion-modal.descargar.show {
+				z-index: 100001 !important;
 			}
-			.fusion-modal.descargar ~ .modal-backdrop {
-				z-index: 99998 !important;
-				opacity: 0.8 !important;
+			.fusion-modal.descargar.in ~ .modal-backdrop,
+			.fusion-modal.descargar.show ~ .modal-backdrop {
+				z-index: 100000 !important;
 			}
 	</style>
 	<div class="aoe-catalog-render">
