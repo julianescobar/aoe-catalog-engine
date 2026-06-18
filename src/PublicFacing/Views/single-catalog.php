@@ -206,20 +206,21 @@ if ( 'category' === $page_type ) {
 		// DEBUG: print parent chain as HTML comment
 		echo "\n<!-- DEBUG breadcrumb: " . esc_html( implode( ' | ', $debug_parents ) ) . " -->\n";
 
-		// Fetch category metadata (series info for EDAC)
+		// Fetch category metadata (description + series info)
 		$cat_row = $wpdb->get_row( $wpdb->prepare(
 			"SELECT description, metadata_json FROM $table_cat WHERE id = %d",
 			$cat_seg->category_id
 		) );
-		if ( $cat_row && ! empty( $cat_row->metadata_json ) ) {
-			$cat_meta = json_decode( $cat_row->metadata_json, true );
-			if ( is_array( $cat_meta ) && ! empty( $cat_meta['series_id'] ) ) {
-				$category_metadata = [
-					'description'    => $cat_row->description,
-					'features'       => $cat_meta['features'] ?? '',
-					'specifications' => $cat_meta['specifications'] ?? '',
-					'highlights'     => $cat_meta['highlights'] ?? '',
-				];
+		$category_metadata = [ 'description' => '', 'features' => '', 'specifications' => '', 'highlights' => '' ];
+		if ( $cat_row ) {
+			$category_metadata['description'] = $cat_row->description ?? '';
+			if ( ! empty( $cat_row->metadata_json ) ) {
+				$cat_meta = json_decode( $cat_row->metadata_json, true );
+				if ( is_array( $cat_meta ) ) {
+					$category_metadata['features']       = $cat_meta['features'] ?? '';
+					$category_metadata['specifications'] = $cat_meta['specifications'] ?? '';
+					$category_metadata['highlights']     = $cat_meta['highlights'] ?? '';
+				}
 			}
 		}
 
@@ -353,7 +354,7 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 			$segments_by_id[ $seg->category_id ] = $seg;
 		}
 
-		function aoe_render_cat_tree( array $items, array $tree_by_parent, array $segments_by_id, array $cat_page_map, int $level = 0, bool $is_root = true ) {
+		function aoe_render_cat_tree( array $items, array $tree_by_parent, array $segments_by_id, array $cat_page_map, int $level = 0, bool $is_root = true, int &$leaf_idx = 0 ) {
 			if ( empty( $items ) ) return;
 			if ( $is_root ) {
 				echo '<table class="aoe-cat-tree-table">';
@@ -375,18 +376,20 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 					$cat_url = '#';
 				}
 
-				$is_series = ( (int) $item->level === 2 );
-				$row_class = 'aoe-cat-row aoe-cat-level-' . (int) $item->level;
-				if ( $is_series ) {
-					$row_class .= ( $level % 2 === 0 ) ? ' aoe-cat-row-even' : ' aoe-cat-row-odd';
+				$is_leaf = empty( $children ) || ! $has_children_with_content;
+				$display_level = $is_leaf ? 3 : (int) $item->level;
+				$row_class = 'aoe-cat-row aoe-cat-level-' . $display_level;
+				if ( $is_leaf ) {
+					$row_class .= ( $leaf_idx % 2 === 0 ) ? ' aoe-cat-row-even' : ' aoe-cat-row-odd';
+					$leaf_idx++;
 				}
 
 				echo '<tr class="' . $row_class . '">';
 				echo '<td class="aoe-cat-name">';
 
-				if ( (int) $item->level === 0 ) {
+				if ( ! $is_leaf && $level === 0 ) {
 					echo '<h3>';
-				} elseif ( (int) $item->level === 1 ) {
+				} elseif ( ! $is_leaf && $level === 1 ) {
 					echo '<h4>';
 				}
 
@@ -396,13 +399,13 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 					echo esc_html( $item->category_name );
 				}
 
-				if ( (int) $item->level === 0 ) {
+				if ( ! $is_leaf && $level === 0 ) {
 					echo '</h3>';
-				} elseif ( (int) $item->level === 1 ) {
+				} elseif ( ! $is_leaf && $level === 1 ) {
 					echo '</h4>';
 				}
 
-				if ( $is_series && $count > 0 ) {
+				if ( $is_leaf && $count > 0 ) {
 					echo ' <span class="count">(' . esc_html( $count ) . ')</span>';
 				}
 
@@ -412,7 +415,7 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 				echo '<td class="aoe-cat-desc">' . ( $desc ? esc_html( $desc ) : '&nbsp;' ) . '</td>';
 				echo '</tr>';
 
-				aoe_render_cat_tree( $children, $tree_by_parent, $segments_by_id, $cat_page_map, $level + 1, false );
+				aoe_render_cat_tree( $children, $tree_by_parent, $segments_by_id, $cat_page_map, $level + 1, false, $leaf_idx );
 			}
 			if ( $is_root ) {
 				echo '</table>';
@@ -423,7 +426,8 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 		if ( empty( $root_items ) ) {
 			$root_items = $segments;
 		}
-		aoe_render_cat_tree( $root_items, $tree_by_parent, $segments_by_id, $cat_page_map );
+		$leaf_idx = 0;
+		aoe_render_cat_tree( $root_items, $tree_by_parent, $segments_by_id, $cat_page_map, 0, true, $leaf_idx );
 		?>
 	</div>
 	<?php

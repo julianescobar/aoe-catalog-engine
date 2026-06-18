@@ -192,6 +192,13 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 				max-height: 90vh;
 				overflow-y: auto;
 			}
+			.fusion-modal.descargar {
+				z-index: 99999 !important;
+			}
+			.fusion-modal.descargar ~ .modal-backdrop {
+				z-index: 99998 !important;
+				opacity: 0.8 !important;
+			}
 	</style>
 	<div class="aoe-catalog-render">
 		<header>
@@ -203,7 +210,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 						<p>Fabricante</p>
 				</div>
 				<div class="aoe-catalog-data">
-						<a><a href="<?php echo site_url() . '/' . strtolower( $manufacturer_name ); ?>" target="_blank"><?php echo esc_html( ucfirst( $manufacturer_name ) ); ?></a></a>
+						<a><a href="<?php echo esc_url( home_url( '/catalogo/' . $manufacturer_slug . '/' ) ); ?>" target="_blank"><?php echo esc_html( ucfirst( $manufacturer_name ) ); ?></a></a>
 				</div>
 			</div>
 		</header>
@@ -228,9 +235,6 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 
 		<?php if ( null !== $category_metadata && apply_filters( 'aoe_catalog_show_series_info', false ) ) : ?>
 		<div class="aoe-catalog-series-info">
-			<?php if ( ! empty( $category_metadata['description'] ) ) : ?>
-				<div class="aoe-series-description"><?php echo wp_kses_post( $category_metadata['description'] ); ?></div>
-			<?php endif; ?>
 			<?php if ( ! empty( $category_metadata['features'] ) ) : ?>
 				<div class="aoe-series-features">
 					<h3>Características</h3>
@@ -316,7 +320,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 											<link itemprop="availability" href="https://schema.org/InStock">
 										</div>
 									</td>
-									<td itemprop="brand" itemscope itemtype="https://schema.org/Brand"><span itemprop="name"><?php echo esc_html( ucfirst( $manufacturer_name ) ); ?></span></td>
+									<td itemprop="brand" itemscope itemtype="https://schema.org/Brand"><a href="<?php echo esc_url( home_url( '/catalogo/' . $manufacturer_slug . '/' ) ); ?>"><span itemprop="name"><?php echo esc_html( ucfirst( $manufacturer_name ) ); ?></span></a></td>
 									<td class="aoe-catalog-actions"><?php echo aoe_catalog_render_pdf_icon_links( $has_specs ); ?></td>
 								</tr>
 							<?php endforeach; ?>
@@ -327,6 +331,17 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 		<?php else : ?>
 		<?php if ( ! empty( $breadcrumb_path ) ) : ?>
 			<h3 class="aoe-cat-breadcrumb"><?php echo esc_html( implode( ' > ', $breadcrumb_path ) ); ?></h3>
+		<?php endif; ?>
+		<?php if ( ! empty( $category_metadata['description'] ) ) : ?>
+		<div class="aoe-series-description"><?php echo wp_kses_post( $category_metadata['description'] ); ?></div>
+		<?php endif; ?>
+		<?php if ( ! empty( $category_metadata['highlights'] ) ) : ?>
+		<div class="aoe-series-highlights"><?php echo wp_kses_post( nl2br( str_replace( '\n', "\n", $category_metadata['highlights'] ) ) ); ?></div>
+		<?php endif; ?>
+		<?php if ( ! empty( $category_metadata['features'] ) ) : ?>
+		<div class="aoe-series-features"><h4 style="font-weight: bold;">Características</h4>
+			<ul><?php foreach ( explode( "\n", str_replace( '\n', "\n", $category_metadata['features'] ) ) as $feat ) : ?><?php $feat = trim( $feat ); if ( '' !== $feat ) : ?><li><?php echo esc_html( $feat ); ?></li><?php endif; ?><?php endforeach; ?></ul>
+		</div>
 		<?php endif; ?>
 		<table class="aoe-catalog-table" itemscope itemtype="https://schema.org/ItemList">
 			<thead>
@@ -385,7 +400,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 								<link itemprop="availability" href="https://schema.org/InStock">
 							</div>
 						</td>
-						<td itemprop="brand" itemscope itemtype="https://schema.org/Brand"><span itemprop="name"><?php echo esc_html( ucfirst( $manufacturer_name ) ); ?></span></td>
+						<td itemprop="brand" itemscope itemtype="https://schema.org/Brand"><a href="<?php echo esc_url( home_url( '/catalogo/' . $manufacturer_slug . '/' ) ); ?>"><span itemprop="name"><?php echo esc_html( ucfirst( $manufacturer_name ) ); ?></span></a></td>
 						<td class="aoe-catalog-actions"><?php echo aoe_catalog_render_pdf_icon_links( $has_specs ); ?></td>
 					</tr>
 				<?php endforeach; ?>

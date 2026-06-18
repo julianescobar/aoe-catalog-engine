@@ -87,6 +87,12 @@ jQuery(document).ready(function ($) {
 		} else {
 			$('.fusion-modal.descargar').find('[id^="modal-heading-"]').text('Descargar el documento "' + title + '"');
 		}
+
+		$('#aoe-catalog-modal').modal('hide');
+	});
+
+	$(document).on('hidden.bs.modal', '.fusion-modal.descargar', function () {
+		$('#aoe-catalog-modal').modal('show');
 	});
 
 	// Trigger PDF download after Avada form AJAX succeeds
