@@ -11,6 +11,17 @@ class PublicManager {
 		add_filter( 'template_include', [ $this, 'load_catalog_templates' ] );
 		add_action( 'template_redirect', [ $this, 'intercept_catalog_request' ], 1 );
 		add_filter( 'redirect_canonical', [ $this, 'disable_redirect_for_catalog' ], 10, 2 );
+		add_filter( 'pre_get_document_title', [ $this, 'set_catalog_title' ], 20 );
+		add_action( 'wp_head', [ $this, 'output_catalog_meta' ], 1 );
+
+		add_filter( 'rank_math/opengraph/url', [ $this, 'override_og_url' ], 20 );
+		add_filter( 'rank_math/opengraph/title', [ $this, 'override_og_title' ], 20 );
+		add_filter( 'rank_math/opengraph/description', [ $this, 'override_og_description' ], 20 );
+		add_filter( 'rank_math/opengraph/image', [ $this, 'override_og_image' ], 20 );
+		add_filter( 'rank_math/opengraph/facebook/og_image', [ $this, 'override_og_image' ], 20 );
+		add_filter( 'rank_math/opengraph/facebook/og_image_secure_url', [ $this, 'override_og_image_secure_url' ], 20 );
+		add_filter( 'rank_math/opengraph/type', [ $this, 'override_og_type' ], 20 );
+		add_filter( 'rank_math/json_ld', [ $this, 'override_json_ld' ], 20, 2 );
 		// Sitemap provider desactivado durante pruebas. Activar al final:
 		// add_filter( 'rank_math/sitemap/providers', [ $this, 'register_catalog_sitemap_provider' ] );
 	}
@@ -115,6 +126,334 @@ class PublicManager {
 		}
 
 		return $redirect_url;
+	}
+
+	/**
+	 * Resolve SEO data for current catalog page.
+	 * @return array{title: string, description: string}|null
+	 */
+	private function get_catalog_seo(): ?array {
+		if ( get_query_var( 'aoe_catalog' ) === 'root' ) {
+			return [
+				'title'       => 'Catálogo de productos | TC Componentes',
+				'description' => 'Catálogo completo de conectores y componentes electrónicos de Samtec, Amphenol, CamdenBoss y EDAC. Documentación técnica, especificaciones y soporte especializado.',
+			];
+		}
+
+		$manufacturer_slug = get_query_var( 'aoe_catalog_manufacturer' );
+		if ( empty( $manufacturer_slug ) ) {
+			$preview = get_query_var( 'aoe_catalog_preview' );
+			if ( ! empty( $preview ) ) {
+				$manufacturer_slug = preg_replace( '/^test-/', '', $preview );
+				$ts_pos = strrpos( $manufacturer_slug, '-' );
+				if ( $ts_pos !== false ) {
+					$manufacturer_slug = substr( $manufacturer_slug, 0, $ts_pos );
+				}
+			}
+		}
+		if ( empty( $manufacturer_slug ) ) {
+			return null;
+		}
+
+		global $wpdb;
+		$table_m = $wpdb->prefix . 'aoe_catalog_manufacturers';
+		$mfr = $wpdb->get_row( $wpdb->prepare(
+			"SELECT id, name, wp_post_id, config_json FROM $table_m WHERE slug = %s",
+			$manufacturer_slug
+		) );
+		if ( ! $mfr ) {
+			return null;
+		}
+
+		$config = json_decode( $mfr->config_json ?? '', true ) ?: [];
+
+		// Get template: per-manufacturer > global > hardcoded default
+		$title_template = $config['seo_title_template'] ?? '';
+		$desc_template  = $config['seo_description_template'] ?? '';
+
+		if ( empty( $title_template ) ) {
+			$title_template = get_option( 'aoe_catalog_seo_title_template', 'Catálogo de productos de {manufacturer}: TC Componentes' );
+		}
+		if ( empty( $desc_template ) ) {
+			$desc_template = get_option( 'aoe_catalog_seo_description_template', 'TC Componentes es distribuidor de {manufacturer} en España. Catálogo completo de productos, documentación técnica y soporte técnico especializado.' );
+		}
+
+		$category_slug = get_query_var( 'aoe_catalog_category' );
+		$page         = get_query_var( 'aoe_catalog_page' );
+		$page_num     = ! empty( $page ) ? (int) $page : 0;
+		$type         = get_query_var( 'aoe_catalog_type' );
+
+		// Resolve category name from DB or slug
+		$category_name = '';
+		if ( ! empty( $category_slug ) ) {
+			$table_c = $wpdb->prefix . 'aoe_catalog_categories';
+			$cat_row = $wpdb->get_row( $wpdb->prepare(
+				"SELECT name FROM $table_c WHERE slug = %s AND manufacturer_id = %d LIMIT 1",
+				$category_slug, $mfr->id
+			) );
+			$category_name = $cat_row ? $cat_row->name : str_replace( '-', ' ', ucwords( $category_slug, '-' ) );
+		}
+
+		$category_label = '';
+		if ( ! empty( $category_name ) && 'grouped' !== $type ) {
+			$category_label = $category_name;
+		}
+
+		$replacements = [
+			'{manufacturer}' => $mfr->name,
+			'{category}'     => $category_label,
+			'{page}'         => $page_num > 0 ? (string) $page_num : '',
+		];
+
+		$title = str_replace( array_keys( $replacements ), array_values( $replacements ), $title_template );
+		$description = str_replace( array_keys( $replacements ), array_values( $replacements ), $desc_template );
+
+		// Append category to title if not already in template via {category}
+		if ( ! empty( $category_label ) && strpos( $title_template, '{category}' ) === false ) {
+			$title .= ' | ' . $category_label;
+		}
+
+		if ( $page_num > 1 ) {
+			$title .= ' - Página ' . $page_num;
+		}
+
+		return [ 'title' => $title, 'description' => $description ];
+	}
+
+	public function set_catalog_title( $title ) {
+		$seo = $this->get_catalog_seo();
+		if ( $seo ) {
+			return $seo['title'];
+		}
+		return $title;
+	}
+
+	public function output_catalog_meta() {
+		$seo = $this->get_catalog_seo();
+		if ( ! $seo ) {
+			return;
+		}
+		if ( ! empty( $seo['description'] ) ) {
+			echo '<meta name="description" content="' . esc_attr( $seo['description'] ) . '" />' . "\n";
+		}
+		if ( ! empty( $seo['title'] ) ) {
+			echo '<meta property="og:title" content="' . esc_attr( $seo['title'] ) . '" />' . "\n";
+		}
+		if ( ! empty( $seo['description'] ) ) {
+			echo '<meta property="og:description" content="' . esc_attr( $seo['description'] ) . '" />' . "\n";
+		}
+		echo '<meta property="og:type" content="website" />' . "\n";
+	}
+
+	public function override_og_url( $url ) {
+		$manufacturer_slug = get_query_var( 'aoe_catalog_manufacturer' );
+		if ( ! empty( $manufacturer_slug ) ) {
+			return home_url( '/' . $manufacturer_slug . '/' );
+		}
+		if ( get_query_var( 'aoe_catalog' ) === 'root' ) {
+			return home_url( '/catalogo/' );
+		}
+		return $url;
+	}
+
+	public function override_og_title( $title ) {
+		$seo = $this->get_catalog_seo();
+		if ( $seo ) {
+			return $seo['title'];
+		}
+		return $title;
+	}
+
+	public function override_og_description( $description ) {
+		$seo = $this->get_catalog_seo();
+		if ( $seo && ! empty( $seo['description'] ) ) {
+			return $seo['description'];
+		}
+		return $description;
+	}
+
+	public function override_og_image( $image ) {
+		if ( $this->get_catalog_seo() ) {
+			return content_url( 'uploads/tc-componentes-vr.webp' );
+		}
+		return $image;
+	}
+
+	public function override_og_image_secure_url( $url ) {
+		if ( $this->get_catalog_seo() ) {
+			return content_url( 'uploads/tc-componentes-vr.webp' );
+		}
+		return $url;
+	}
+
+	public function override_og_type( $type ) {
+		if ( $this->get_catalog_seo() ) {
+			return 'website';
+		}
+		return $type;
+	}
+
+	public function override_json_ld( $data, $context ) {
+		if ( ! $this->is_catalog_page() ) {
+			return $data;
+		}
+
+		global $wp, $wpdb;
+		$current_url = home_url( $wp->request );
+
+		// Resolve manufacturer data early so it's available everywhere
+		$manufacturer_slug = get_query_var( 'aoe_catalog_manufacturer' );
+		$mfr       = null;
+		$mfr_name  = '';
+		$tree_url  = '';
+		if ( ! empty( $manufacturer_slug ) ) {
+			$table_m  = $wpdb->prefix . 'aoe_catalog_manufacturers';
+			$mfr      = $wpdb->get_row( $wpdb->prepare(
+				"SELECT id, name FROM $table_m WHERE slug = %s",
+				$manufacturer_slug
+			) );
+			$mfr_name = $mfr ? $mfr->name : ucwords( str_replace( '-', ' ', $manufacturer_slug ) );
+			$tree_url = home_url( '/catalogo/' . $manufacturer_slug . '/' );
+		}
+
+		$category_slug = get_query_var( 'aoe_catalog_category' );
+		$type          = get_query_var( 'aoe_catalog_type' );
+
+		// Fix WebPage URL
+		if ( isset( $data['WebPage'] ) && empty( $data['WebPage']['url'] ) ) {
+			$data['WebPage']['url'] = $current_url;
+		}
+
+		// Build breadcrumb items
+		$items = [];
+		$pos   = 1;
+
+		$items[] = [
+			'@type'    => 'ListItem',
+			'position' => $pos++,
+			'item'     => [
+				'@id'  => home_url( '/' ),
+				'name' => 'Inicio',
+			],
+		];
+
+		if ( get_query_var( 'aoe_catalog' ) === 'root' ) {
+			$items[] = [
+				'@type'    => 'ListItem',
+				'position' => $pos++,
+				'item'     => [
+					'@id'  => home_url( '/catalogo/' ),
+					'name' => 'Catálogo',
+				],
+			];
+		} elseif ( ! empty( $manufacturer_slug ) ) {
+			$items[] = [
+				'@type'    => 'ListItem',
+				'position' => $pos++,
+				'item'     => [
+					'@id'  => home_url( '/catalogo/' ),
+					'name' => 'Catálogo',
+				],
+			];
+
+			$items[] = [
+				'@type'    => 'ListItem',
+				'position' => $pos++,
+				'item'     => [
+					'@id'  => $tree_url,
+					'name' => $mfr_name,
+				],
+			];
+
+			if ( ! empty( $category_slug ) && $mfr ) {
+				$table_c = $wpdb->prefix . 'aoe_catalog_categories';
+				$cat_row = $wpdb->get_row( $wpdb->prepare(
+					"SELECT name, parent_id FROM $table_c WHERE slug = %s AND manufacturer_id = %d",
+					$category_slug, $mfr->id
+				) );
+				$cat_name = $cat_row ? $cat_row->name : str_replace( '-', ' ', ucwords( $category_slug, '-' ) );
+
+				if ( $cat_row && $cat_row->parent_id ) {
+					$ancestor_names = [];
+					$cur_parent     = (int) $cat_row->parent_id;
+					while ( $cur_parent ) {
+						$p_row = $wpdb->get_row( $wpdb->prepare(
+							"SELECT name, parent_id FROM $table_c WHERE id = %d",
+							$cur_parent
+						) );
+						if ( $p_row ) {
+							array_unshift( $ancestor_names, $p_row->name );
+							$cur_parent = (int) $p_row->parent_id;
+						} else {
+							break;
+						}
+					}
+					foreach ( $ancestor_names as $a_name ) {
+						$items[] = [
+							'@type'    => 'ListItem',
+							'position' => $pos++,
+							'item'     => [
+								'name' => $a_name,
+							],
+						];
+					}
+				}
+
+				$items[] = [
+					'@type'    => 'ListItem',
+					'position' => $pos++,
+					'item'     => [
+						'@id'  => $current_url,
+						'name' => $cat_name,
+					],
+				];
+			} elseif ( 'grouped' === $type ) {
+				$items[] = [
+					'@type'    => 'ListItem',
+					'position' => $pos++,
+					'item'     => [
+						'@id'  => $current_url,
+						'name' => 'Productos',
+					],
+				];
+			}
+		}
+
+		// Replace BreadcrumbList items
+		if ( isset( $data['BreadcrumbList'] ) ) {
+			$data['BreadcrumbList']['itemListElement'] = $items;
+		}
+
+		// Add manufacturer Organization for catalog pages
+		if ( ! empty( $manufacturer_slug ) && $mfr ) {
+			$data['manufacturer'] = [
+				'@type' => 'Organization',
+				'@id'   => $tree_url . '#manufacturer',
+				'name'  => $mfr_name,
+				'url'   => $tree_url,
+			];
+
+			// Add ItemList for category/grouped pages (not the tree root)
+			if ( isset( $data['WebPage'] ) && ( ! empty( $category_slug ) || 'grouped' === $type ) ) {
+				$itemlist_id = $current_url . '#itemlist';
+				$data['ItemList'] = [
+					'@type'  => 'ItemList',
+					'@id'    => $itemlist_id,
+					'url'    => $current_url,
+					'name'   => $data['WebPage']['name'] ?? '',
+				];
+
+				$data['WebPage']['mainEntity'] = [ '@id' => $itemlist_id ];
+			}
+		}
+
+		return $data;
+	}
+
+	public function is_catalog_page(): bool {
+		return get_query_var( 'aoe_catalog' ) === 'root'
+			|| ! empty( get_query_var( 'aoe_catalog_manufacturer' ) )
+			|| ! empty( get_query_var( 'aoe_catalog_preview' ) );
 	}
 
 	public function register_catalog_sitemap_provider( $providers ) {

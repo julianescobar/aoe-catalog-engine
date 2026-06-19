@@ -10,6 +10,9 @@ $btn_text = $is_edit ? 'Actualizar Fabricante' : 'Guardar Fabricante';
 $name = $is_edit && isset( $manufacturer ) ? $manufacturer->name : '';
 $slug = $is_edit && isset( $manufacturer ) ? $manufacturer->slug : '';
 $wp_post_id = $is_edit && isset( $manufacturer ) ? $manufacturer->wp_post_id : 0;
+$config_json = $is_edit && isset( $manufacturer ) ? json_decode( $manufacturer->config_json ?? '', true ) ?: [] : [];
+$seo_title_template = $config_json['seo_title_template'] ?? '';
+$seo_description_template = $config_json['seo_description_template'] ?? '';
 
 // Fetch all 'catalogo_online' CPT posts to populate drop-down
 $catalogs = get_posts( [
@@ -56,6 +59,21 @@ $catalogs = get_posts( [
 						</option>
 					<?php endforeach; ?>
 				</select>
+			</div>
+
+			<div class="aoe-card" style="margin-top:20px;">
+				<h2>SEO - Meta Tags</h2>
+				<p class="description">Personaliza el título y la descripción que aparecen en Google y redes sociales. Usa <code>{manufacturer}</code>, <code>{category}</code>. La paginación se añade automáticamente. Vacío = usa la plantilla global.</p>
+
+				<div class="aoe-form-group">
+					<label for="m_seo_title">Meta Title (Título para buscadores)</label>
+					<input type="text" name="seo_title_template" id="m_seo_title" value="<?php echo esc_attr( $seo_title_template ); ?>" placeholder="Catálogo de productos de {manufacturer}: TC Componentes{page_suffix}" style="width:100%;" />
+				</div>
+
+				<div class="aoe-form-group">
+					<label for="m_seo_description">Meta Description (Descripción para buscadores)</label>
+					<textarea name="seo_description_template" id="m_seo_description" rows="3" placeholder="TC Componentes es distribuidor de {manufacturer} en España. Catálogo completo de productos, documentación técnica y soporte técnico especializado." style="width:100%;"><?php echo esc_textarea( $seo_description_template ); ?></textarea>
+				</div>
 			</div>
 
 			<div class="aoe-btn-row">

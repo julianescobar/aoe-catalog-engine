@@ -42,7 +42,17 @@ class AdminManager {
 			[ $this, 'display_manufacturers_page' ]
 		);
 
-		// Submenu 2: Logs
+		// Submenu 2: SEO
+		add_submenu_page(
+			'aoe-catalog-engine',
+			'SEO Catálogo',
+			'SEO',
+			'manage_options',
+			'aoe-catalog-seo',
+			[ $this, 'display_seo_settings_page' ]
+		);
+
+		// Submenu 3: Logs
 		add_submenu_page(
 			'aoe-catalog-engine',
 			'Logs',
@@ -110,6 +120,18 @@ class AdminManager {
 	/**
 	 * Display System Logs
 	 */
+	public function display_seo_settings_page() {
+		if ( isset( $_POST['save_aoe_seo'] ) && wp_verify_nonce( $_POST['_wpnonce'], 'aoe_seo_settings' ) ) {
+			update_option( 'aoe_catalog_seo_title_template', sanitize_text_field( $_POST['seo_title_template'] ?? '' ) );
+			update_option( 'aoe_catalog_seo_description_template', sanitize_textarea_field( $_POST['seo_description_template'] ?? '' ) );
+			echo '<div class="notice notice-success"><p>Ajustes SEO guardados.</p></div>';
+		}
+
+		$title_template = get_option( 'aoe_catalog_seo_title_template', 'Catálogo de productos de {manufacturer}: TC Componentes' );
+		$desc_template  = get_option( 'aoe_catalog_seo_description_template', 'TC Componentes es distribuidor de {manufacturer} en España. Catálogo completo de productos, documentación técnica y soporte técnico especializado.' );
+		require_once __DIR__ . '/Views/seo-settings.php';
+	}
+
 	public function display_logs_page() {
 		$logs = get_option( 'aoe_catalog_import_logs', [] );
 		require_once __DIR__ . '/Views/logs-list.php';
@@ -206,16 +228,27 @@ class AdminManager {
 			$slug = sanitize_title( $_POST['slug'] );
 			$wp_post_id = intval( $_POST['wp_post_id'] );
 
+			// Merge SEO templates into config_json
+			if ( $id ) {
+				$existing = $wpdb->get_var( $wpdb->prepare( "SELECT config_json FROM $table_name WHERE id = %d", $id ) );
+				$config = json_decode( $existing ?? '', true ) ?: [];
+			} else {
+				$config = [];
+			}
+			$config['seo_title_template'] = sanitize_text_field( $_POST['seo_title_template'] ?? '' );
+			$config['seo_description_template'] = sanitize_textarea_field( $_POST['seo_description_template'] ?? '' );
+
 			$data = [
-				'name'       => $name,
-				'slug'       => $slug,
-				'wp_post_id' => $wp_post_id,
+				'name'        => $name,
+				'slug'        => $slug,
+				'wp_post_id'  => $wp_post_id,
+				'config_json' => json_encode( $config, JSON_UNESCAPED_UNICODE ),
 			];
 
 			if ( $id ) {
-				$wpdb->update( $table_name, $data, [ 'id' => $id ], [ '%s', '%s', '%d' ], [ '%d' ] );
+				$wpdb->update( $table_name, $data, [ 'id' => $id ], [ '%s', '%s', '%d', '%s' ], [ '%d' ] );
 			} else {
-				$wpdb->insert( $table_name, $data, [ '%s', '%s', '%d' ] );
+				$wpdb->insert( $table_name, $data, [ '%s', '%s', '%d', '%s' ] );
 			}
 
 			wp_safe_redirect( admin_url( 'admin.php?page=aoe-catalog-manufacturers' ) );
