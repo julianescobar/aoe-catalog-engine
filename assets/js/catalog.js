@@ -12,7 +12,13 @@ jQuery(document).ready(function ($) {
 
 		$('#modal-sku-titulo').text(sku);
 		$('#modal-nombre-subtitulo').text(nombre);
-		$('#modal-img-producto').attr('src', imagen).attr('alt', sku);
+		if (imagen) {
+			$('#modal-img-producto').attr('src', imagen).attr('alt', sku).show();
+			$('#modal-img-producto').closest('.aoe-catalog-product-image-wrap').show();
+		} else {
+			$('#modal-img-producto').attr('src', '').attr('alt', '');
+			$('#modal-img-producto').closest('.aoe-catalog-product-image-wrap').hide();
+		}
 		$('#modal-heading-1').text(sku);
 
 		$('#btn-contacto-modal').attr('data-sku-link', sku);

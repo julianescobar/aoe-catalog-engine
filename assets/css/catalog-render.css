@@ -465,6 +465,63 @@
 	text-decoration: underline;
 }
 
+/* Grid mode for flat category lists */
+.aoe-cat-grid {
+	width: 100%;
+	margin: 20px 0;
+}
+
+.aoe-cat-grid-row {
+	display: flex;
+	width: 100%;
+	border-left: 1px solid #ddd;
+	border-right: 1px solid #ddd;
+	border-bottom: 1px solid #ddd;
+}
+
+.aoe-cat-grid-row.even {
+	background: #f9f9f9;
+}
+
+.aoe-cat-grid-row.odd {
+	background: #fff;
+}
+
+.aoe-cat-grid-row:first-child {
+	border-top: 1px solid #ddd;
+}
+
+.aoe-cat-grid-row > .aoe-cat-row {
+	flex: 1;
+	padding: 10px 12px;
+	text-align: left;
+	border: none;
+	background: transparent !important;
+	min-width: 0;
+	word-break: break-word;
+}
+
+.aoe-cat-grid-row > .aoe-cat-row a {
+	text-decoration: none;
+	color: #333;
+	font-weight: 600;
+}
+
+.aoe-cat-grid-row > .aoe-cat-row a:hover {
+	text-decoration: underline;
+}
+
+.aoe-cat-grid-row > .aoe-cat-row .count {
+	color: #888;
+	font-size: 0.85em;
+	margin-left: 4px;
+}
+
+.aoe-cat-grid-row > .aoe-cat-grid-empty {
+	flex: 1;
+	padding: 0;
+}
+
 .aoe-tree {
 	margin-top: 20px;
 }

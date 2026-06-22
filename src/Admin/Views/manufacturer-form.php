@@ -13,6 +13,8 @@ $wp_post_id = $is_edit && isset( $manufacturer ) ? $manufacturer->wp_post_id : 0
 $config_json = $is_edit && isset( $manufacturer ) ? json_decode( $manufacturer->config_json ?? '', true ) ?: [] : [];
 $seo_title_template = $config_json['seo_title_template'] ?? '';
 $seo_description_template = $config_json['seo_description_template'] ?? '';
+$tree_layout = $config_json['tree_layout'] ?? 'normal';
+$tree_columns = $config_json['tree_columns'] ?? 4;
 
 // Fetch all 'catalogo_online' CPT posts to populate drop-down
 $catalogs = get_posts( [
@@ -76,9 +78,38 @@ $catalogs = get_posts( [
 				</div>
 			</div>
 
+			<div class="aoe-card" style="margin-top:20px;">
+				<h2>Vista del Árbol de Categorías</h2>
+
+				<div class="aoe-form-group">
+					<label for="m_tree_layout">Formato</label>
+					<select name="tree_layout" id="m_tree_layout">
+						<option value="normal" <?php selected( $tree_layout, 'normal' ); ?>>Normal (tabla jerárquica)</option>
+						<option value="columns" <?php selected( $tree_layout, 'columns' ); ?>>Columnas (grilla plana)</option>
+					</select>
+					<p class="description">Usar "Columnas" cuando no haya clasificación y sea una lista plana de modelos sin más información.</p>
+				</div>
+
+				<div class="aoe-form-group" id="aoe-columns-field" style="<?php echo $tree_layout !== 'columns' ? 'display:none;' : ''; ?>">
+					<label for="m_tree_columns">Nº de columnas</label>
+					<input type="number" name="tree_columns" id="m_tree_columns" value="<?php echo esc_attr( $tree_columns ); ?>" min="2" max="8" step="1" />
+					<p class="description">Solo aplica si el formato es "Columnas".</p>
+				</div>
+			</div>
+
 			<div class="aoe-btn-row">
 				<input type="submit" name="save_manufacturer" class="button button-primary" value="<?php echo esc_attr( $btn_text ); ?>" />
 			</div>
 		</form>
 	</div>
 </div>
+
+<script>
+jQuery(document).ready(function($) {
+	var $select = $('#m_tree_layout');
+	var $field = $('#aoe-columns-field');
+	$select.on('change', function() {
+		$field.toggle($(this).val() === 'columns');
+	});
+});
+</script>

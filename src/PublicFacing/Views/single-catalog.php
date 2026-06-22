@@ -113,7 +113,7 @@ $table_prod  = $wpdb->prefix . 'aoe_catalog_products';
 $table_m     = $wpdb->prefix . 'aoe_catalog_manufacturers';
 
 $page = $wpdb->get_row( $wpdb->prepare(
-	"SELECT p.*, m.name AS manufacturer_name, m.wp_post_id AS template_post_id
+	"SELECT p.*, m.name AS manufacturer_name, m.wp_post_id AS template_post_id, m.config_json
 	 FROM $table_pages p
 	 JOIN $table_m m ON p.manufacturer_id = m.id
 	 WHERE p.slug = %s",
@@ -124,7 +124,7 @@ if ( ! $page ) {
 	// Only fall back to manufacturer tree if no specific category/grouped was requested
 	if ( empty( $category_slug ) && 'grouped' !== $catalog_type ) {
 		$page = $wpdb->get_row( $wpdb->prepare(
-			"SELECT p.*, m.name AS manufacturer_name, m.wp_post_id AS template_post_id
+			"SELECT p.*, m.name AS manufacturer_name, m.wp_post_id AS template_post_id, m.config_json
 			 FROM $table_pages p
 			 JOIN $table_m m ON p.manufacturer_id = m.id
 			 WHERE p.slug = %s",
@@ -152,6 +152,11 @@ $template_post_id  = intval( $page->template_post_id ?? 0 );
 $per_page          = 200;
 $current_page      = $page_num;
 $total_pages       = 1;
+
+// Tree layout config
+$mfr_config = json_decode( $page->config_json ?? '', true ) ?: [];
+$tree_layout = $mfr_config['tree_layout'] ?? 'normal';
+$tree_columns = min( 8, max( 2, intval( $mfr_config['tree_columns'] ?? 4 ) ) );
 
 $segments = $wpdb->get_results( $wpdb->prepare(
 	"SELECT s.*, c.name AS category_name, c.slug AS category_slug, c.parent_id, c.level, c.metadata_json, c.description AS category_description
@@ -354,11 +359,77 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 			$segments_by_id[ $seg->category_id ] = $seg;
 		}
 
-		function aoe_render_cat_tree( array $items, array $tree_by_parent, array $segments_by_id, array $cat_page_map, int $level = 0, bool $is_root = true, int &$leaf_idx = 0 ) {
+		function aoe_render_cat_tree( array $items, array $tree_by_parent, array $segments_by_id, array $cat_page_map, int $level = 0, bool $is_root = true, int &$leaf_idx = 0, string $tree_layout = 'normal', int $tree_columns = 4 ) {
 			if ( empty( $items ) ) return;
+
+			if ( $is_root && $tree_layout === 'columns' ) {
+				echo '<div class="aoe-cat-grid">';
+				// Collect items, then group into rows
+				$grid_items = [];
+				foreach ( $items as $item ) {
+					$count = (int) ( $segments_by_id[ $item->category_id ]->products_to ?? 0 );
+					$children = $tree_by_parent[ $item->category_id ] ?? [];
+					$has_children_with_content = aoe_has_visible_descendants( $item->category_id, $tree_by_parent, $segments_by_id );
+					if ( $count === 0 && ! $has_children_with_content ) continue;
+
+					$meta = ! empty( $item->metadata_json ) ? json_decode( $item->metadata_json, true ) : [];
+					$wp_post_id = ! empty( $meta['wp_post_id'] ) ? intval( $meta['wp_post_id'] ) : 0;
+
+					if ( $wp_post_id ) {
+						$cat_url = get_permalink( $wp_post_id );
+					} elseif ( isset( $cat_page_map[ $item->category_id ] ) ) {
+						$cat_url = home_url( '/catalogo/' . $cat_page_map[ $item->category_id ] . '/' );
+					} else {
+						$cat_url = '#';
+					}
+
+					$is_leaf = empty( $children ) || ! $has_children_with_content;
+					$display_level = $is_leaf ? 3 : (int) $item->level;
+					$row_class = 'aoe-cat-row aoe-cat-level-' . $display_level;
+					if ( $is_leaf ) {
+						$row_class .= ( $leaf_idx % 2 === 0 ) ? ' aoe-cat-row-even' : ' aoe-cat-row-odd';
+						$leaf_idx++;
+					}
+
+					$grid_items[] = [
+						'url'   => $cat_url,
+						'name'  => $item->category_name,
+						'count' => $count,
+						'class' => $row_class,
+					];
+				}
+				// Render grouped rows
+				$chunks = array_chunk( $grid_items, $tree_columns );
+				foreach ( $chunks as $row_idx => $chunk ) {
+					$is_even = ( $row_idx % 2 === 0 );
+					echo '<div class="aoe-cat-grid-row' . ( $is_even ? ' even' : ' odd' ) . '">';
+					foreach ( $chunk as $gi ) {
+						echo '<div class="' . $gi['class'] . '">';
+						if ( $gi['url'] !== '#' ) {
+							echo '<a href="' . esc_url( $gi['url'] ) . '">' . esc_html( $gi['name'] ) . '</a>';
+						} else {
+							echo esc_html( $gi['name'] );
+						}
+						if ( $gi['count'] > 0 ) {
+							echo ' <span class="count">(' . esc_html( $gi['count'] ) . ')</span>';
+						}
+						echo '</div>';
+					}
+					// Fill remaining cells in last row
+					$remaining = $tree_columns - count( $chunk );
+					for ( $i = 0; $i < $remaining; $i++ ) {
+						echo '<div class="aoe-cat-grid-empty"></div>';
+					}
+					echo '</div>';
+				}
+				echo '</div>';
+				return;
+			}
+
 			if ( $is_root ) {
 				echo '<table class="aoe-cat-tree-table">';
 			}
+
 			foreach ( $items as $item ) {
 				$count = (int) ( $segments_by_id[ $item->category_id ]->products_to ?? 0 );
 				$children = $tree_by_parent[ $item->category_id ] ?? [];
@@ -384,6 +455,7 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 					$leaf_idx++;
 				}
 
+				// Normal table mode
 				echo '<tr class="' . $row_class . '">';
 				echo '<td class="aoe-cat-name">';
 
@@ -423,7 +495,7 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 					echo '</tr>';
 				}
 
-				aoe_render_cat_tree( $children, $tree_by_parent, $segments_by_id, $cat_page_map, $level + 1, false, $leaf_idx );
+				aoe_render_cat_tree( $children, $tree_by_parent, $segments_by_id, $cat_page_map, $level + 1, false, $leaf_idx, $tree_layout, $tree_columns );
 			}
 			if ( $is_root ) {
 				echo '</table>';
@@ -435,7 +507,7 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 			$root_items = $segments;
 		}
 		$leaf_idx = 0;
-		aoe_render_cat_tree( $root_items, $tree_by_parent, $segments_by_id, $cat_page_map, 0, true, $leaf_idx );
+		aoe_render_cat_tree( $root_items, $tree_by_parent, $segments_by_id, $cat_page_map, 0, true, $leaf_idx, $tree_layout, $tree_columns );
 		?>
 	</div>
 	<?php

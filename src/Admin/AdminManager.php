@@ -237,6 +237,8 @@ class AdminManager {
 			}
 			$config['seo_title_template'] = sanitize_text_field( $_POST['seo_title_template'] ?? '' );
 			$config['seo_description_template'] = sanitize_textarea_field( $_POST['seo_description_template'] ?? '' );
+			$config['tree_layout'] = in_array( $_POST['tree_layout'] ?? '', [ 'normal', 'columns' ] ) ? $_POST['tree_layout'] : 'normal';
+			$config['tree_columns'] = min( 8, max( 2, intval( $_POST['tree_columns'] ?? 4 ) ) );
 
 			$data = [
 				'name'        => $name,
