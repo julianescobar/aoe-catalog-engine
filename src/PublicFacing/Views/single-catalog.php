@@ -411,9 +411,17 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 
 				echo '</td>';
 
-				$desc = ! empty( $item->category_description ) ? $item->category_description : '';
-				echo '<td class="aoe-cat-desc">' . ( $desc ? esc_html( $desc ) : '&nbsp;' ) . '</td>';
-				echo '</tr>';
+				$desc = ! empty( $item->category_description ) ? trim( $item->category_description ) : '';
+
+				if ( (int) $item->level === 1 && $desc ) {
+					echo '</tr>';
+					echo '<tr class="aoe-cat-desc-row aoe-cat-level-1">';
+					echo '<td class="aoe-cat-desc" colspan="2">' . esc_html( $desc ) . '</td>';
+					echo '</tr>';
+				} else {
+					echo '<td class="aoe-cat-desc">' . ( $desc ? esc_html( $desc ) : '&nbsp;' ) . '</td>';
+					echo '</tr>';
+				}
 
 				aoe_render_cat_tree( $children, $tree_by_parent, $segments_by_id, $cat_page_map, $level + 1, false, $leaf_idx );
 			}

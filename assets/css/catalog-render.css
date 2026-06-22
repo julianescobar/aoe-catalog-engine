@@ -451,6 +451,12 @@
 	width: 40%;
 }
 
+.aoe-cat-desc-row .aoe-cat-desc {
+	text-align: left;
+	width: auto;
+	padding: 8px 12px;
+}
+
 .aoe-cat-name a {
 	text-decoration: none;
 }

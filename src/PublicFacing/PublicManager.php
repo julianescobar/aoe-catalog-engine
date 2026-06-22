@@ -13,13 +13,15 @@ class PublicManager {
 		add_filter( 'redirect_canonical', [ $this, 'disable_redirect_for_catalog' ], 10, 2 );
 		add_filter( 'pre_get_document_title', [ $this, 'set_catalog_title' ], 20 );
 		add_action( 'wp_head', [ $this, 'output_catalog_meta' ], 1 );
+		add_action( 'wp_head', [ $this, 'start_og_buffer' ], -1 );
+		add_action( 'wp_head', [ $this, 'flush_og_buffer' ], PHP_INT_MAX );
 
 		add_filter( 'rank_math/opengraph/url', [ $this, 'override_og_url' ], 20 );
 		add_filter( 'rank_math/opengraph/title', [ $this, 'override_og_title' ], 20 );
 		add_filter( 'rank_math/opengraph/description', [ $this, 'override_og_description' ], 20 );
-		add_filter( 'rank_math/opengraph/image', [ $this, 'override_og_image' ], 20 );
-		add_filter( 'rank_math/opengraph/facebook/og_image', [ $this, 'override_og_image' ], 20 );
-		add_filter( 'rank_math/opengraph/facebook/og_image_secure_url', [ $this, 'override_og_image_secure_url' ], 20 );
+		add_filter( 'rank_math/opengraph/image', [ $this, 'override_og_image' ], 9999 );
+		add_filter( 'rank_math/opengraph/facebook/og_image', [ $this, 'override_og_image' ], 9999 );
+		add_filter( 'rank_math/opengraph/facebook/og_image_secure_url', [ $this, 'override_og_image_secure_url' ], 9999 );
 		add_filter( 'rank_math/opengraph/type', [ $this, 'override_og_type' ], 20 );
 		add_filter( 'rank_math/json_ld', [ $this, 'override_json_ld' ], 20, 2 );
 		// Sitemap provider desactivado durante pruebas. Activar al final:
@@ -236,13 +238,58 @@ class PublicManager {
 		if ( ! empty( $seo['description'] ) ) {
 			echo '<meta name="description" content="' . esc_attr( $seo['description'] ) . '" />' . "\n";
 		}
+	}
+
+	public function start_og_buffer() {
+		if ( ! $this->get_catalog_seo() ) {
+			return;
+		}
+		ob_start();
+	}
+
+	public function flush_og_buffer() {
+		if ( ! $this->get_catalog_seo() ) {
+			return;
+		}
+		$html = ob_get_clean();
+		if ( $html === false ) {
+			return;
+		}
+
+		$seo  = $this->get_catalog_seo();
+		$slug = get_query_var( 'aoe_catalog_manufacturer' );
+
+		// Strip all OG tags — Rank Math and Avada both output them
+		$html = preg_replace(
+			'/<meta\s[^>]*property=["\']og:[a-z_:]+["\'][^>]*\/?>\s*\n?/i',
+			'',
+			$html
+		);
+
+		echo $html;
+
+		// Output ONLY our OG tags
+		echo "\n" . '<meta property="og:locale" content="es_ES" />';
+		echo "\n" . '<meta property="og:type" content="website" />';
+		if ( ! empty( $slug ) ) {
+			$og_url = home_url( '/' . $slug . '/' );
+		} else {
+			$og_url = home_url( '/catalogo/' );
+		}
+		echo "\n" . '<meta property="og:url" content="' . esc_attr( $og_url ) . '" />';
+		echo "\n" . '<meta property="og:site_name" content="' . esc_attr( get_bloginfo( 'name' ) ) . '" />';
 		if ( ! empty( $seo['title'] ) ) {
-			echo '<meta property="og:title" content="' . esc_attr( $seo['title'] ) . '" />' . "\n";
+			echo "\n" . '<meta property="og:title" content="' . esc_attr( $seo['title'] ) . '" />';
 		}
 		if ( ! empty( $seo['description'] ) ) {
-			echo '<meta property="og:description" content="' . esc_attr( $seo['description'] ) . '" />' . "\n";
+			echo "\n" . '<meta property="og:description" content="' . esc_attr( $seo['description'] ) . '" />';
 		}
-		echo '<meta property="og:type" content="website" />' . "\n";
+		$img = content_url( 'uploads/tc-componentes-vr.webp' );
+		echo "\n" . '<meta property="og:image" content="' . esc_attr( $img ) . '" />';
+		echo "\n" . '<meta property="og:image:secure_url" content="' . esc_attr( $img ) . '" />';
+		echo "\n" . '<meta property="og:image:width" content="428" />';
+		echo "\n" . '<meta property="og:image:height" content="367" />';
+		echo "\n";
 	}
 
 	public function override_og_url( $url ) {
