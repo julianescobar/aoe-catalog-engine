@@ -480,17 +480,111 @@ class PublicManager {
 				'url'   => $tree_url,
 			];
 
-			// Add ItemList for category/grouped pages (not the tree root)
-			if ( isset( $data['WebPage'] ) && ( ! empty( $category_slug ) || 'grouped' === $type ) ) {
-				$itemlist_id = $current_url . '#itemlist';
-				$data['ItemList'] = [
-					'@type'  => 'ItemList',
-					'@id'    => $itemlist_id,
-					'url'    => $current_url,
-					'name'   => $data['WebPage']['name'] ?? '',
-				];
+			if ( isset( $data['WebPage'] ) ) {
+				$is_tree_page = empty( $category_slug ) && 'grouped' !== $type && get_query_var( 'aoe_catalog' ) !== 'root';
 
-				$data['WebPage']['mainEntity'] = [ '@id' => $itemlist_id ];
+				if ( $is_tree_page ) {
+					// Tree page – add CollectionPage + ItemList with visible categories
+					$page_num = (int) get_query_var( 'aoe_catalog_page', 1 );
+					$page_slug = $manufacturer_slug . ( $page_num > 1 ? '-' . $page_num : '' );
+					$table_pages = $wpdb->prefix . 'aoe_catalog_pregenerated_pages';
+					$table_seg   = $wpdb->prefix . 'aoe_catalog_page_segments';
+					$table_cat   = $wpdb->prefix . 'aoe_catalog_categories';
+
+					$tree_page = $wpdb->get_row( $wpdb->prepare(
+						"SELECT id FROM $table_pages WHERE slug = %s", $page_slug
+					) );
+
+					if ( $tree_page ) {
+						// Build cat_page_map first: for each category on this tree page, find its target page slug
+						$cat_page_map = [];
+						$cat_map_rows = $wpdb->get_results( $wpdb->prepare(
+							"SELECT DISTINCT s2.category_id, p2.slug AS page_slug
+							 FROM $table_seg s2
+							 JOIN $table_pages p2 ON s2.page_id = p2.id
+							 WHERE s2.manufacturer_id = %d AND p2.type IN ('category','grouped')",
+							$mfr->id
+						) );
+						foreach ( $cat_map_rows as $cmr ) {
+							$cat_page_map[ (int) $cmr->category_id ] = $cmr->page_slug;
+						}
+
+						$tree_items = $wpdb->get_results( $wpdb->prepare(
+							"SELECT s.category_id, s.products_to, c.name AS category_name, c.slug AS category_slug, c.metadata_json
+							 FROM $table_seg s
+							 JOIN $table_cat c ON s.category_id = c.id
+							 WHERE s.page_id = %d
+							 ORDER BY s.sort_order ASC",
+							$tree_page->id
+						) );
+
+						$list_items = [];
+						$list_pos   = 1;
+						foreach ( $tree_items as $ti ) {
+							if ( (int) $ti->products_to === 0 ) continue;
+
+							$meta = json_decode( $ti->metadata_json ?? '', true ) ?: [];
+							$wp_post_id = ! empty( $meta['wp_post_id'] ) ? (int) $meta['wp_post_id'] : 0;
+
+							if ( $wp_post_id ) {
+								$item_url = get_permalink( $wp_post_id );
+							} elseif ( isset( $cat_page_map[ (int) $ti->category_id ] ) ) {
+								$item_url = home_url( '/catalogo/' . $cat_page_map[ (int) $ti->category_id ] . '/' );
+							} else {
+								$item_url = '';
+							}
+
+							$list_item = [
+								'@type'    => 'ListItem',
+								'position' => $list_pos++,
+								'name'     => $ti->category_name,
+							];
+							if ( $item_url ) {
+								$list_item['url'] = $item_url;
+							}
+							$list_items[] = $list_item;
+						}
+
+						if ( ! empty( $list_items ) ) {
+							$current_types = isset( $data['WebPage']['@type'] ) ? (array) $data['WebPage']['@type'] : [ 'WebPage' ];
+							if ( ! in_array( 'CollectionPage', $current_types, true ) ) {
+								$current_types[] = 'CollectionPage';
+							}
+							$data['WebPage']['@type'] = $current_types;
+
+							$itemlist_id = $current_url . '#itemlist';
+							$data['ItemList'] = [
+								'@type'           => 'ItemList',
+								'@id'             => $itemlist_id,
+								'url'             => $current_url,
+								'name'            => $data['WebPage']['name'] ?? ( 'Catálogo de ' . $mfr_name ),
+								'numberOfItems'   => (int) count( $list_items ),
+								'itemListElement' => $list_items,
+							];
+							$data['WebPage']['mainEntity'] = [ '@id' => $itemlist_id ];
+						}
+					}
+				} elseif ( ! empty( $category_slug ) || 'grouped' === $type ) {
+					// Category or grouped page – add ItemList for products
+					$itemlist_id = $current_url . '#itemlist';
+
+					$page_num = (int) get_query_var( 'aoe_catalog_page', 1 );
+					$page_slug = $manufacturer_slug . '/' . ( 'grouped' === $type ? 'productos' : $category_slug ) . ( $page_num > 1 ? '-' . $page_num : '' );
+					$item_count = (int) $wpdb->get_var( $wpdb->prepare(
+						"SELECT link_count FROM {$wpdb->prefix}aoe_catalog_pregenerated_pages WHERE slug = %s",
+						$page_slug
+					) );
+
+					$data['ItemList'] = [
+						'@type'         => 'ItemList',
+						'@id'           => $itemlist_id,
+						'url'           => $current_url,
+						'name'          => $data['WebPage']['name'] ?? '',
+						'numberOfItems' => $item_count,
+					];
+
+					$data['WebPage']['mainEntity'] = [ '@id' => $itemlist_id ];
+				}
 			}
 		}
 

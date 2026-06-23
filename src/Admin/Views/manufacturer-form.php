@@ -15,6 +15,7 @@ $seo_title_template = $config_json['seo_title_template'] ?? '';
 $seo_description_template = $config_json['seo_description_template'] ?? '';
 $tree_layout = $config_json['tree_layout'] ?? 'normal';
 $tree_columns = $config_json['tree_columns'] ?? 4;
+$media_source = $config_json['media_source'] ?? 'local';
 
 // Fetch all 'catalogo_online' CPT posts to populate drop-down
 $catalogs = get_posts( [
@@ -94,6 +95,15 @@ $catalogs = get_posts( [
 					<label for="m_tree_columns">Nº de columnas</label>
 					<input type="number" name="tree_columns" id="m_tree_columns" value="<?php echo esc_attr( $tree_columns ); ?>" min="2" max="8" step="1" />
 					<p class="description">Solo aplica si el formato es "Columnas".</p>
+				</div>
+
+				<div class="aoe-form-group">
+					<label for="m_media_source">Origen de imágenes y PDFs</label>
+					<select name="media_source" id="m_media_source">
+						<option value="local" <?php selected( $media_source, 'local' ); ?>>Local (descargar y servir desde el servidor)</option>
+						<option value="remote" <?php selected( $media_source, 'remote' ); ?>>Remoto (servir desde URL original del fabricante)</option>
+					</select>
+					<p class="description">"Remoto" salta la resolución local y usa directamente las URL del CSV. Ideal para fabricantes que ya sirven webp y PDFs firmados.</p>
 				</div>
 			</div>
 

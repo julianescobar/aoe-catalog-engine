@@ -239,6 +239,7 @@ class AdminManager {
 			$config['seo_description_template'] = sanitize_textarea_field( $_POST['seo_description_template'] ?? '' );
 			$config['tree_layout'] = in_array( $_POST['tree_layout'] ?? '', [ 'normal', 'columns' ] ) ? $_POST['tree_layout'] : 'normal';
 			$config['tree_columns'] = min( 8, max( 2, intval( $_POST['tree_columns'] ?? 4 ) ) );
+			$config['media_source'] = in_array( $_POST['media_source'] ?? '', [ 'remote', 'local' ] ) ? $_POST['media_source'] : 'local';
 
 			$data = [
 				'name'        => $name,

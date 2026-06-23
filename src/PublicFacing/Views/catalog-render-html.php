@@ -63,9 +63,13 @@ function aoe_catalog_get_upload_base(): string {
  * - If remote URL, extracts filename and checks local first (with .webp fallback for images)
  * - Falls back to original URL if local file doesn't exist
  */
-function aoe_catalog_resolve_media_url( string $path, string $manufacturer_slug, string $type = 'images' ): string {
+function aoe_catalog_resolve_media_url( string $path, string $manufacturer_slug, string $type = 'images', string $media_source = 'local' ): string {
 	if ( '' === $path ) {
 		return '';
+	}
+
+	if ( 'remote' === $media_source ) {
+		return $path;
 	}
 
 	$is_remote = ( strpos( $path, 'http' ) === 0 || strpos( $path, '//' ) === 0 );
@@ -107,7 +111,11 @@ function aoe_catalog_get_pdf_base(): string {
 	return trailingslashit( AOE_CATALOG_PDF_DIR );
 }
 
-function aoe_catalog_resolve_pdf_urls( array $pdf, string $manufacturer_slug ): array {
+function aoe_catalog_resolve_pdf_urls( array $pdf, string $manufacturer_slug, string $media_source = 'local' ): array {
+	if ( 'remote' === $media_source ) {
+		return $pdf;
+	}
+
 	$resolved = [];
 	foreach ( $pdf as $key => $url ) {
 		if ( '' === $url ) {
@@ -173,10 +181,19 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 		}
 	}
 
-	$first_images = array_map( function( $img ) use ( $manufacturer_slug ) {
-		return aoe_catalog_resolve_media_url( $img, $manufacturer_slug, 'images' );
+	// Get media_source from manufacturer config
+	global $wpdb;
+	$table_m = $wpdb->prefix . 'aoe_catalog_manufacturers';
+	$mfr_config_json = $wpdb->get_var( $wpdb->prepare(
+		"SELECT config_json FROM $table_m WHERE slug = %s", $manufacturer_slug
+	) );
+	$mfr_config = json_decode( $mfr_config_json ?? '', true ) ?: [];
+	$media_source = $mfr_config['media_source'] ?? 'local';
+
+	$first_images = array_map( function( $img ) use ( $manufacturer_slug, $media_source ) {
+		return aoe_catalog_resolve_media_url( $img, $manufacturer_slug, 'images', $media_source );
 	}, $first_images );
-	$first_pdf = aoe_catalog_resolve_pdf_urls( $first_pdf, $manufacturer_slug );
+	$first_pdf = aoe_catalog_resolve_pdf_urls( $first_pdf, $manufacturer_slug, $media_source );
 
 	$family_image = aoe_catalog_get_first_value( $first_images );
 	$family_pdf   = $first_pdf;
@@ -294,10 +311,10 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 									$specs     = $additional['specs'] ?? [];
 								}
 								$has_specs = ! empty( $specs );
-								$images = array_map( function( $img ) use ( $manufacturer_slug ) {
-									return aoe_catalog_resolve_media_url( $img, $manufacturer_slug, 'images' );
+								$images = array_map( function( $img ) use ( $manufacturer_slug, $media_source ) {
+									return aoe_catalog_resolve_media_url( $img, $manufacturer_slug, 'images', $media_source );
 								}, $images );
-								$pdf = aoe_catalog_resolve_pdf_urls( $pdf, $manufacturer_slug );
+								$pdf = aoe_catalog_resolve_pdf_urls( $pdf, $manufacturer_slug, $media_source );
 								$image_url       = aoe_catalog_get_first_value( $images );
 								$product_description = 'Conector ' . $manufacturer_name . ' ' . $name;
 								$pdf_json = htmlspecialchars( json_encode( $pdf ), ENT_QUOTES, 'UTF-8' );
@@ -374,10 +391,10 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 						$specs     = $additional['specs'] ?? [];
 					}
 					$has_specs = ! empty( $specs );
-					$images = array_map( function( $img ) use ( $manufacturer_slug ) {
-						return aoe_catalog_resolve_media_url( $img, $manufacturer_slug, 'images' );
+					$images = array_map( function( $img ) use ( $manufacturer_slug, $media_source ) {
+						return aoe_catalog_resolve_media_url( $img, $manufacturer_slug, 'images', $media_source );
 					}, $images );
-					$pdf = aoe_catalog_resolve_pdf_urls( $pdf, $manufacturer_slug );
+					$pdf = aoe_catalog_resolve_pdf_urls( $pdf, $manufacturer_slug, $media_source );
 					$image_url       = aoe_catalog_get_first_value( $images );
 					$product_description = 'Conector ' . $manufacturer_name . ' ' . $name;
 					$pdf_json = htmlspecialchars( json_encode( $pdf ), ENT_QUOTES, 'UTF-8' );
