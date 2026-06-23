@@ -324,7 +324,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 											<link itemprop="availability" href="https://schema.org/InStock">
 										</div>
 									</td>
-									<td itemprop="brand" itemscope itemtype="https://schema.org/Brand"><a href="<?php echo esc_url( home_url( '/catalogo/' . $manufacturer_slug . '/' ) ); ?>"><span itemprop="name"><?php echo esc_html( ucfirst( $manufacturer_name ) ); ?></span></a></td>
+									<td itemprop="brand" itemscope itemtype="https://schema.org/Brand"><span itemprop="name"><?php echo esc_html( ucfirst( $manufacturer_name ) ); ?></span></td>
 									<td class="aoe-catalog-actions"><?php echo aoe_catalog_render_pdf_icon_links( $has_specs, ! empty( $image_url ) ); ?></td>
 								</tr>
 							<?php endforeach; ?>
@@ -404,7 +404,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 								<link itemprop="availability" href="https://schema.org/InStock">
 							</div>
 						</td>
-						<td itemprop="brand" itemscope itemtype="https://schema.org/Brand"><a href="<?php echo esc_url( home_url( '/catalogo/' . $manufacturer_slug . '/' ) ); ?>"><span itemprop="name"><?php echo esc_html( ucfirst( $manufacturer_name ) ); ?></span></a></td>
+						<td itemprop="brand" itemscope itemtype="https://schema.org/Brand"><span itemprop="name"><?php echo esc_html( ucfirst( $manufacturer_name ) ); ?></span></td>
 						<td class="aoe-catalog-actions"><?php echo aoe_catalog_render_pdf_icon_links( $has_specs, ! empty( $image_url ) ); ?></td>
 					</tr>
 				<?php endforeach; ?>

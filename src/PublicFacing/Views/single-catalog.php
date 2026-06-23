@@ -34,6 +34,27 @@ wp_localize_script( 'aoe-catalog-js', 'aoeCatalog', [
 ] );
 $category_slug     = get_query_var( 'aoe_catalog_category' );
 $page_num          = max( 1, intval( get_query_var( 'aoe_catalog_page', 1 ) ) );
+
+// Disambiguate slugs ending in numbers like "samtec-2" /
+// The rewrite rule ([^/]+)-([0-9]+) wrongly splits it as slug="samtec", page="2"
+if ( $page_num > 1 ) {
+	$mfr_exists = $wpdb->get_var( $wpdb->prepare(
+		"SELECT id FROM {$wpdb->prefix}aoe_catalog_manufacturers WHERE slug = %s",
+		$manufacturer_slug
+	) );
+	if ( ! $mfr_exists ) {
+		$candidate = $manufacturer_slug . '-' . $page_num;
+		$mfr_exists2 = $wpdb->get_var( $wpdb->prepare(
+			"SELECT id FROM {$wpdb->prefix}aoe_catalog_manufacturers WHERE slug = %s",
+			$candidate
+		) );
+		if ( $mfr_exists2 ) {
+			$manufacturer_slug = $candidate;
+			$page_num = 1;
+		}
+	}
+}
+
 $is_test           = ( strpos( $manufacturer_slug, 'test-' ) === 0 );
 
 if ( $is_test ) {
@@ -145,6 +166,8 @@ if ( ! $page ) {
 $manufacturer_slug_base = $wpdb->get_var( $wpdb->prepare(
 	"SELECT slug FROM $table_m WHERE id = %d", $page->manufacturer_id
 ) ) ?: $manufacturer_slug;
+// Always use the real slug from DB for cache keys
+$manufacturer_slug = $manufacturer_slug_base;
 
 $manufacturer_name = $page->manufacturer_name;
 $page_type         = $page->type;
@@ -323,8 +346,8 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 			<?php for ( $i = 1; $i <= $total_pages; $i++ ) : ?>
 				<?php
 				$page_url = ( $i === 1 )
-					? home_url( '/catalogo/' . $manufacturer_slug . '/' )
-					: home_url( '/catalogo/' . $manufacturer_slug . '-' . $i . '/' );
+					? home_url( '/catalogo/' . $manufacturer_slug_base . '/' )
+					: home_url( '/catalogo/' . $manufacturer_slug_base . '-' . $i . '/' );
 				?>
 				<?php if ( $i === (int) $page->page_number ) : ?>
 					<span class="aoe-catalog-page-link current"><?php echo $i; ?></span>
@@ -491,7 +514,7 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 					echo '<td class="aoe-cat-desc" colspan="2">' . esc_html( $desc ) . '</td>';
 					echo '</tr>';
 				} else {
-					echo '<td class="aoe-cat-desc">' . ( $desc ? esc_html( $desc ) : '&nbsp;' ) . '</td>';
+					echo '<td class="aoe-cat-desc">' . ( $desc ? esc_html( $desc ) : '' ) . '</td>';
 					echo '</tr>';
 				}
 
