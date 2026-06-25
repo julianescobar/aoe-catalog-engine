@@ -19,10 +19,31 @@ jQuery(document).ready(function ($) {
 	$(window).on('resize', aoeCatalogFixParentWidth);
 
 	var manufacturerName = typeof aoeCatalog !== 'undefined' ? aoeCatalog.manufacturerName : '';
+	var aoeDownloadUrl = '';
+	var aoeProductName = '';
 
-	$(document).on('click', '.abrir-modal-dinamico, .fila-producto', function (e) {
+	function aoeShowModal($target) {
+		setTimeout(function () {
+			$target.modal('show');
+			$target.css('z-index', '100001');
+			$('.modal-backdrop').last().css({ 'z-index': '100000', 'opacity': '0.85' });
+			$('body').children('.modal-backdrop').not(':last').hide();
+		}, 350);
+	}
+
+	function aoeHideProduct() {
+		$('#aoe-catalog-modal').modal('hide');
+	}
+
+	function aoeShowProduct() {
+		setTimeout(function () {
+			$('#aoe-catalog-modal').modal('show');
+		}, 350);
+	}
+
+	$(document).on('click', '.fila-producto', function (e) {
 		e.preventDefault();
-		var $btn = $(this).closest('.fila-producto');
+		var $btn = $(this);
 		if (!$btn.length) return;
 
 		var sku = $btn.attr('data-sku') || '';
@@ -31,6 +52,7 @@ jQuery(document).ready(function ($) {
 		var altText = sku + ': ' + nombre + ' de ' + manufacturerName;
 		altText = altText.charAt(0).toUpperCase() + altText.slice(1);
 
+		aoeProductName = nombre;
 		$('#modal-sku-titulo').text(sku);
 		$('#modal-nombre-subtitulo').text(nombre);
 		$('#modal-img-producto').attr('src', imagen || '').attr('alt', altText).show();
@@ -55,7 +77,7 @@ jQuery(document).ready(function ($) {
 			var label = pdfLabels[key] || key.replace(/_/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
 			pdfHtml += '<a class="aoe-catalog-doc-card" href="#"'
 				+ ' data-doc="' + url + '"'
-				+ ' data-toggle="modal" data-target=".fusion-modal.descargar"'
+				+ ' data-target=".fusion-modal.descargar"'
 				+ ' title="' + label + '"'
 				+ ' aria-label="' + label + '">'
 				+ '<i class="fas fa-file-pdf"></i>'
@@ -85,20 +107,10 @@ jQuery(document).ready(function ($) {
 		$('#aoe-catalog-modal').modal('hide');
 	});
 
-	$(document).on('show.bs.modal', '.modal-productos-formulario', function () {
-		var sku = $('#btn-contacto-modal').attr('data-sku-link') || '';
-		$('#modal-contacto-sku-info').text('Producto: ' + sku);
-		$('#aoe-contacto-sku').val(sku);
-	});
-
-	$(document).on('click', '#btn-contacto-modal', function () {
-		$('#quierodescargar textarea').val($(this).attr('title') || '');
-	});
-
-	var aoeDownloadUrl = '';
-
-	// Handle download modal open - set data-doc, heading and show modal
-	$(document).on('click', 'a[data-toggle="modal"][data-target=".fusion-modal.descargar"]', function () {
+	// Download modal
+	$(document).on('click', '.aoe-catalog-doc-card', function (e) {
+		e.preventDefault();
+		e.stopPropagation();
 		aoeDownloadUrl = $(this).attr('data-doc') || '';
 		var title = $(this).attr('title') || '';
 		var $modal = $('.fusion-modal.descargar');
@@ -106,27 +118,30 @@ jQuery(document).ready(function ($) {
 		$modal.find('[name="archivo_a_descargar"]').val(aoeDownloadUrl);
 
 		if (title.toLowerCase() === 'datasheet') {
-			$modal.find('[id^="modal-heading-"]').text('Descargar ficha técnica');
+			$modal.find('[id^="modal-heading-"]').text('Descargar ficha técnica de ' + aoeProductName);
 		} else {
-			$modal.find('[id^="modal-heading-"]').text('Descargar el documento "' + title + '"');
+			$modal.find('[id^="modal-heading-"]').text('Descargar el documento "' + title + '" de ' + aoeProductName);
 		}
 
-		$('#aoe-catalog-modal').modal('hide');
-
-		$('#aoe-catalog-modal').one('hidden.bs.modal', function () {
-			$modal.modal('show');
-			$modal.css('z-index', '100001');
-		});
+		aoeHideProduct();
+		aoeShowModal($modal);
 	});
 
-	$(document).on('shown.bs.modal', '.fusion-modal.descargar', function () {
-		$(this).css('z-index', '100001');
-		$('.modal-backdrop').last().css({ 'z-index': '100000', 'opacity': '0.85' });
-		$('body').children('.modal-backdrop').not(':last').hide();
+	// Contact modal
+	$(document).on('click', '#btn-contacto-modal', function (e) {
+		e.preventDefault();
+		var sku = $(this).attr('data-sku-link') || '';
+		$('#modal-contacto-sku-info').text('Producto: ' + sku);
+		$('#aoe-contacto-sku').val(sku);
+		$('#quierodescargar textarea').val($(this).attr('title') || '');
+
+		aoeHideProduct();
+		aoeShowModal($('.fusion-modal.modal-productos-formulario'));
 	});
 
-	$(document).on('hidden.bs.modal', '.fusion-modal.descargar', function () {
-		$('#aoe-catalog-modal').modal('show');
+	// Return to product modal when download/contact close
+	$(document).on('hidden.bs.modal', '.fusion-modal.descargar, .modal-productos-formulario', function () {
+		aoeShowProduct();
 	});
 
 	// Trigger PDF download after Avada form AJAX succeeds

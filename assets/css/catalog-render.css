@@ -697,7 +697,7 @@
 	padding: 8px 12px;
 }
 
-.aoe-cat-level-3 .aoe-cat-name {
+.aoe-cat-level-3:has(.aoe-cat-desc:not(:empty)) .aoe-cat-name {
 	width: 20%;
 	max-width: 120px !important;
 	min-width: 80px;

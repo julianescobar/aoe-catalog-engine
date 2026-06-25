@@ -100,10 +100,9 @@ $catalogs = get_posts( [
 				<div class="aoe-form-group">
 					<label for="m_media_source">Origen de imágenes y PDFs</label>
 					<select name="media_source" id="m_media_source">
-						<option value="local" <?php selected( $media_source, 'local' ); ?>>Local (descargar y servir desde el servidor)</option>
-						<option value="remote" <?php selected( $media_source, 'remote' ); ?>>Remoto (servir desde URL original del fabricante)</option>
+						<option value="local" <?php selected( $media_source, 'local' ); ?>>Local (archivos propios en el servidor)</option>
+						<option value="remote" <?php selected( $media_source, 'remote' ); ?>>Remoto (enlaces directos a la URL del fabricante)</option>
 					</select>
-					<p class="description">"Remoto" salta la resolución local y usa directamente las URL del CSV. Ideal para fabricantes que ya sirven webp y PDFs firmados.</p>
 				</div>
 			</div>
 
