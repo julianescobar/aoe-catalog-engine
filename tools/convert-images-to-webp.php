@@ -6,9 +6,10 @@
  * converts each to .webp (quality 75), moves original to originals/.
  */
 
-if ( PHP_SAPI !== 'cli' ) {
+if ( ! in_array( PHP_SAPI, [ 'cli', 'cgi-fcgi' ], true ) ) {
 	die( 'CLI only' );
 }
+header_remove( 'Content-type' );
 
 if ( $argc < 2 ) {
 	echo "Usage: php tools/convert-images-to-webp.php <slug>\n";

@@ -25,7 +25,7 @@ class PublicManager {
 		add_filter( 'rank_math/opengraph/type', [ $this, 'override_og_type' ], 20 );
 		add_filter( 'rank_math/json_ld', [ $this, 'override_json_ld' ], 20, 2 );
 		// Sitemap provider desactivado durante pruebas. Activar al final:
-		// add_filter( 'rank_math/sitemap/providers', [ $this, 'register_catalog_sitemap_provider' ] );
+		add_filter( 'rank_math/sitemap/providers', [ $this, 'register_catalog_sitemap_provider' ] );
 	}
 
 	public function register_rewrite_rules() {
@@ -345,6 +345,17 @@ class PublicManager {
 			return $data;
 		}
 
+		// Remove auto-generated Product schema (Rank Math detects our products but without prices/offers)
+		unset( $data['Product'] );
+		if ( isset( $data['@graph'] ) && is_array( $data['@graph'] ) ) {
+			$data['@graph'] = array_values( array_filter( $data['@graph'], function( $item ) {
+				return ! isset( $item['@type'] ) || 'Product' !== $item['@type'];
+			} ) );
+			if ( empty( $data['@graph'] ) ) {
+				unset( $data['@graph'] );
+			}
+		}
+
 		global $wp, $wpdb;
 		$current_url = home_url( $wp->request );
 
@@ -366,8 +377,11 @@ class PublicManager {
 		$category_slug = get_query_var( 'aoe_catalog_category' );
 		$type          = get_query_var( 'aoe_catalog_type' );
 
-		// Fix WebPage URL
-		if ( isset( $data['WebPage'] ) && empty( $data['WebPage']['url'] ) ) {
+		// Ensure WebPage schema exists
+		if ( ! isset( $data['WebPage'] ) || ! is_array( $data['WebPage'] ) ) {
+			$data['WebPage'] = [ '@type' => 'WebPage' ];
+		}
+		if ( empty( $data['WebPage']['url'] ) ) {
 			$data['WebPage']['url'] = $current_url;
 		}
 

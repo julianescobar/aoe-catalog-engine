@@ -8,12 +8,14 @@
  * DB_HOST can include port, e.g. "127.0.0.1:10006"
  */
 
-if ( PHP_SAPI !== 'cli' ) {
+if ( ! in_array( PHP_SAPI, [ 'cli', 'cgi-fcgi' ], true ) ) {
 	die( 'CLI only' );
 }
+header_remove( 'Content-type' );
 ini_set( 'memory_limit', '2048M' );
 
-$output = $argv[1] ?? __DIR__ . '/../aoe-catalog-export-new.sql';
+$timestamp = date( 'Ymd-His' );
+$output = $argv[1] ?? __DIR__ . '/../aoe-catalog-export-' . $timestamp . '.sql';
 
 $wp_config = __DIR__ . '/../../../../wp-config.php';
 if ( ! file_exists( $wp_config ) ) {
@@ -42,9 +44,14 @@ if ( str_contains( $host, ':' ) ) {
 	$port = (int) $port;
 }
 
+mysqli_report( MYSQLI_REPORT_OFF );
 $mysqli = new mysqli();
 $mysqli->options( MYSQLI_OPT_INT_AND_FLOAT_NATIVE, 0 );
 $mysqli->real_connect( $host, $user, $pass, $dbname, $port );
+if ( $mysqli->connect_error && $port === 3306 ) {
+	$port = 10006;
+	$mysqli->real_connect( $host, $user, $pass, $dbname, $port );
+}
 if ( $mysqli->connect_error ) {
 	echo "DB error: {$mysqli->connect_error}\n";
 	exit( 1 );

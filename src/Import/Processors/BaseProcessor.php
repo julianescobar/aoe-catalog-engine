@@ -5,10 +5,26 @@ namespace AOE\CatalogEngine\Import\Processors;
 abstract class BaseProcessor implements ProcessorInterface {
 
 	/**
-	 * Normalizes a common text string
+	 * Normalizes a common text string and fixes UTF-8 mojibake
 	 */
 	protected function normalize_text( string $text ): string {
-		return trim( wp_strip_all_tags( $text ) );
+		$text = trim( wp_strip_all_tags( $text ) );
+		return $this->fix_mojibake( $text );
+	}
+
+	/**
+	 * Revert double/triple UTF-8 mojibake (â„¢ → ™, Â® → ®, Ã± → ñ, etc.)
+	 */
+	protected function fix_mojibake( string $str ): string {
+		$to_w1252 = @mb_convert_encoding( $str, 'Windows-1252', 'UTF-8' );
+		if ( $to_w1252 !== false && @mb_check_encoding( $to_w1252, 'UTF-8' ) ) {
+			$str = $to_w1252;
+		}
+		$to_w1252 = @mb_convert_encoding( $str, 'Windows-1252', 'UTF-8' );
+		if ( $to_w1252 !== false && @mb_check_encoding( $to_w1252, 'UTF-8' ) ) {
+			$str = $to_w1252;
+		}
+		return $str;
 	}
 
 	/**

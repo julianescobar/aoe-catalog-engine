@@ -6,9 +6,10 @@
  * Skips existing files.
  */
 
-if ( PHP_SAPI !== 'cli' ) {
+if ( ! in_array( PHP_SAPI, [ 'cli', 'cgi-fcgi' ], true ) ) {
 	die( 'CLI only' );
 }
+header_remove( 'Content-type' );
 
 if ( $argc < 3 ) {
 	echo "Usage: php tools/download-pdfs.php <slug> <csv_path> [parallel=15]\n";

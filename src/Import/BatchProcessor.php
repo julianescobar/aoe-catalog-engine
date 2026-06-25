@@ -482,11 +482,10 @@ class BatchProcessor {
 			}
 		}
 
-		// Sitemap cache invalidation desactivado durante pruebas.
-		// $this->invalidate_rankmath_sitemap( $manufacturer_slug );
+		// Invalidate Rank Math sitemap cache after import
+		$this->invalidate_rankmath_sitemap( $manufacturer_slug );
 	}
 
-	/* Activar al final:
 	private function invalidate_rankmath_sitemap( $manufacturer_slug ) {
 		$sitemap_type = 'catalogo-' . $manufacturer_slug;
 		if ( class_exists( '\RankMath\Sitemap\Cache' ) && is_callable( [ '\RankMath\Sitemap\Cache', 'invalidate_storage' ] ) ) {
@@ -502,7 +501,6 @@ class BatchProcessor {
 			delete_option( 'rank_math_sitemap_cache' );
 		}
 	}
-	*/
 
 	private function send_json_error( $data ) {
 		if ( ob_get_length() ) {
