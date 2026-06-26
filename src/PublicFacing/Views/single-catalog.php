@@ -120,10 +120,14 @@ if ( 'grouped' === $catalog_type ) {
 	$page_slug      = $page_slug_base . ( $page_num > 1 ? '-' . $page_num : '' );
 }
 
-$cached = \AOE\CatalogEngine\PublicFacing\CacheCatalog::get( $manufacturer_slug, $page_slug );
-if ( null !== $cached ) {
-	echo $cached;
-	exit;
+// Skip cache for logged-in users (admin toolbar would leak into cached HTML)
+$is_logged_in = is_user_logged_in();
+if ( ! $is_logged_in ) {
+	$cached = \AOE\CatalogEngine\PublicFacing\CacheCatalog::get( $manufacturer_slug, $page_slug );
+	if ( null !== $cached ) {
+		echo $cached;
+		exit;
+	}
 }
 ob_start();
 
@@ -548,7 +552,9 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 	wp_reset_postdata();
 	get_footer();
 	$html = ob_get_clean();
-	\AOE\CatalogEngine\PublicFacing\CacheCatalog::set( $manufacturer_slug, $page_slug, $html );
+	if ( ! $is_logged_in ) {
+		\AOE\CatalogEngine\PublicFacing\CacheCatalog::set( $manufacturer_slug, $page_slug, $html );
+	}
 	echo $html;
 	exit;
 }
@@ -587,5 +593,7 @@ echo $content;
 wp_reset_postdata();
 get_footer();
 $html = ob_get_clean();
-\AOE\CatalogEngine\PublicFacing\CacheCatalog::set( $manufacturer_slug, $page_slug, $html );
+if ( ! $is_logged_in ) {
+	\AOE\CatalogEngine\PublicFacing\CacheCatalog::set( $manufacturer_slug, $page_slug, $html );
+}
 echo $html;
