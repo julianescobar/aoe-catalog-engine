@@ -24,8 +24,12 @@ class PublicManager {
 		add_filter( 'rank_math/opengraph/facebook/og_image_secure_url', [ $this, 'override_og_image_secure_url' ], 9999 );
 		add_filter( 'rank_math/opengraph/type', [ $this, 'override_og_type' ], 20 );
 		add_filter( 'rank_math/json_ld', [ $this, 'override_json_ld' ], 20, 2 );
-		// Sitemap provider desactivado durante pruebas. Activar al final:
+		add_action( 'wp_head', [ $this, 'output_canonical' ], 9999 );
 		add_filter( 'rank_math/sitemap/providers', [ $this, 'register_catalog_sitemap_provider' ] );
+		add_filter( 'rank_math/sitemap/entry', [ $this, 'exclude_template_pages_from_sitemap' ], 10, 3 );
+		add_action( 'wp_head', [ $this, 'output_noindex_for_template_pages' ], 9999 );
+		add_action( 'post_submitbox_misc_actions', [ $this, 'add_template_page_checkbox' ] );
+		add_action( 'save_post_catalogo_online', [ $this, 'save_template_page_meta' ] );
 	}
 
 	public function register_rewrite_rules() {
@@ -293,14 +297,28 @@ class PublicManager {
 	}
 
 	public function override_og_url( $url ) {
-		$manufacturer_slug = get_query_var( 'aoe_catalog_manufacturer' );
-		if ( ! empty( $manufacturer_slug ) ) {
-			return home_url( '/' . $manufacturer_slug . '/' );
+		$canonical = $this->get_catalog_canonical_url();
+		return $canonical ?: $url;
+	}
+
+	public function output_canonical() {
+		$canonical = $this->get_catalog_canonical_url();
+		if ( $canonical ) {
+			echo '<link rel="canonical" href="' . esc_url( $canonical ) . '" />' . "\n";
 		}
+	}
+
+	private function get_catalog_canonical_url(): ?string {
 		if ( get_query_var( 'aoe_catalog' ) === 'root' ) {
 			return home_url( '/catalogo/' );
 		}
-		return $url;
+		$manufacturer_slug = get_query_var( 'aoe_catalog_manufacturer' );
+		if ( ! empty( $manufacturer_slug ) ) {
+			global $wp;
+			$path = untrailingslashit( $wp->request );
+			return trailingslashit( home_url( $path ) );
+		}
+		return null;
 	}
 
 	public function override_og_title( $title ) {
@@ -614,5 +632,44 @@ class PublicManager {
 	public function register_catalog_sitemap_provider( $providers ) {
 		$providers[] = new CatalogSitemapProvider();
 		return $providers;
+	}
+
+	public function exclude_template_pages_from_sitemap( $url, $type, $post ) {
+		if ( 'post' !== $type || ! isset( $post->post_type ) || 'catalogo_online' !== $post->post_type ) {
+			return $url;
+		}
+		if ( get_post_meta( $post->ID, '_aoe_catalog_template', true ) ) {
+			return [];
+		}
+		return $url;
+	}
+
+	public function output_noindex_for_template_pages() {
+		if ( is_singular( 'catalogo_online' ) && get_post_meta( get_the_ID(), '_aoe_catalog_template', true ) ) {
+			echo '<meta name="robots" content="noindex, nofollow" />' . "\n";
+		}
+	}
+
+	public function add_template_page_checkbox() {
+		global $post;
+		if ( ! $post || 'catalogo_online' !== $post->post_type ) {
+			return;
+		}
+		$checked = get_post_meta( $post->ID, '_aoe_catalog_template', true ) ? 'checked' : '';
+		echo '<div class="misc-pub-section">';
+		echo '<label><input type="checkbox" name="_aoe_catalog_template" value="1" ' . $checked . ' /> ';
+		echo 'Plantilla del catálogo (excluir del sitemap)</label>';
+		echo '</div>';
+	}
+
+	public function save_template_page_meta( $post_id ) {
+		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+			return;
+		}
+		if ( isset( $_POST['_aoe_catalog_template'] ) ) {
+			update_post_meta( $post_id, '_aoe_catalog_template', 1 );
+		} else {
+			delete_post_meta( $post_id, '_aoe_catalog_template' );
+		}
 	}
 }

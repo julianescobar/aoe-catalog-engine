@@ -281,7 +281,7 @@ class BatchProcessor {
 
 		// Get categories with product counts
 		$categories = $wpdb->get_results( $wpdb->prepare(
-			"SELECT id, name, slug, products_count FROM $table_cat WHERE manufacturer_id = %d AND products_count > 0 ORDER BY products_count DESC",
+			"SELECT id, name, slug, products_count FROM $table_cat WHERE manufacturer_id = %d AND products_count > 0 ORDER BY id ASC",
 			$manufacturer_id
 		) );
 

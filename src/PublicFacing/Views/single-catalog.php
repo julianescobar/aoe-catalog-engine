@@ -4,6 +4,21 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * Get a post regardless of its status (publish, draft, etc.)
+ */
+function aoe_get_post_any_status( $post_id ) {
+	$post = get_post( $post_id );
+	if ( $post ) {
+		return $post;
+	}
+	global $wpdb;
+	$row = $wpdb->get_row( $wpdb->prepare(
+		"SELECT * FROM {$wpdb->posts} WHERE ID = %d", $post_id
+	) );
+	return $row ? new WP_Post( $row ) : null;
+}
+
 global $wpdb;
 
 $catalog_css_path = dirname( dirname( dirname( __DIR__ ) ) ) . '/assets/css/catalog-render.css';
@@ -86,7 +101,7 @@ if ( $is_test ) {
 		true
 	);
 
-	$template_post = $template_post_id ? get_post( $template_post_id ) : null;
+	$template_post = $template_post_id ? aoe_get_post_any_status( $template_post_id ) : null;
 	if ( ! $template_post ) {
 		wp_die( 'La plantilla asociada a este fabricante no existe.', 'Plantilla no encontrada', [ 'response' => 404 ] );
 	}
@@ -266,7 +281,7 @@ if ( 'category' === $page_type ) {
 		$total_pages = max( 1, ceil( $total_products / $per_page ) );
 
 		$page_products = $wpdb->get_results( $wpdb->prepare(
-			"SELECT * FROM $table_prod WHERE category_id = %d ORDER BY sku ASC LIMIT %d OFFSET %d",
+			"SELECT * FROM $table_prod WHERE category_id = %d ORDER BY id ASC LIMIT %d OFFSET %d",
 			$cat_seg->category_id, $limit, $from
 		) );
 	}
@@ -294,7 +309,7 @@ if ( 'category' === $page_type ) {
 		$cat_hierarchies[ $cid ] = $path;
 
 		$seg_prods = $wpdb->get_results( $wpdb->prepare(
-			"SELECT * FROM $table_prod WHERE category_id = %d ORDER BY sku ASC LIMIT %d",
+			"SELECT * FROM $table_prod WHERE category_id = %d ORDER BY id ASC LIMIT %d",
 			$seg->category_id, (int) $seg->products_to
 		) );
 		$grouped_segments[] = [
@@ -335,14 +350,14 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 		}
 	}
 
-	$template_post = $template_post_id ? get_post( $template_post_id ) : null;
+	$template_post = $template_post_id ? aoe_get_post_any_status( $template_post_id ) : null;
 	if ( ! $template_post ) {
 		wp_die( 'La plantilla asociada a este fabricante no existe.', 'Plantilla no encontrada', [ 'response' => 404 ] );
 	}
 
 	ob_start();
 	?>
-	<div class="aoe-tree">
+	<div class="aoe-tree" id="aoe-catalog-container">
 		<h2>Catálogo de <?php echo esc_html( $page->manufacturer_name ); ?></h2>
 		<?php if ( $total_pages > 1 ) : ?>
 		<nav class="aoe-catalog-pagination" aria-label="Paginacion de categorias">

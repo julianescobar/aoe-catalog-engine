@@ -897,3 +897,7 @@
 .aoe-series-highlights li {
 	margin-bottom: 4px;
 }
+
+#aoe-catalog-container .aoe-cat-name a {
+	color: #000 !important;
+}
