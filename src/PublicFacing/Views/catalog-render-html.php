@@ -223,8 +223,16 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 	</style>
 	<div class="aoe-catalog-render" id="aoe-catalog-container">
 		<header>
-			<h2>Catálogo de <?php echo esc_html( ucfirst( $manufacturer_name ) ); ?><?php echo ! empty( $category_display_name ) ? ' ' . esc_html( $category_display_name ) : ''; ?></h2>
-			<!--<p>Listado para <?php /*echo esc_html( $manufacturer_name );*/ ?>, pagina <?php /*echo $current_page;*/ ?> de <?php /*echo $total_pages;*/ ?>.</p>-->
+			<h2>Catálogo de componentes <?php echo esc_html( ucfirst( $manufacturer_name ) ); ?><?php
+				if ( ! empty( $category_display_name ) ) {
+					echo ' - ' . esc_html( $category_display_name );
+				} elseif ( ! empty( $grouped_segments ) ) {
+					echo ' - Productos';
+				}
+				if ( $total_pages > 1 ) {
+					echo ' (Página ' . intval( $current_page ) . ' de ' . intval( $total_pages ) . ')';
+				}
+			?></h2>
 
 			<div class="aoe-catalog-row">
 				<div class="aoe-catalog-title">

@@ -9,6 +9,7 @@ class PublicManager {
 		add_filter( 'query_vars', [ $this, 'register_query_vars' ] );
 		add_action( 'pre_get_posts', [ $this, 'override_catalog_query' ] );
 		add_filter( 'template_include', [ $this, 'load_catalog_templates' ] );
+		add_action( 'template_redirect', [ $this, 'redirect_to_trailing_slash' ], 0 );
 		add_action( 'template_redirect', [ $this, 'intercept_catalog_request' ], 1 );
 		add_filter( 'redirect_canonical', [ $this, 'disable_redirect_for_catalog' ], 10, 2 );
 		add_filter( 'pre_get_document_title', [ $this, 'set_catalog_title' ], 20 );
@@ -125,13 +126,31 @@ class PublicManager {
 			return false;
 		}
 
-		// Also check the request path directly, in case rewrite rules didn't match
 		$path = trim( parse_url( $requested_url, PHP_URL_PATH ), '/' );
 		if ( preg_match( '#^catalogo(?:/|/(test-[^/]+|[^/]+))#', $path ) ) {
 			return false;
 		}
 
 		return $redirect_url;
+	}
+
+	public function redirect_to_trailing_slash() {
+		if ( ! $this->is_catalog_page() ) {
+			return;
+		}
+
+		$uri = $_SERVER['REQUEST_URI'];
+		if ( substr( $uri, -1 ) === '/' ) {
+			return;
+		}
+
+		$path = trim( parse_url( $uri, PHP_URL_PATH ), '/' );
+		if ( empty( $path ) ) {
+			return;
+		}
+
+		wp_safe_redirect( trailingslashit( home_url( $path ) ), 301 );
+		exit;
 	}
 
 	/**
@@ -275,11 +294,7 @@ class PublicManager {
 		// Output ONLY our OG tags
 		echo "\n" . '<meta property="og:locale" content="es_ES" />';
 		echo "\n" . '<meta property="og:type" content="website" />';
-		if ( ! empty( $slug ) ) {
-			$og_url = home_url( '/' . $slug . '/' );
-		} else {
-			$og_url = home_url( '/catalogo/' );
-		}
+		$og_url = $this->get_catalog_canonical_url() ?: home_url( '/catalogo/' );
 		echo "\n" . '<meta property="og:url" content="' . esc_attr( $og_url ) . '" />';
 		echo "\n" . '<meta property="og:site_name" content="' . esc_attr( get_bloginfo( 'name' ) ) . '" />';
 		if ( ! empty( $seo['title'] ) ) {
@@ -375,7 +390,7 @@ class PublicManager {
 		}
 
 		global $wp, $wpdb;
-		$current_url = home_url( $wp->request );
+		$current_url = trailingslashit( home_url( $wp->request ) );
 
 		// Resolve manufacturer data early so it's available everywhere
 		$manufacturer_slug = get_query_var( 'aoe_catalog_manufacturer' );

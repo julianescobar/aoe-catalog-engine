@@ -358,7 +358,7 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 	ob_start();
 	?>
 	<div class="aoe-tree" id="aoe-catalog-container">
-		<h2>Catálogo de <?php echo esc_html( $page->manufacturer_name ); ?></h2>
+		<h2>Catálogo de componentes <?php echo esc_html( $page->manufacturer_name ); ?></h2>
 		<?php if ( $total_pages > 1 ) : ?>
 		<nav class="aoe-catalog-pagination" aria-label="Paginacion de categorias">
 			<span class="aoe-catalog-bold">Ir a la pagina:</span>
