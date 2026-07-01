@@ -243,8 +243,20 @@ class PublicManager {
 			$title .= ' | ' . $category_label;
 		}
 
-		if ( $page_num > 1 ) {
-			$title .= ' - Página ' . $page_num;
+		if ( $page_num > 0 ) {
+			$total = 0;
+			if ( 'tree' === $type || ( empty( $type ) && empty( $category_slug ) ) ) {
+				$total = (int) $wpdb->get_var( $wpdb->prepare(
+					"SELECT COUNT(*) FROM {$wpdb->prefix}aoe_catalog_pregenerated_pages
+					 WHERE manufacturer_id = %d AND type = 'tree'",
+					$mfr->id
+				) );
+			}
+			if ( $total > 0 ) {
+				$title .= ' (Página ' . $page_num . ' de ' . $total . ')';
+			} elseif ( $page_num > 1 ) {
+				$title .= ' (Página ' . $page_num . ')';
+			}
 		}
 
 		$result = [ 'title' => $title, 'description' => $description ];
