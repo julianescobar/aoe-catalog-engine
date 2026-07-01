@@ -340,6 +340,8 @@ jQuery(document).ready(function ($) {
 						}
 					},
 					error: function (xhr, status, err) {
+						var errMsg = xhr.responseText || err || 'unknown';
+						logMessage('ERROR (HTTP ' + xhr.status + '): ' + errMsg.substring(0, 500));
 						if (retries > 0) {
 							logMessage('Reintentando lote (quedan ' + retries + ' intentos)...');
 							setTimeout(function () { doRequest(retries - 1); }, 2000);
