@@ -4,6 +4,42 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+// --- Inline profiler (define AOE_DEBUG=true in wp-config to enable) ---
+// Then use: curl -H "X-AOE-Profile: 1" ...
+if ( ! function_exists( 'aoe_profile_mark' ) ) {
+	if ( defined( 'AOE_DEBUG' ) && AOE_DEBUG ) {
+		global $aoe_profile_marks, $aoe_profile_start, $aoe_profile_active;
+		$aoe_profile_active = ! empty( $_SERVER['HTTP_X_AOE_PROFILE'] );
+		if ( $aoe_profile_active ) {
+			$aoe_profile_start = microtime( true );
+			$aoe_profile_marks = [];
+		}
+		function aoe_profile_mark( $label ) {
+			global $aoe_profile_marks, $aoe_profile_start, $aoe_profile_active;
+			if ( ! $aoe_profile_active ) return;
+			$aoe_profile_marks[] = [ microtime( true ), $label, microtime( true ) - $aoe_profile_start ];
+		}
+		function aoe_profile_flush() {
+			global $aoe_profile_marks, $aoe_profile_start, $aoe_profile_active;
+			if ( ! $aoe_profile_active || empty( $aoe_profile_marks ) ) return;
+			$lines = "<!-- AOE PROFILE\n";
+			$lines .= "=== " . date( 'H:i:s' ) . ' | ' . ( $_SERVER['REQUEST_URI'] ?? '' ) . " ===\n";
+			$prev = $aoe_profile_start;
+			foreach ( $aoe_profile_marks as $m ) {
+				$diff = sprintf( '+%0.4f', $m[0] - $prev );
+				$lines .= sprintf( "  %-50s %0.4f (%s)\n", $m[1], $m[2], $diff );
+				$prev = $m[0];
+			}
+			$lines .= "END AOE PROFILE -->\n";
+			echo $lines;
+		}
+		register_shutdown_function( 'aoe_profile_flush' );
+		aoe_profile_mark( 'start' );
+	} else {
+		function aoe_profile_mark( $label ) {}
+	}
+}
+
 /**
  * Get a post regardless of its status (publish, draft, etc.)
  */
@@ -110,19 +146,32 @@ if ( $is_test ) {
 	$post = $template_post;
 	setup_postdata( $post );
 
+	aoe_profile_mark( 'before_the_content' );
 	$content = apply_filters( 'the_content', $template_post->post_content );
+	aoe_profile_mark( 'after_the_content' );
 	$content = str_replace( [ '<p>[catalogo]</p>', '[catalogo]' ], $catalog_html, $content );
 
+	aoe_profile_mark( 'before_get_header' );
 	get_header();
+	aoe_profile_mark( 'after_get_header' );
 	echo $content;
 	wp_reset_postdata();
 	get_footer();
+	aoe_profile_mark( 'after_get_footer' );
+	$html = ob_get_clean();
+	if ( ! $is_logged_in ) {
+		\AOE\CatalogEngine\PublicFacing\CacheCatalog::set( $manufacturer_slug, $page_slug, $html );
+	}
+	echo $html;
+	aoe_profile_mark( 'done' );
 	exit;
 }
 
 // --- Production mode ---
 
 $catalog_type = get_query_var( 'aoe_catalog_type' );
+
+aoe_profile_mark( 'query_vars_parsed' );
 
 if ( 'grouped' === $catalog_type ) {
 	$page_slug_base = $manufacturer_slug . '/productos';
@@ -140,10 +189,12 @@ $is_logged_in = is_user_logged_in();
 if ( ! $is_logged_in ) {
 	$cached = \AOE\CatalogEngine\PublicFacing\CacheCatalog::get( $manufacturer_slug, $page_slug );
 	if ( null !== $cached ) {
+		aoe_profile_mark( 'cache_hit_serve' );
 		echo $cached;
 		exit;
 	}
 }
+aoe_profile_mark( 'cache_miss_start' );
 ob_start();
 
 $table_pages = $wpdb->prefix . 'aoe_catalog_pregenerated_pages';
@@ -152,6 +203,7 @@ $table_cat   = $wpdb->prefix . 'aoe_catalog_categories';
 $table_prod  = $wpdb->prefix . 'aoe_catalog_products';
 $table_m     = $wpdb->prefix . 'aoe_catalog_manufacturers';
 
+aoe_profile_mark( 'before_page_query' );
 $page = $wpdb->get_row( $wpdb->prepare(
 	"SELECT p.*, m.name AS manufacturer_name, m.wp_post_id AS template_post_id, m.config_json
 	 FROM $table_pages p
@@ -159,6 +211,7 @@ $page = $wpdb->get_row( $wpdb->prepare(
 	 WHERE p.slug = %s",
 	$page_slug
 ) );
+aoe_profile_mark( 'after_page_query' );
 
 if ( ! $page ) {
 	// Only fall back to manufacturer tree if no specific category/grouped was requested
@@ -200,6 +253,7 @@ $mfr_config = json_decode( $page->config_json ?? '', true ) ?: [];
 $tree_layout = $mfr_config['tree_layout'] ?? 'normal';
 $tree_columns = min( 8, max( 2, intval( $mfr_config['tree_columns'] ?? 4 ) ) );
 
+aoe_profile_mark( 'before_segments_query' );
 $segments = $wpdb->get_results( $wpdb->prepare(
 	"SELECT s.*, c.name AS category_name, c.slug AS category_slug, c.parent_id, c.level, c.metadata_json, c.description AS category_description
 	 FROM $table_seg s
@@ -208,6 +262,7 @@ $segments = $wpdb->get_results( $wpdb->prepare(
 	 ORDER BY s.sort_order ASC",
 	$page->id
 ) );
+aoe_profile_mark( 'after_segments_query' );
 
 $page_products = [];
 $grouped_segments = [];
@@ -286,32 +341,36 @@ if ( 'category' === $page_type ) {
 		) );
 	}
 } elseif ( 'grouped' === $page_type ) {
-	// Build category hierarchy lookup
-	$all_cats = $wpdb->get_results( $wpdb->prepare(
-		"SELECT id, name, parent_id FROM $table_cat WHERE manufacturer_id = %d",
-		$page->manufacturer_id
-	) );
-	$cat_name = [];
-	$cat_parent = [];
-	foreach ( $all_cats as $c ) {
-		$cat_name[ (int) $c->id ] = $c->name;
-		$cat_parent[ (int) $c->id ] = (int) $c->parent_id;
-	}
 	$cat_hierarchies = [];
+	$cat_ids = [];
+	$cat_limits = [];
+	foreach ( $segments as $seg ) {
+		$cid = (int) $seg->category_id;
+		$cat_ids[] = $cid;
+		$cat_limits[ $cid ] = (int) $seg->products_to;
+	}
+	// Batch-fetch all products for all categories in one query
+	$placeholders = implode( ',', array_fill( 0, count( $cat_ids ), '%d' ) );
+	$all_products = $wpdb->get_results( $wpdb->prepare(
+		"SELECT * FROM $table_prod WHERE category_id IN ($placeholders) ORDER BY category_id, id ASC",
+		$cat_ids
+	) );
+	// Partition by category_id
+	$products_by_cat = [];
+	foreach ( $all_products as $p ) {
+		$products_by_cat[ (int) $p->category_id ][] = $p;
+	}
 	foreach ( $segments as $seg ) {
 		$cid = (int) $seg->category_id;
 		$path = [];
 		$cur = $cid;
-		while ( $cur && isset( $cat_name[ $cur ] ) ) {
-			array_unshift( $path, $cat_name[ $cur ] );
-			$cur = $cat_parent[ $cur ] ?? 0;
+		while ( $cur && isset( $cat_name_lookup[ $cur ] ) ) {
+			array_unshift( $path, $cat_name_lookup[ $cur ] );
+			$cur = $cat_parent_lookup[ $cur ] ?? 0;
 		}
 		$cat_hierarchies[ $cid ] = $path;
 
-		$seg_prods = $wpdb->get_results( $wpdb->prepare(
-			"SELECT * FROM $table_prod WHERE category_id = %d ORDER BY id ASC LIMIT %d",
-			$seg->category_id, (int) $seg->products_to
-		) );
+		$seg_prods = array_slice( $products_by_cat[ $cid ] ?? [], 0, $cat_limits[ $cid ] );
 		$grouped_segments[] = [
 			'category_path' => $path,
 			'products'      => $seg_prods,
@@ -349,6 +408,8 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 			$cat_page_map[ $cp->category_id ] = $cp->page_slug;
 		}
 	}
+
+	aoe_profile_mark( 'tree_start' );
 
 	$template_post = $template_post_id ? aoe_get_post_any_status( $template_post_id ) : null;
 	if ( ! $template_post ) {
@@ -553,24 +614,31 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 		?>
 	</div>
 	<?php
+	aoe_profile_mark( 'tree_rendered' );
 	$tree_html = ob_get_clean();
 
 	global $post;
 	$post = $template_post;
 	setup_postdata( $post );
 
+	aoe_profile_mark( 'tree_before_the_content' );
 	$content = apply_filters( 'the_content', $template_post->post_content );
+	aoe_profile_mark( 'tree_after_the_content' );
 	$content = str_replace( [ '<p>[catalogo]</p>', '[catalogo]' ], $tree_html, $content );
 
+	aoe_profile_mark( 'tree_before_get_header' );
 	get_header();
+	aoe_profile_mark( 'tree_after_get_header' );
 	echo $content;
 	wp_reset_postdata();
 	get_footer();
+	aoe_profile_mark( 'tree_after_get_footer' );
 	$html = ob_get_clean();
 	if ( ! $is_logged_in ) {
 		\AOE\CatalogEngine\PublicFacing\CacheCatalog::set( $manufacturer_slug, $page_slug, $html );
 	}
 	echo $html;
+	aoe_profile_mark( 'tree_done' );
 	exit;
 }
 
@@ -582,6 +650,7 @@ if ( ! $template_post ) {
 
 require_once __DIR__ . '/catalog-render-html.php';
 
+aoe_profile_mark( 'before_render_html' );
 $catalog_html = aoe_catalog_render_html(
 	$manufacturer_name,
 	$page_slug_base,
@@ -595,20 +664,27 @@ $catalog_html = aoe_catalog_render_html(
 	$category_metadata,
 	$breadcrumb_path
 );
+aoe_profile_mark( 'after_render_html' );
 
 global $post;
 $post = $template_post;
 setup_postdata( $post );
 
+aoe_profile_mark( 'before_the_content' );
 $content = apply_filters( 'the_content', $template_post->post_content );
+aoe_profile_mark( 'after_the_content' );
 $content = str_replace( [ '<p>[catalogo]</p>', '[catalogo]' ], $catalog_html, $content );
 
+aoe_profile_mark( 'before_get_header' );
 get_header();
+aoe_profile_mark( 'after_get_header' );
 echo $content;
 wp_reset_postdata();
 get_footer();
+aoe_profile_mark( 'after_get_footer' );
 $html = ob_get_clean();
 if ( ! $is_logged_in ) {
 	\AOE\CatalogEngine\PublicFacing\CacheCatalog::set( $manufacturer_slug, $page_slug, $html );
 }
 echo $html;
+aoe_profile_mark( 'done' );

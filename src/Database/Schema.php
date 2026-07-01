@@ -37,7 +37,9 @@ class Schema {
 			metadata_json longtext NULL,
 			PRIMARY KEY  (id),
 			KEY manufacturer_id (manufacturer_id),
-			KEY parent_id (parent_id)
+			KEY parent_id (parent_id),
+			KEY slug (slug),
+			KEY idx_manufacturer_slug (manufacturer_id, slug)
 		) $charset_collate;";
 
 		$sql_products = "CREATE TABLE $table_products (
@@ -69,6 +71,7 @@ class Schema {
 			link_count int(11) NOT NULL DEFAULT 0,
 			PRIMARY KEY  (id),
 			KEY manufacturer_id (manufacturer_id),
+			KEY slug (slug),
 			UNIQUE KEY manufacturer_slug (manufacturer_id, slug)
 		) $charset_collate;";
 

@@ -158,11 +158,19 @@ class PublicManager {
 	 * @return array{title: string, description: string}|null
 	 */
 	private function get_catalog_seo(): ?array {
+		static $cached = false;
+		static $result = null;
+		if ( false !== $cached ) {
+			return $result;
+		}
+		$cached = true;
+
 		if ( get_query_var( 'aoe_catalog' ) === 'root' ) {
-			return [
+			$result = [
 				'title'       => 'Catálogo de productos | TC Componentes',
 				'description' => 'Catálogo completo de conectores y componentes electrónicos de Samtec, Amphenol, CamdenBoss y EDAC. Documentación técnica, especificaciones y soporte especializado.',
 			];
+			return $result;
 		}
 
 		$manufacturer_slug = get_query_var( 'aoe_catalog_manufacturer' );
@@ -192,7 +200,6 @@ class PublicManager {
 
 		$config = json_decode( $mfr->config_json ?? '', true ) ?: [];
 
-		// Get template: per-manufacturer > global > hardcoded default
 		$title_template = $config['seo_title_template'] ?? '';
 		$desc_template  = $config['seo_description_template'] ?? '';
 
@@ -208,7 +215,6 @@ class PublicManager {
 		$page_num     = ! empty( $page ) ? (int) $page : 0;
 		$type         = get_query_var( 'aoe_catalog_type' );
 
-		// Resolve category name from DB or slug
 		$category_name = '';
 		if ( ! empty( $category_slug ) ) {
 			$table_c = $wpdb->prefix . 'aoe_catalog_categories';
@@ -233,7 +239,6 @@ class PublicManager {
 		$title = str_replace( array_keys( $replacements ), array_values( $replacements ), $title_template );
 		$description = str_replace( array_keys( $replacements ), array_values( $replacements ), $desc_template );
 
-		// Append category to title if not already in template via {category}
 		if ( ! empty( $category_label ) && strpos( $title_template, '{category}' ) === false ) {
 			$title .= ' | ' . $category_label;
 		}
@@ -242,7 +247,8 @@ class PublicManager {
 			$title .= ' - Página ' . $page_num;
 		}
 
-		return [ 'title' => $title, 'description' => $description ];
+		$result = [ 'title' => $title, 'description' => $description ];
+		return $result;
 	}
 
 	public function set_catalog_title( $title ) {
@@ -468,19 +474,24 @@ class PublicManager {
 				$cat_name = $cat_row ? $cat_row->name : str_replace( '-', ' ', ucwords( $category_slug, '-' ) );
 
 				if ( $cat_row && $cat_row->parent_id ) {
+					// Pre-load all categories for in-memory ancestor traversal
+					$all_cats = $wpdb->get_results( $wpdb->prepare(
+						"SELECT id, name, parent_id FROM $table_c WHERE manufacturer_id = %d",
+						$mfr->id
+					) );
+					$parent_of = [];
+					foreach ( $all_cats as $c ) {
+						$parent_of[ (int) $c->id ] = (int) $c->parent_id;
+					}
+					$name_of = [];
+					foreach ( $all_cats as $c ) {
+						$name_of[ (int) $c->id ] = $c->name;
+					}
 					$ancestor_names = [];
 					$cur_parent     = (int) $cat_row->parent_id;
-					while ( $cur_parent ) {
-						$p_row = $wpdb->get_row( $wpdb->prepare(
-							"SELECT name, parent_id FROM $table_c WHERE id = %d",
-							$cur_parent
-						) );
-						if ( $p_row ) {
-							array_unshift( $ancestor_names, $p_row->name );
-							$cur_parent = (int) $p_row->parent_id;
-						} else {
-							break;
-						}
+					while ( $cur_parent && isset( $name_of[ $cur_parent ] ) ) {
+						array_unshift( $ancestor_names, $name_of[ $cur_parent ] );
+						$cur_parent = $parent_of[ $cur_parent ] ?? 0;
 					}
 					foreach ( $ancestor_names as $a_name ) {
 						$items[] = [
