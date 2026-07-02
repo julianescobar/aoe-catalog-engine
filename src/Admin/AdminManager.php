@@ -16,6 +16,7 @@ class AdminManager {
 		add_action( 'admin_post_aoe_export_media_txt', [ $this, 'handle_export_media_txt' ] );
 		add_action( 'wp_ajax_aoe_clear_cache', [ $this, 'ajax_clear_cache' ] );
 		add_action( 'wp_ajax_aoe_regenerate_pages', [ $this, 'ajax_regenerate_pages' ] );
+		add_action( 'wp_ajax_aoe_generate_template_cache', [ $this, 'ajax_generate_template_cache' ] );
 		add_action( 'wp_ajax_aoe_import_structure', [ $this, 'ajax_import_structure' ] );
 		add_action( 'save_post', [ $this, 'invalidate_cache_on_template_save' ], 10, 2 );
 	}
@@ -462,6 +463,27 @@ class AdminManager {
 
 		\AOE\CatalogEngine\PublicFacing\CacheCatalog::invalidate( $slug );
 		wp_send_json_success( [ 'message' => 'Cache limpiado para ' . $slug ] );
+	}
+
+	public function ajax_generate_template_cache() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( 'Acceso no autorizado' );
+		}
+
+		$slug = sanitize_text_field( $_POST['slug'] ?? '' );
+		if ( empty( $slug ) ) {
+			wp_send_json_error( 'Slug no proporcionado' );
+		}
+
+		if ( ! empty( $_POST['clear_cache'] ) ) {
+			\AOE\CatalogEngine\PublicFacing\CacheCatalog::invalidate( $slug );
+		}
+
+		$frontend_url = home_url( '/__gen-template/' . $slug . '/' );
+		wp_send_json_success( [
+			'message' => 'Generando template cache...',
+			'url'     => $frontend_url,
+		] );
 	}
 
 	public function invalidate_cache_on_template_save( $post_id, $post ) {

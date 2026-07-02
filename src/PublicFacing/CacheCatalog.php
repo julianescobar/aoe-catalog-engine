@@ -21,7 +21,11 @@ class CacheCatalog {
 	public static function get( string $manufacturer_slug, string $page_slug ): ?string {
 		$path = self::file_path( $manufacturer_slug, $page_slug );
 		if ( file_exists( $path ) ) {
-			return file_get_contents( $path );
+			$contents = file_get_contents( $path );
+			if ( $contents !== false && $contents !== '' ) {
+				return $contents;
+			}
+			unlink( $path );
 		}
 		return null;
 	}

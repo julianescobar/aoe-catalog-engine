@@ -6,6 +6,7 @@ class PublicManager {
 
 	public function __construct() {
 		add_action( 'init', [ $this, 'register_rewrite_rules' ] );
+		add_action( 'wp_loaded', [ $this, 'maybe_flush_rewrite_rules' ] );
 		add_filter( 'query_vars', [ $this, 'register_query_vars' ] );
 		add_action( 'pre_get_posts', [ $this, 'override_catalog_query' ] );
 		add_filter( 'template_include', [ $this, 'load_catalog_templates' ] );
@@ -33,6 +34,13 @@ class PublicManager {
 		add_action( 'save_post_catalogo_online', [ $this, 'save_template_page_meta' ] );
 	}
 
+	public function maybe_flush_rewrite_rules() {
+		if ( ! get_transient( 'aoe_rules_flushed_v2' ) ) {
+			flush_rewrite_rules();
+			set_transient( 'aoe_rules_flushed_v2', true, DAY_IN_SECONDS );
+		}
+	}
+
 	public function register_rewrite_rules() {
 		// Root catalog page: /catalogo/
 		add_rewrite_rule( '^catalogo/?$', 'index.php?aoe_catalog=root', 'top' );
@@ -55,6 +63,9 @@ class PublicManager {
 
 		// Tree index: /samtec/
 		add_rewrite_rule( '^catalogo/([^/]+)/?', 'index.php?aoe_catalog_manufacturer=$matches[1]', 'top' );
+
+		// Template generation endpoint (outside /catalogo/ to avoid conflict with catalog rules)
+		add_rewrite_rule( '^__gen-template/([^/]+)/?', 'index.php?aoe_catalog_generate_template=$matches[1]', 'top' );
 	}
 
 	public function register_query_vars( $vars ) {
@@ -64,6 +75,7 @@ class PublicManager {
 		$vars[] = 'aoe_catalog_category';
 		$vars[] = 'aoe_catalog_page';
 		$vars[] = 'aoe_catalog_type';
+		$vars[] = 'aoe_catalog_generate_template';
 		return $vars;
 	}
 
@@ -71,7 +83,8 @@ class PublicManager {
 		if ( ! is_admin() && $query->is_main_query() && (
 			get_query_var( 'aoe_catalog' ) ||
 			get_query_var( 'aoe_catalog_preview' ) ||
-			get_query_var( 'aoe_catalog_manufacturer' )
+			get_query_var( 'aoe_catalog_manufacturer' ) ||
+			get_query_var( 'aoe_catalog_generate_template' )
 		) ) {
 			$query->is_404 = false;
 			$query->is_home = false;
@@ -111,6 +124,15 @@ class PublicManager {
 				return $view_path;
 			}
 		}
+
+		$generate_slug = get_query_var( 'aoe_catalog_generate_template' );
+		if ( ! empty( $generate_slug ) ) {
+			$view_path = __DIR__ . '/Views/generate-template.php';
+			if ( file_exists( $view_path ) ) {
+				return $view_path;
+			}
+		}
+
 		return $template;
 	}
 

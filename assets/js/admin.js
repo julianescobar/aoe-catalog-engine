@@ -511,6 +511,38 @@ jQuery(document).ready(function ($) {
 		});
 	});
 
+	// Generate template cache per manufacturer
+	$(document).on('click', '.aoe-generate-template-cache', function (e) {
+		e.preventDefault();
+		var $link = $(this);
+		var slug = $link.data('slug');
+		if (!slug) return;
+		if (!confirm('¿Generar template cache para ' + slug + '?')) return;
+		var clearCache = confirm('¿Borrar cachés de páginas de productos también?');
+		var originalText = $link.text();
+		$link.text('Preparando...');
+
+		$.ajax({
+			url: aoe_catalog.ajax_url,
+			method: 'POST',
+			data: { action: 'aoe_generate_template_cache', slug: slug, clear_cache: clearCache ? 1 : 0 },
+			success: function (resp) {
+				if (resp.success && resp.data.url) {
+					window.open(resp.data.url, '_blank');
+					$link.after(' <span style="color:#46b450;font-weight:600;">✓ Abierto en nueva pestaña</span>');
+					setTimeout(function () { $link.next('span').fadeOut(); }, 3000);
+				} else {
+					alert('Error: ' + (resp.data || 'Error desconocido'));
+				}
+				$link.text(originalText);
+			},
+			error: function (xhr, status, err) {
+				alert('Error: ' + status + ' - ' + (err || 'sin respuesta'));
+				$link.text(originalText);
+			}
+		});
+	});
+
 	// Clear cache per manufacturer
 	$(document).on('click', '.aoe-clear-cache', function (e) {
 		e.preventDefault();

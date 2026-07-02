@@ -40,6 +40,8 @@ if ( ! function_exists( 'aoe_profile_mark' ) ) {
 	}
 }
 
+require_once __DIR__ . '/catalog-head-injector.php';
+
 /**
  * Get a post regardless of its status (publish, draft, etc.)
  */
@@ -142,9 +144,11 @@ if ( $is_test ) {
 		wp_die( 'La plantilla asociada a este fabricante no existe.', 'Plantilla no encontrada', [ 'response' => 404 ] );
 	}
 
-	global $post;
+	global $post, $wp_query;
 	$post = $template_post;
 	setup_postdata( $post );
+	$wp_query->queried_object    = $template_post;
+	$wp_query->queried_object_id = $template_post->ID;
 
 	aoe_profile_mark( 'before_the_content' );
 	$content = apply_filters( 'the_content', $template_post->post_content );
@@ -622,9 +626,31 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 	aoe_profile_mark( 'tree_rendered' );
 	$tree_html = ob_get_clean();
 
-	global $post;
+	if ( \AOE\CatalogEngine\PublicFacing\TemplateCache::exists( $manufacturer_slug ) ) {
+		$template_full = \AOE\CatalogEngine\PublicFacing\TemplateCache::get( $manufacturer_slug );
+		if ( $template_full !== null ) {
+			$seo_ctx = aoe_get_catalog_seo_context( [
+				'manufacturer_slug' => $manufacturer_slug,
+				'manufacturer_name' => $manufacturer_name,
+				'page_num'          => (int) $page->page_number,
+				'page_type'         => 'tree',
+			] );
+			$html = str_replace( '[catalogo]', $tree_html, $template_full );
+			$html = aoe_inject_dynamic_head( $html, $seo_ctx );
+			if ( ! $is_logged_in ) {
+				\AOE\CatalogEngine\PublicFacing\CacheCatalog::set( $manufacturer_slug, $page_slug, $html );
+			}
+			echo $html;
+			aoe_profile_mark( 'tree_done' );
+			exit;
+		}
+	}
+
+	global $post, $wp_query;
 	$post = $template_post;
 	setup_postdata( $post );
+	$wp_query->queried_object    = $template_post;
+	$wp_query->queried_object_id = $template_post->ID;
 
 	aoe_profile_mark( 'tree_before_the_content' );
 	$content = apply_filters( 'the_content', $template_post->post_content );
@@ -671,9 +697,34 @@ $catalog_html = aoe_catalog_render_html(
 );
 aoe_profile_mark( 'after_render_html' );
 
-global $post;
+if ( \AOE\CatalogEngine\PublicFacing\TemplateCache::exists( $manufacturer_slug ) ) {
+	$template_full = \AOE\CatalogEngine\PublicFacing\TemplateCache::get( $manufacturer_slug );
+	if ( $template_full !== null ) {
+		$seo_ctx = aoe_get_catalog_seo_context( [
+			'manufacturer_slug' => $manufacturer_slug_base,
+			'manufacturer_name' => $manufacturer_name,
+			'category_slug'     => $category_slug,
+			'category_name'     => $display_category,
+			'page_num'          => $current_page,
+			'page_type'         => $page_type,
+			'breadcrumb_path'   => $breadcrumb_path,
+		] );
+		$html = str_replace( '[catalogo]', $catalog_html, $template_full );
+		$html = aoe_inject_dynamic_head( $html, $seo_ctx );
+		if ( ! $is_logged_in ) {
+			\AOE\CatalogEngine\PublicFacing\CacheCatalog::set( $manufacturer_slug, $page_slug, $html );
+		}
+		echo $html;
+		aoe_profile_mark( 'done' );
+		exit;
+	}
+}
+
+global $post, $wp_query;
 $post = $template_post;
 setup_postdata( $post );
+$wp_query->queried_object    = $template_post;
+$wp_query->queried_object_id = $template_post->ID;
 
 aoe_profile_mark( 'before_the_content' );
 $content = apply_filters( 'the_content', $template_post->post_content );

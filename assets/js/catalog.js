@@ -18,11 +18,17 @@ jQuery(document).ready(function ($) {
 	aoeCatalogFixParentWidth();
 	$(window).on('resize', aoeCatalogFixParentWidth);
 
+	// Inject CSS rule to neutralize stacking context on .fusion-builder-row when modal is open
+	$('<style>').prop('type', 'text/css')
+		.text('.aoe-modal-open .fusion-builder-row { z-index: auto !important; }')
+		.appendTo('head');
+
 	var manufacturerName = typeof aoeCatalog !== 'undefined' ? aoeCatalog.manufacturerName : '';
 	var aoeDownloadUrl = '';
 	var aoeProductName = '';
 
 	function aoeShowModal($target) {
+		$('body').addClass('aoe-modal-open');
 		setTimeout(function () {
 			$target.modal('show');
 			$target.css('z-index', '100001');
@@ -37,6 +43,7 @@ jQuery(document).ready(function ($) {
 
 	function aoeShowProduct() {
 		setTimeout(function () {
+			$('body').append($('#aoe-catalog-modal'));
 			$('#aoe-catalog-modal').modal('show');
 		}, 350);
 	}
@@ -53,14 +60,14 @@ jQuery(document).ready(function ($) {
 		altText = altText.charAt(0).toUpperCase() + altText.slice(1);
 
 		aoeProductName = nombre;
-		$('#modal-sku-titulo').text(sku);
-		$('#modal-nombre-subtitulo').text(nombre);
-		$('#modal-img-producto').attr('src', imagen || '').attr('alt', altText).show();
-		$('#modal-img-producto').closest('.aoe-catalog-product-image-wrap').show();
-		$('#modal-heading-1').text(sku);
-
-		$('#btn-contacto-modal').attr('data-sku-link', sku);
-		$('#btn-contacto-modal').attr('title', 'Quiero más información sobre ' + manufacturerName + ' ' + sku + ' ' + nombre);
+		var $modal = $('#aoe-catalog-modal');
+		$modal.find('#modal-sku-titulo').text(sku);
+		$modal.find('#modal-nombre-subtitulo').text(nombre);
+		$modal.find('#modal-img-producto').attr('src', imagen || '').attr('alt', altText).show();
+		$modal.find('#modal-img-producto').closest('.aoe-catalog-product-image-wrap').show();
+		$modal.find('#modal-heading-1').text(sku);
+		$modal.find('#btn-contacto-modal').attr('data-sku-link', sku);
+		$modal.find('#btn-contacto-modal').attr('title', 'Quiero más información sobre ' + manufacturerName + ' ' + sku + ' ' + nombre);
 
 		var pdfLabels = {
 			'datasheet': 'Datasheet',
@@ -84,10 +91,10 @@ jQuery(document).ready(function ($) {
 				+ '<span><strong>' + label + '</strong><em>Oficial ' + manufacturerName + ' Document</em></span>'
 				+ '</a>';
 		});
-		$('#titulo-documentacion').text('Descarga de catálogos de ' + sku);
-		var $docs = $('#lista-pdfs-dinamica');
+		$modal.find('#titulo-documentacion').text('Descarga de catálogos de ' + sku);
+		var $docs = $modal.find('#lista-pdfs-dinamica');
 		if ($docs.length) $docs.html(pdfHtml);
-		$('#contenedor-documentacion-bloque').toggle(!!pdfHtml);
+		$modal.find('#contenedor-documentacion-bloque').toggle(!!pdfHtml);
 
 		var specsData = {};
 		try { specsData = JSON.parse($btn.attr('data-specs-json') || '{}'); } catch(e) {}
@@ -96,10 +103,11 @@ jQuery(document).ready(function ($) {
 			if (!value) return;
 			specsHtml += '<tr><td class="aoe-spec-key">' + key + '</td><td class="aoe-spec-value">' + value + '</td></tr>';
 		});
-		var $specsList = $('#lista-specs-dinamica');
+		var $specsList = $modal.find('#lista-specs-dinamica');
 		if ($specsList.length) $specsList.html(specsHtml);
-		$('#contenedor-specs-bloque').toggle(!!specsHtml);
+		$modal.find('#contenedor-specs-bloque').toggle(!!specsHtml);
 
+		$('body').append($('#aoe-catalog-modal'));
 		$('#aoe-catalog-modal').modal('show');
 	});
 
@@ -139,6 +147,13 @@ jQuery(document).ready(function ($) {
 		aoeShowModal($('.fusion-modal.modal-productos-formulario'));
 	});
 
+	// Remove body class when no modals are open (restores z-index on rows)
+	$(document).on('hidden.bs.modal', function () {
+		if (!$('.modal.in').length) {
+			$('body').removeClass('aoe-modal-open');
+		}
+	});
+
 	// Return to product modal when download/contact close
 	$(document).on('hidden.bs.modal', '.fusion-modal.descargar, .modal-productos-formulario', function () {
 		aoeShowProduct();
@@ -147,16 +162,13 @@ jQuery(document).ready(function ($) {
 	// Trigger PDF download after Avada form AJAX succeeds
 	$(window).on('fusion-form-ajax-submit-done', function (event, data) {
 		console.log('fusion-form-ajax-submit-done fired', data);
-		if (data && data.formConfig && data.formConfig.form_id) {
-			var $modal = $('.fusion-modal.descargar:visible');
-			var $form = $modal.find('.fusion-form-' + data.formConfig.form_id);
-			console.log('Modal found:', $modal.length, 'Form found:', $form.length);
-			if ($form.length) {
-				console.log('Download URL from saved var:', aoeDownloadUrl);
-				if (aoeDownloadUrl) {
-					window.open(aoeDownloadUrl, '_blank');
-				}
-			}
+		if (!data || !data.result || data.result.status !== 'success') return;
+		var formId = data.formConfig ? data.formConfig.form_id : data.form_id;
+		if (!formId) return;
+		var $modal = $('.fusion-modal.descargar:visible');
+		var $form = $modal.find('.fusion-form-' + formId);
+		if ($form.length && aoeDownloadUrl) {
+			window.open(aoeDownloadUrl, '_blank');
 		}
 	});
 
