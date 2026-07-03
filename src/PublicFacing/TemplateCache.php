@@ -19,7 +19,14 @@ class TemplateCache {
 
 	public static function get( string $manufacturer_slug ): ?string {
 		$path = self::file_path( $manufacturer_slug );
-		return file_exists( $path ) ? file_get_contents( $path ) : null;
+		if ( ! file_exists( $path ) ) {
+			return null;
+		}
+		$contents = file_get_contents( $path );
+		if ( $contents === false || $contents === '' ) {
+			return null;
+		}
+		return $contents;
 	}
 
 	public static function generate( string $manufacturer_slug ): bool {

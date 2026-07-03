@@ -108,6 +108,7 @@ if ( $page_num > 1 ) {
 	}
 }
 
+$is_logged_in = is_user_logged_in();
 $is_test           = ( strpos( $manufacturer_slug, 'test-' ) === 0 );
 
 if ( $is_test ) {
@@ -188,15 +189,11 @@ if ( 'grouped' === $catalog_type ) {
 	$page_slug      = $page_slug_base . ( $page_num > 1 ? '-' . $page_num : '' );
 }
 
-// Skip cache for logged-in users (admin toolbar would leak into cached HTML)
-$is_logged_in = is_user_logged_in();
-if ( ! $is_logged_in ) {
-	$cached = \AOE\CatalogEngine\PublicFacing\CacheCatalog::get( $manufacturer_slug, $page_slug );
-	if ( null !== $cached ) {
-		aoe_profile_mark( 'cache_hit_serve' );
-		echo $cached;
-		exit;
-	}
+$cached = \AOE\CatalogEngine\PublicFacing\CacheCatalog::get( $manufacturer_slug, $page_slug );
+if ( null !== $cached ) {
+	aoe_profile_mark( 'cache_hit_serve' );
+	echo $cached;
+	exit;
 }
 aoe_profile_mark( 'cache_miss_start' );
 ob_start();
@@ -303,14 +300,10 @@ if ( 'category' === $page_type ) {
 
 		// Build breadcrumb from parent chain
 		$cur = (int) $cat_seg->category_id;
-		$debug_parents = [];
 		while ( $cur && isset( $cat_name_lookup[ $cur ] ) ) {
-			$debug_parents[] = "id=$cur name={$cat_name_lookup[$cur]}";
 			array_unshift( $breadcrumb_path, $cat_name_lookup[ $cur ] );
 			$cur = $cat_parent_lookup[ $cur ] ?? 0;
 		}
-		// DEBUG: print parent chain as HTML comment
-		echo "\n<!-- DEBUG breadcrumb: " . esc_html( implode( ' | ', $debug_parents ) ) . " -->\n";
 
 		// Fetch category metadata (description + series info)
 		$cat_row = $wpdb->get_row( $wpdb->prepare(
