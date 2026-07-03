@@ -24,6 +24,7 @@ class TemplateCache {
 		}
 		$contents = file_get_contents( $path );
 		if ( $contents === false || $contents === '' ) {
+			unlink( $path );
 			return null;
 		}
 		return $contents;
@@ -61,53 +62,93 @@ class TemplateCache {
 		$post = $template_post;
 		setup_postdata( $post );
 
-		// Enqueue our plugin assets so they get printed in header/footer
 		$plugin_dir = dirname( __DIR__, 2 );
+		$plugin_url = plugin_dir_url( $plugin_dir . '/aoe-catalog-engine.php' );
 		$catalog_css_path = $plugin_dir . '/assets/css/catalog-render.css';
-		wp_enqueue_style(
-			'aoe-catalog-render',
-			plugin_dir_url( $plugin_dir . '/aoe-catalog-engine.php' ) . 'assets/css/catalog-render.css',
-			[],
-			file_exists( $catalog_css_path ) ? filemtime( $catalog_css_path ) : '1.0.0'
-		);
 		$catalog_js_path = $plugin_dir . '/assets/js/catalog.js';
-		wp_enqueue_script(
-			'aoe-catalog-js',
-			plugin_dir_url( $plugin_dir . '/aoe-catalog-engine.php' ) . 'assets/js/catalog.js',
-			[ 'jquery' ],
-			file_exists( $catalog_js_path ) ? filemtime( $catalog_js_path ) : '1.0.0',
-			true
-		);
+		$css_ver = file_exists( $catalog_css_path ) ? filemtime( $catalog_css_path ) : '1.0.0';
+		$js_ver = file_exists( $catalog_js_path ) ? filemtime( $catalog_js_path ) : '1.0.0';
+
+		wp_enqueue_style( 'aoe-catalog-render', $plugin_url . 'assets/css/catalog-render.css', [], $css_ver );
+		wp_enqueue_script( 'aoe-catalog-js', $plugin_url . 'assets/js/catalog.js', [ 'jquery' ], $js_ver, true );
 		wp_localize_script( 'aoe-catalog-js', 'aoeCatalog', [
 			'manufacturerName' => $manufacturer->name ?? '',
 		] );
 
-		// Enqueue bootstrap-modal so Avada's JS compiler includes it in the combined file
 		if ( class_exists( 'Fusion_Dynamic_JS' ) ) {
 			\Fusion_Dynamic_JS::enqueue_script( 'bootstrap-modal' );
 		}
 
-		// Process content BEFORE header/footer so Avada Fusion Forms JS gets enqueued in time
 		$content = apply_filters( 'the_content', $template_post->post_content );
 
 		ob_start();
 		get_header();
-		$header = ob_get_clean();
+		$header_html = ob_get_clean();
 
 		ob_start();
 		get_footer();
-		$footer = ob_get_clean();
+		$footer_html = ob_get_clean();
 
 		wp_reset_postdata();
 
-		$html = $header . "\n" . $content . "\n" . $footer;
+		// Force direct URL for our plugin assets (bypass WPO)
+		$css_url = $plugin_url . 'assets/css/catalog-render.css?ver=' . $css_ver;
+		$js_url  = $plugin_url . 'assets/js/catalog.js?ver=' . $js_ver;
+		$header_html = preg_replace(
+			'~https?://[^"\'<>]*wpo-minify[^"\'<>]*aoe-catalog-render[^"\'<>]*\.min\.css[^"\'<>]*~',
+			$css_url, $header_html
+		);
+		$header_html = preg_replace(
+			'~https?://[^"\'<>]*wpo-minify[^"\'<>]*aoe-catalog-js[^"\'<>]*\.min\.js[^"\'<>]*~',
+			$js_url, $header_html
+		);
+		$footer_html = preg_replace(
+			'~https?://[^"\'<>]*wpo-minify[^"\'<>]*aoe-catalog-js[^"\'<>]*\.min\.js[^"\'<>]*~',
+			$js_url, $footer_html
+		);
+
+		// Copy other WPO assets to a stable location so they survive WPO purges
+		$assets_dir = self::base_dir() . '/assets';
+		wp_mkdir_p( $assets_dir );
+
+		$combined = $header_html . "\n" . $footer_html;
+		preg_match_all( '~/wp-content/cache/wpo-minify/([^"\'<>]+\.(?:css|js))~', $combined, $matches, PREG_SET_ORDER );
+
+		foreach ( $matches as $m ) {
+			$rel_path = $m[1];
+			$filename = basename( $rel_path );
+			$src = WP_CONTENT_DIR . '/cache/wpo-minify/' . $rel_path;
+			$dst = $assets_dir . '/' . $filename;
+
+			if ( file_exists( $src ) && ! file_exists( $dst ) ) {
+				@copy( $src, $dst );
+			}
+
+			$old_fragment = '/wp-content/cache/wpo-minify/' . $rel_path;
+			$new_fragment = '/wp-content/uploads/aoe-cache-templates/assets/' . $filename;
+			$header_html = str_replace( $old_fragment, $new_fragment, $header_html );
+			$footer_html = str_replace( $old_fragment, $new_fragment, $footer_html );
+		}
+
+		$html = $header_html . "\n" . $content . "\n" . $footer_html;
 
 		$dir = self::base_dir();
 		if ( ! is_dir( $dir ) ) {
 			wp_mkdir_p( $dir );
 		}
 
-		return false !== file_put_contents( self::file_path( $manufacturer_slug ), $html );
+		$ok = false !== file_put_contents( self::file_path( $manufacturer_slug ), $html );
+
+		// Clean up old 3-file format if it exists
+		$base = self::base_dir() . '/' . $manufacturer_slug;
+		foreach ( [ '-head.html', '-body.html', '-foot.html' ] as $suffix ) {
+			$old = $base . $suffix;
+			if ( file_exists( $old ) ) {
+				unlink( $old );
+			}
+		}
+
+		return $ok;
 	}
 
 	public static function delete( string $manufacturer_slug ): bool {

@@ -17,6 +17,7 @@ if ( empty( $manufacturer_slug ) ) {
 $result = \AOE\CatalogEngine\PublicFacing\TemplateCache::generate( $manufacturer_slug );
 
 if ( $result ) {
+	\AOE\CatalogEngine\PublicFacing\CacheCatalog::invalidate( $manufacturer_slug );
 	echo '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Plantilla generada</title>';
 	echo '<style>body{font-family:sans-serif;padding:2em;text-align:center;margin-top:15vh}' .
 		'h1{color:#090}.success{border:2px solid #090;border-radius:8px;padding:2em;display:inline-block}' .
