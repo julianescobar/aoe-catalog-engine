@@ -190,6 +190,13 @@ if ( 'grouped' === $catalog_type ) {
 	$page_slug      = $page_slug_base . ( $page_num > 1 ? '-' . $page_num : '' );
 }
 
+// Set Last-Modified from the page cache file if it exists
+$upload_dir = wp_upload_dir();
+$cache_file = $upload_dir['basedir'] . '/aoe-cache-catalog/' . $manufacturer_slug . '/' . str_replace( '/', '_', $page_slug ) . '.html';
+if ( file_exists( $cache_file ) ) {
+	header( 'Last-Modified: ' . gmdate( 'D, d M Y H:i:s', filemtime( $cache_file ) ) . ' GMT' );
+}
+
 $cached = \AOE\CatalogEngine\PublicFacing\CacheCatalog::get( $manufacturer_slug, $page_slug );
 if ( null !== $cached ) {
 	aoe_profile_mark( 'cache_hit_serve' );

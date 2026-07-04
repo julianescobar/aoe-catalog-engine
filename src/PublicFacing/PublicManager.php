@@ -142,7 +142,13 @@ class PublicManager {
 	public function intercept_catalog_request() {
 		if ( get_query_var( 'aoe_catalog' ) === 'root' || get_query_var( 'aoe_catalog_manufacturer' ) || get_query_var( 'aoe_catalog_preview' ) || get_query_var( 'aoe_catalog' ) ) {
 			status_header( 200 );
-			nocache_headers();
+			if ( get_query_var( 'aoe_catalog_preview' ) ) {
+				nocache_headers();
+			} else {
+				$max_age = defined( 'WP_DEBUG' ) && WP_DEBUG ? 60 : 604800;
+				header( 'Cache-Control: public, max-age=' . $max_age );
+				header( 'Expires: ' . gmdate( 'D, d M Y H:i:s', time() + $max_age ) . ' GMT' );
+			}
 		}
 	}
 
