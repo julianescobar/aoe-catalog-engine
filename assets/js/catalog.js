@@ -77,11 +77,11 @@ jQuery(document).ready(function ($) {
 			'spec_sheet': 'Spec Sheet'
 		};
 		var pdfData = {};
-		try { pdfData = JSON.parse($btn.attr('data-pdf-json') || '{}'); } catch(e) {}
+		try { pdfData = JSON.parse($btn.attr('data-pdf-json') || '{}'); } catch (e) { }
 		var pdfHtml = '';
 		$.each(pdfData, function (key, url) {
 			if (!url) return;
-			var label = pdfLabels[key] || key.replace(/_/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+			var label = pdfLabels[key] || key.replace(/_/g, ' ').replace(/\b\w/g, function (c) { return c.toUpperCase(); });
 			pdfHtml += '<a class="aoe-catalog-doc-card" href="#"'
 				+ ' data-doc="' + url + '"'
 				+ ' data-target=".fusion-modal.descargar"'
@@ -97,7 +97,7 @@ jQuery(document).ready(function ($) {
 		$modal.find('#contenedor-documentacion-bloque').toggle(!!pdfHtml);
 
 		var specsData = {};
-		try { specsData = JSON.parse($btn.attr('data-specs-json') || '{}'); } catch(e) {}
+		try { specsData = JSON.parse($btn.attr('data-specs-json') || '{}'); } catch (e) { }
 		var specsHtml = '';
 		$.each(specsData, function (key, value) {
 			if (!value) return;
@@ -114,6 +114,77 @@ jQuery(document).ready(function ($) {
 	$(document).on('click', '.aoe-catalog-modal__close', function () {
 		$('#aoe-catalog-modal').modal('hide');
 	});
+
+	function _getWidgetId($container) {
+		var persisted = $container.data('awb-widget-id');
+		if (persisted !== undefined) return persisted;
+		var containerId = $container.attr('id');
+		if (containerId && typeof active_captcha !== 'undefined' && active_captcha[containerId] !== undefined) {
+			return active_captcha[containerId];
+		}
+		return undefined;
+	}
+
+	function aoeResetRecaptcha($modal) {
+		if (typeof grecaptcha === 'undefined') return;
+		$modal.find('.fusion-form-recaptcha-v2, .fusion-form-recaptcha-v3.recaptcha-container').each(function () {
+			var $c = $(this);
+			var wid = _getWidgetId($c);
+			if (wid !== undefined) {
+				grecaptcha.reset(wid);
+			}
+		});
+	}
+
+	function aoeRefreshRecaptcha($modal) {
+		if (typeof grecaptcha === 'undefined') {
+			console.warn('[AOE] grecaptcha not loaded');
+			return;
+		}
+		setTimeout(function () {
+			var $containers = $modal.find('.fusion-form-recaptcha-v2, .fusion-form-recaptcha-v3.recaptcha-container');
+			$containers.each(function () {
+				var $c = $(this);
+				var id = $c.attr('id');
+				var sitekey = $c.data('sitekey');
+				if (!id || !sitekey) return;
+
+				var wid = _getWidgetId($c);
+
+				if (wid !== undefined) {
+					grecaptcha.execute(wid, { action: 'contact_form' }).then(function (token) {
+						$modal.find('#' + id).closest('.fusion-form-field').find('.g-recaptcha-response').val(token);
+					});
+					return;
+				}
+
+				wid = grecaptcha.render(id, {
+					sitekey: sitekey,
+					badge: $c.data('badge') || 'inline',
+					size: 'invisible'
+				});
+				$c.data('awb-widget-id', wid);
+				if (typeof active_captcha !== 'undefined') active_captcha[id] = wid;
+				grecaptcha.execute(wid, { action: 'contact_form' }).then(function (token) {
+					$modal.find('#' + id).closest('.fusion-form-field').find('.g-recaptcha-response').val(token);
+				});
+			});
+		}, 800);
+	}
+
+	function aoeRefreshFormNonce($modal) {
+		$modal.find('.fusion-form-builder').each(function () {
+			var $wrapper = $(this);
+			var formId = $wrapper.data('form-id');
+			if (!formId) return;
+			var $form = $wrapper.find('form.fusion-form');
+			if (!$form.length) return;
+			$form.find('input[name="fusion-form-nonce-' + formId + '"]').remove();
+			if (window.fusionForms && typeof window.fusionForms.ajaxUpdateView === 'function') {
+				window.fusionForms.ajaxUpdateView(this);
+			}
+		});
+	}
 
 	// Download modal
 	$(document).on('click', '.aoe-catalog-doc-card', function (e) {
@@ -133,18 +204,34 @@ jQuery(document).ready(function ($) {
 
 		aoeHideProduct();
 		aoeShowModal($modal);
+		aoeRefreshFormNonce($modal);
+		aoeRefreshRecaptcha($modal);
 	});
 
-	// Contact modal
-	$(document).on('click', '#btn-contacto-modal', function (e) {
-		e.preventDefault();
+	// Contact modal — direct handler with stopPropagation to block inline ejecutarInyeccionDefinitiva
+	$('#btn-contacto-modal').on('click', function (e) {
+		e.stopPropagation();
+
 		var sku = $(this).attr('data-sku-link') || '';
 		$('#modal-contacto-sku-info').text('Producto: ' + sku);
 		$('#aoe-contacto-sku').val(sku);
-		$('#quierodescargar textarea').val($(this).attr('title') || '');
+		var title = $(this).attr('title') || '';
+		$('.fusion-modal.modal-productos-formulario').data('contact-title', title);
+
+		var $ta = $('.fusion-modal.modal-productos-formulario #quierodescargar textarea');
+		if ($ta.length && title) {
+			var count = 30;
+			(function poll() {
+				if ($ta.val() !== title) $ta.val(title);
+				if (--count > 0) setTimeout(poll, 100);
+			})();
+		}
 
 		aoeHideProduct();
-		aoeShowModal($('.fusion-modal.modal-productos-formulario'));
+		var $modal = $('.fusion-modal.modal-productos-formulario');
+		aoeShowModal($modal);
+		aoeRefreshFormNonce($modal);
+		aoeRefreshRecaptcha($modal);
 	});
 
 	// Remove body class when no modals are open (restores z-index on rows)
@@ -154,14 +241,19 @@ jQuery(document).ready(function ($) {
 		}
 	});
 
+	// Reset reCAPTCHA when product modal closes (other modals handled below)
+	$(document).on('hidden.bs.modal', '#aoe-catalog-modal', function () {
+		aoeResetRecaptcha($(this));
+	});
+
 	// Return to product modal when download/contact close
 	$(document).on('hidden.bs.modal', '.fusion-modal.descargar, .modal-productos-formulario', function () {
+		aoeResetRecaptcha($(this));
 		aoeShowProduct();
 	});
 
 	// Trigger PDF download after Avada form AJAX succeeds
 	$(window).on('fusion-form-ajax-submit-done', function (event, data) {
-		console.log('fusion-form-ajax-submit-done fired', data);
 		if (!data || !data.result || data.result.status !== 'success') return;
 		var formId = data.formConfig ? data.formConfig.form_id : data.form_id;
 		if (!formId) return;

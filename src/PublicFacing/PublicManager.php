@@ -32,6 +32,9 @@ class PublicManager {
 		add_action( 'wp_head', [ $this, 'output_noindex_for_template_pages' ], 9999 );
 		add_action( 'post_submitbox_misc_actions', [ $this, 'add_template_page_checkbox' ] );
 		add_action( 'save_post_catalogo_online', [ $this, 'save_template_page_meta' ] );
+
+		add_action( 'wp_ajax_aoe_get_form', [ $this, 'ajax_get_form' ] );
+		add_action( 'wp_ajax_nopriv_aoe_get_form', [ $this, 'ajax_get_form' ] );
 	}
 
 	public function maybe_flush_rewrite_rules() {
@@ -731,5 +734,17 @@ class PublicManager {
 		} else {
 			delete_post_meta( $post_id, '_aoe_catalog_template' );
 		}
+	}
+
+	public function ajax_get_form() {
+		$form_id = intval( $_POST['form_id'] ?? 0 );
+		if ( ! $form_id ) {
+			wp_send_json_error( 'Invalid form ID' );
+		}
+		$html = do_shortcode( sprintf(
+			'[fusion_form form_post_id="%d" hide_on_mobile="small-visibility,medium-visibility,large-visibility" /]',
+			$form_id
+		) );
+		wp_send_json_success( $html );
 	}
 }

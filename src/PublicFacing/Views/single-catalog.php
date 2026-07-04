@@ -84,6 +84,7 @@ $manufacturer_row = $wpdb->get_row( $wpdb->prepare(
 ) );
 wp_localize_script( 'aoe-catalog-js', 'aoeCatalog', [
 	'manufacturerName' => $manufacturer_row ? $manufacturer_row->name : '',
+	'ajaxurl'          => admin_url( 'admin-ajax.php' ),
 ] );
 $category_slug     = get_query_var( 'aoe_catalog_category' );
 $page_num          = max( 1, intval( get_query_var( 'aoe_catalog_page', 1 ) ) );

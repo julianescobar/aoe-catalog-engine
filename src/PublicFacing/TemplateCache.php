@@ -73,10 +73,54 @@ class TemplateCache {
 		wp_enqueue_script( 'aoe-catalog-js', $plugin_url . 'assets/js/catalog.js', [ 'jquery' ], $js_ver, true );
 		wp_localize_script( 'aoe-catalog-js', 'aoeCatalog', [
 			'manufacturerName' => $manufacturer->name ?? '',
+			'ajaxurl'          => admin_url( 'admin-ajax.php' ),
 		] );
 
 		if ( class_exists( 'Fusion_Dynamic_JS' ) ) {
 			\Fusion_Dynamic_JS::enqueue_script( 'bootstrap-modal' );
+
+			// Fusion Forms JS must be explicitly enqueued since forms are rendered
+			// inside modals that are always present in the cached HTML.
+			if ( class_exists( 'FusionBuilder' ) && defined( 'FUSION_BUILDER_VERSION' ) ) {
+				\Fusion_Dynamic_JS::enqueue_script(
+					'fusion-form-js',
+					\FusionBuilder::$js_folder_url . '/general/fusion-form.js',
+					\FusionBuilder::$js_folder_path . '/general/fusion-form.js',
+					[ 'jquery' ],
+					FUSION_BUILDER_VERSION,
+					true
+				);
+				\Fusion_Dynamic_JS::enqueue_script(
+					'fusion-form-logics',
+					\FusionBuilder::$js_folder_url . '/general/fusion-form-logics.js',
+					\FusionBuilder::$js_folder_path . '/general/fusion-form-logics.js',
+					[ 'jquery', 'fusion-form-js' ],
+					FUSION_BUILDER_VERSION,
+					true
+				);
+				\Fusion_Dynamic_JS::localize_script(
+					'fusion-form-js',
+					'formCreatorConfig',
+					[
+						'ajaxurl'             => admin_url( 'admin-ajax.php' ),
+						'invalid_email'       => __( 'The supplied email address is invalid.', 'fusion-builder' ),
+						'max_value_error'     => __( 'Max allowed value is: 2.', 'fusion-builder' ),
+						'min_value_error'     => __( 'Min allowed value is: 1.', 'fusion-builder' ),
+						'max_min_value_error' => __( 'Value out of bounds, limits are: 1-2.', 'fusion-builder' ),
+						'file_size_error'     => __( 'Your file size exceeds max allowed limit of ', 'fusion-builder' ),
+						'file_ext_error'      => __( 'This file extension is not allowed. Please upload file having these extensions: ', 'fusion-builder' ),
+						'must_match'          => __( 'The value entered does not match the value for %s.', 'fusion-builder' ),
+					]
+				);
+			}
+		}
+
+		// Force-load reCAPTCHA API (form shortcode may not enqueue it in this context)
+		if ( class_exists( 'AWB_Google_Recaptcha' ) && method_exists( 'AWB_Google_Recaptcha', 'get_instance' ) ) {
+			$recaptcha = \AWB_Google_Recaptcha::get_instance();
+			if ( method_exists( $recaptcha, 'enqueue_scripts' ) ) {
+				$recaptcha->enqueue_scripts();
+			}
 		}
 
 		$content = apply_filters( 'the_content', $template_post->post_content );
