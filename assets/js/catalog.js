@@ -172,8 +172,8 @@ jQuery(document).ready(function ($) {
 		}, 800);
 	}
 
-	function aoeRefreshFormNonce($modal) {
-		$modal.find('.fusion-form-builder').each(function () {
+	function aoeRefreshFormNonce($ctx) {
+		($ctx || $(document)).find('.fusion-form-builder').each(function () {
 			var $wrapper = $(this);
 			var formId = $wrapper.data('form-id');
 			if (!formId) return;
@@ -185,6 +185,8 @@ jQuery(document).ready(function ($) {
 			}
 		});
 	}
+
+	$(function () { aoeRefreshFormNonce(); });
 
 	// Download modal
 	$(document).on('click', '.aoe-catalog-doc-card', function (e) {
@@ -204,7 +206,6 @@ jQuery(document).ready(function ($) {
 
 		aoeHideProduct();
 		aoeShowModal($modal);
-		aoeRefreshFormNonce($modal);
 		aoeRefreshRecaptcha($modal);
 	});
 
@@ -230,7 +231,6 @@ jQuery(document).ready(function ($) {
 		aoeHideProduct();
 		var $modal = $('.fusion-modal.modal-productos-formulario');
 		aoeShowModal($modal);
-		aoeRefreshFormNonce($modal);
 		aoeRefreshRecaptcha($modal);
 	});
 
