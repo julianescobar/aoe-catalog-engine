@@ -39,7 +39,7 @@ class Plugin {
 		add_action( 'deactivated_plugin', $mark );
 		add_action( 'switch_theme', $mark );
 
-		// Set flag when WPO purge happens and assets changed
+		// Page cache purge: only regenerate if assets changed since last regen
 		add_action( 'wpo_cache_flush', function () {
 			$last_update = (int) get_option( 'aoe_last_asset_update', 0 );
 			$last_regen  = (int) get_option( 'aoe_last_template_regen', 0 );
@@ -47,6 +47,11 @@ class Plugin {
 			if ( $last_update > $last_regen ) {
 				update_option( 'aoe_needs_regen', home_url( '/__gen-template/all/' ) );
 			}
+		} );
+
+		// Minify cache purge: always regenerate (new minified files were created)
+		add_action( 'wpo_min_after_purge_others', function () {
+			update_option( 'aoe_needs_regen', home_url( '/__gen-template/all/' ) );
 		} );
 
 		// AJAX endpoint for client-side flag check
