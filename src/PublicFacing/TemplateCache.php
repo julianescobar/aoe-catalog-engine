@@ -4,13 +4,22 @@ namespace AOE\CatalogEngine\PublicFacing;
 
 class TemplateCache {
 
-	private static function base_dir(): string {
+	/**
+	 * Per-request cache for get_header/get_footer output.
+	 * Once captured from the first successful generate() call,
+	 * subsequent calls reuse this frame instead of calling get_header/footer
+	 * again (which produce empty output after wp_head/footer have fired once).
+	 */
+	private static ?string $frame_header = null;
+	private static ?string $frame_footer = null;
+
+	public static function base_dir(): string {
 		$upload = wp_upload_dir();
 		return $upload['basedir'] . '/aoe-cache-templates';
 	}
 
-	private static function file_path( string $manufacturer_slug ): string {
-		return self::base_dir() . '/' . $manufacturer_slug . '.html';
+	public static function file_path( string $slug ): string {
+		return self::base_dir() . '/' . $slug . '.html';
 	}
 
 	public static function exists( string $manufacturer_slug ): bool {
@@ -30,18 +39,23 @@ class TemplateCache {
 		return $contents;
 	}
 
-	public static function generate( string $manufacturer_slug ): bool {
+	public static function generate( string $slug, ?int $template_post_id = null ): bool {
 		global $wpdb, $wp_query, $post;
 
-		$manufacturer = $wpdb->get_row( $wpdb->prepare(
-			"SELECT * FROM {$wpdb->prefix}aoe_catalog_manufacturers WHERE slug = %s",
-			$manufacturer_slug
-		) );
-		if ( ! $manufacturer || ! $manufacturer->wp_post_id ) {
-			return false;
+		$manufacturer_name = '';
+		if ( null === $template_post_id ) {
+			$manufacturer = $wpdb->get_row( $wpdb->prepare(
+				"SELECT * FROM {$wpdb->prefix}aoe_catalog_manufacturers WHERE slug = %s",
+				$slug
+			) );
+			if ( ! $manufacturer || ! $manufacturer->wp_post_id ) {
+				return false;
+			}
+			$template_post_id = (int) $manufacturer->wp_post_id;
+			$manufacturer_name = $manufacturer->name ?? '';
 		}
 
-		$template_post = get_post( (int) $manufacturer->wp_post_id );
+		$template_post = get_post( $template_post_id );
 		if ( ! $template_post ) {
 			return false;
 		}
@@ -71,10 +85,6 @@ class TemplateCache {
 
 		wp_enqueue_style( 'aoe-catalog-render', $plugin_url . 'assets/css/catalog-render.css', [], $css_ver );
 		wp_enqueue_script( 'aoe-catalog-js', $plugin_url . 'assets/js/catalog.js', [ 'jquery' ], $js_ver, true );
-		wp_localize_script( 'aoe-catalog-js', 'aoeCatalog', [
-			'manufacturerName' => $manufacturer->name ?? '',
-			'ajaxurl'          => admin_url( 'admin-ajax.php' ),
-		] );
 
 		if ( class_exists( 'Fusion_Dynamic_JS' ) ) {
 			\Fusion_Dynamic_JS::enqueue_script( 'bootstrap-modal' );
@@ -125,13 +135,21 @@ class TemplateCache {
 
 		$content = apply_filters( 'the_content', $template_post->post_content );
 
-		ob_start();
-		get_header();
-		$header_html = ob_get_clean();
+		// Capture header/footer only once per request.
+		// Subsequent calls reuse the cached frame because wp_head()/wp_footer()
+		// actions only fire fully on the first invocation.
+		if ( self::$frame_header === null || self::$frame_footer === null ) {
+			ob_start();
+			get_header();
+			self::$frame_header = ob_get_clean();
 
-		ob_start();
-		get_footer();
-		$footer_html = ob_get_clean();
+			ob_start();
+			get_footer();
+			self::$frame_footer = ob_get_clean();
+		}
+
+		$header_html = self::$frame_header;
+		$footer_html = self::$frame_footer;
 
 		wp_reset_postdata();
 
@@ -181,10 +199,14 @@ class TemplateCache {
 			wp_mkdir_p( $dir );
 		}
 
-		$ok = false !== file_put_contents( self::file_path( $manufacturer_slug ), $html );
+		$ok = false !== file_put_contents( self::file_path( $slug ), $html );
+
+		if ( $ok ) {
+			update_option( 'aoe_last_template_regen', time() );
+		}
 
 		// Clean up old 3-file format if it exists
-		$base = self::base_dir() . '/' . $manufacturer_slug;
+		$base = self::base_dir() . '/' . $slug;
 		foreach ( [ '-head.html', '-body.html', '-foot.html' ] as $suffix ) {
 			$old = $base . $suffix;
 			if ( file_exists( $old ) ) {
@@ -195,11 +217,12 @@ class TemplateCache {
 		return $ok;
 	}
 
-	public static function delete( string $manufacturer_slug ): bool {
-		$path = self::file_path( $manufacturer_slug );
+	public static function delete( string $slug ): bool {
+		$path = self::file_path( $slug );
 		if ( file_exists( $path ) ) {
 			return unlink( $path );
 		}
 		return true;
 	}
+
 }

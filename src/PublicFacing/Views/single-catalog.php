@@ -666,7 +666,7 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 	get_footer();
 	aoe_profile_mark( 'tree_after_get_footer' );
 	$html = ob_get_clean();
-	if ( ! $is_logged_in ) {
+	if ( ! $is_logged_in && \AOE\CatalogEngine\PublicFacing\TemplateCache::exists( $manufacturer_slug ) ) {
 		\AOE\CatalogEngine\PublicFacing\CacheCatalog::set( $manufacturer_slug, $page_slug, $html );
 	}
 	echo $html;
@@ -740,7 +740,7 @@ wp_reset_postdata();
 get_footer();
 aoe_profile_mark( 'after_get_footer' );
 $html = ob_get_clean();
-if ( ! $is_logged_in ) {
+if ( ! $is_logged_in && \AOE\CatalogEngine\PublicFacing\TemplateCache::exists( $manufacturer_slug ) ) {
 	\AOE\CatalogEngine\PublicFacing\CacheCatalog::set( $manufacturer_slug, $page_slug, $html );
 }
 echo $html;

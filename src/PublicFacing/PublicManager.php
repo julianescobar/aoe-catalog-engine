@@ -98,6 +98,13 @@ class PublicManager {
 	public function load_catalog_templates( $template ) {
 		// Root catalog page: /catalogo/
 		if ( get_query_var( 'aoe_catalog' ) === 'root' ) {
+			$root_template_id = get_option( 'aoe_catalog_root_template_post_id', 0 );
+			if ( $root_template_id && get_post( $root_template_id ) ) {
+				$view_path = __DIR__ . '/Views/root-catalog.php';
+				if ( file_exists( $view_path ) ) {
+					return $view_path;
+				}
+			}
 			$view_path = __DIR__ . '/Views/catalog-index.php';
 			if ( file_exists( $view_path ) ) {
 				return $view_path;

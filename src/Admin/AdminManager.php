@@ -17,6 +17,7 @@ class AdminManager {
 		add_action( 'wp_ajax_aoe_clear_cache', [ $this, 'ajax_clear_cache' ] );
 		add_action( 'wp_ajax_aoe_regenerate_pages', [ $this, 'ajax_regenerate_pages' ] );
 		add_action( 'wp_ajax_aoe_generate_template_cache', [ $this, 'ajax_generate_template_cache' ] );
+		add_action( 'wp_ajax_aoe_clear_all_cache', [ $this, 'ajax_clear_all_cache' ] );
 		add_action( 'wp_ajax_aoe_import_structure', [ $this, 'ajax_import_structure' ] );
 		add_action( 'save_post', [ $this, 'invalidate_cache_on_template_save' ], 10, 2 );
 	}
@@ -78,6 +79,10 @@ class AdminManager {
 	 * Display Catalog generated pages
 	 */
 	public function display_catalog_pages() {
+		if ( isset( $_POST['save_aoe_root_template'] ) && wp_verify_nonce( $_POST['_wpnonce'], 'aoe_root_template' ) ) {
+			update_option( 'aoe_catalog_root_template_post_id', intval( $_POST['root_template_post_id'] ?? 0 ) );
+			echo '<div class="notice notice-success"><p>Plantilla raíz guardada.</p></div>';
+		}
 		require_once __DIR__ . '/Views/catalog-list.php';
 	}
 
@@ -486,12 +491,53 @@ class AdminManager {
 		] );
 	}
 
+	public function ajax_clear_all_cache() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( 'Acceso no autorizado' );
+		}
+
+		$logs = [];
+		$logs[] = 'Iniciando limpieza de caché...';
+
+		// Root template cache
+		if ( \AOE\CatalogEngine\PublicFacing\TemplateCache::exists( 'root' ) ) {
+			\AOE\CatalogEngine\PublicFacing\TemplateCache::delete( 'root' );
+			$logs[] = 'Template cache root eliminado.';
+		} else {
+			$logs[] = 'Template cache root no existe.';
+		}
+
+		// Manufacturers template + page caches
+		global $wpdb;
+		$table = $wpdb->prefix . 'aoe_catalog_manufacturers';
+		$manufacturers = $wpdb->get_results( "SELECT slug, name FROM $table ORDER BY name ASC" );
+
+		foreach ( $manufacturers as $m ) {
+			if ( \AOE\CatalogEngine\PublicFacing\TemplateCache::exists( $m->slug ) ) {
+				\AOE\CatalogEngine\PublicFacing\TemplateCache::delete( $m->slug );
+				$logs[] = "Template cache {$m->name} ({$m->slug}) eliminado.";
+			} else {
+				$logs[] = "Template cache {$m->name} ({$m->slug}) no existe.";
+			}
+			\AOE\CatalogEngine\PublicFacing\CacheCatalog::invalidate( $m->slug );
+			$logs[] = "Page cache {$m->name} ({$m->slug}) invalidado.";
+		}
+
+		$logs[] = 'Limpieza completada.';
+		wp_send_json_success( [ 'logs' => $logs ] );
+	}
+
 	public function invalidate_cache_on_template_save( $post_id, $post ) {
 		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
 			return;
 		}
 		if ( wp_is_post_revision( $post_id ) ) {
 			return;
+		}
+
+		// Invalidate root cache if the root template was saved
+		if ( (int) get_option( 'aoe_catalog_root_template_post_id', 0 ) === $post_id ) {
+			\AOE\CatalogEngine\PublicFacing\TemplateCache::delete( 'root' );
 		}
 
 		global $wpdb;
