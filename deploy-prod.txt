@@ -1,0 +1,33 @@
+Pasos deploy producción — Samtec
+
+1. Poblar sku_map
+   php tools/import-mapeo-csv.php samtec tools/mapeo.csv
+
+2. Subir catalogo.csv desde admin
+
+3. Ejecutar apply-sku-map-sql
+   php tools/apply-sku-map-sql.php samtec
+
+4. Crear "Sin clasificar" nivel 3 (si no existe)
+   INSERT INTO tc_aoe_catalog_categories
+   (manufacturer_id, parent_id, name, slug, type, description, image, level, products_count, metadata_json)
+   VALUES (1, NULL, 'Sin clasificar', 'sin-clasificar', 'category',
+           'Categorías nivel 4 sin clasificación específica', '', 3, 0, '[]');
+
+5. Reasignar nivel 4 del level 1 al level 3
+   UPDATE tc_aoe_catalog_categories c4
+   JOIN tc_aoe_catalog_categories sc_old
+     ON sc_old.slug = 'sin-clasificar' AND sc_old.manufacturer_id = 1 AND sc_old.level = 1
+   JOIN tc_aoe_catalog_categories sc_new
+     ON sc_new.slug = 'sin-clasificar' AND sc_new.manufacturer_id = 1 AND sc_new.level = 3
+   SET c4.parent_id = sc_new.id
+   WHERE c4.manufacturer_id = 1 AND c4.level = 4 AND c4.parent_id = sc_old.id;
+
+   Alternativa más simple: solo cambiar el level del sin-clasificar existente
+   (elimina el level 3 si existe, promueve el level 1 a level 3)
+   DELETE FROM tc_aoe_catalog_categories
+   WHERE slug = 'sin-clasificar' AND level = 3 AND manufacturer_id = 1;
+
+   UPDATE tc_aoe_catalog_categories
+   SET level = 3
+   WHERE slug = 'sin-clasificar' AND level = 1 AND manufacturer_id = 1;

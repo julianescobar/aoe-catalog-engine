@@ -37,12 +37,14 @@ function aoe_catalog_render_pdf_links( array $pdf ): string {
 	return $html;
 }
 
-function aoe_catalog_render_pdf_icon_links( bool $has_specs = false, bool $has_image = true ): string {
+function aoe_catalog_render_pdf_icon_links( bool $has_pdf = false, bool $has_specs = false, bool $has_image = true ): string {
 	$html = '';
 	if ( $has_image ) {
 		$html .= '	<a class="abrir-modal-dinamico aoe-catalog-icon-link" href="#" aria-label="Ver imagen del producto"><i class="fas fa-image"></i></a>';
 	}
-	$html .= '<a class="abrir-modal-dinamico aoe-catalog-icon-link" href="#" aria-label="Ver documentos del producto"><i class="fas fa-file-pdf"></i></a>';
+	if ( $has_pdf ) {
+		$html .= '<a class="abrir-modal-dinamico aoe-catalog-icon-link" href="#" aria-label="Ver documentos del producto"><i class="fas fa-file-pdf"></i></a>';
+	}
 	if ( $has_specs ) {
 		$html .= '<a class="abrir-modal-dinamico aoe-catalog-icon-link aoe-catalog-specs-icon" href="#" aria-label="Ver ficha tecnica"><i class="fas fa-clipboard-list"></i></a>';
 	}
@@ -326,13 +328,16 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 								$image_url       = aoe_catalog_get_first_value( $images );
 								$product_description = 'Conector ' . $manufacturer_name . ' ' . $name;
 								$pdf_json = htmlspecialchars( json_encode( $pdf ), ENT_QUOTES, 'UTF-8' );
+								$has_pdf = ! empty( array_filter( $pdf, function( $v ) { return ! empty( $v ); } ) );
 								$specs_json = $has_specs ? htmlspecialchars( json_encode( $specs ), ENT_QUOTES, 'UTF-8' ) : '';
 								?>
 								<tr class="fila-producto no-lazyload" itemprop="itemListElement" itemscope itemtype="https://schema.org/Product"
 									data-sku="<?php echo esc_attr( $sku ); ?>"
 									data-nombre="<?php echo esc_attr( $name ); ?>"
 									data-img="<?php echo esc_url( $image_url ); ?>"
+									<?php if ( $has_pdf ) : ?>
 									data-pdf-json="<?php echo $pdf_json; ?>"
+									<?php endif; ?>
 									data-specs-json="<?php echo $specs_json; ?>">
 									<td>
 										<a class="aoe-catalog-sku" href="#">
@@ -350,7 +355,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 										</div>
 									</td>
 									<td itemprop="brand" itemscope itemtype="https://schema.org/Brand"><span itemprop="name"><?php echo esc_html( ucfirst( $manufacturer_name ) ); ?></span></td>
-									<td class="aoe-catalog-actions"><?php echo aoe_catalog_render_pdf_icon_links( $has_specs, ! empty( $image_url ) ); ?></td>
+									<td class="aoe-catalog-actions"><?php echo aoe_catalog_render_pdf_icon_links( $has_pdf, $has_specs, ! empty( $image_url ) ); ?></td>
 								</tr>
 							<?php endforeach; ?>
 						</tbody>
@@ -438,13 +443,16 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 					$image_url       = aoe_catalog_get_first_value( $images );
 					$product_description = 'Conector ' . $manufacturer_name . ' ' . $name;
 					$pdf_json = htmlspecialchars( json_encode( $pdf ), ENT_QUOTES, 'UTF-8' );
+					$has_pdf = ! empty( array_filter( $pdf, function( $v ) { return ! empty( $v ); } ) );
 					$specs_json = $has_specs ? htmlspecialchars( json_encode( $specs ), ENT_QUOTES, 'UTF-8' ) : '';
 					?>
 					<tr class="fila-producto no-lazyload" itemprop="itemListElement" itemscope itemtype="https://schema.org/Product"
 						data-sku="<?php echo esc_attr( $sku ); ?>"
 						data-nombre="<?php echo esc_attr( $name ); ?>"
 						data-img="<?php echo esc_url( $image_url ); ?>"
+						<?php if ( $has_pdf ) : ?>
 						data-pdf-json="<?php echo $pdf_json; ?>"
+						<?php endif; ?>
 						data-specs-json="<?php echo $specs_json; ?>">
 						<td>
 							<a class="aoe-catalog-sku" href="#">
@@ -462,7 +470,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 							</div>
 						</td>
 						<td itemprop="brand" itemscope itemtype="https://schema.org/Brand"><span itemprop="name"><?php echo esc_html( ucfirst( $manufacturer_name ) ); ?></span></td>
-						<td class="aoe-catalog-actions"><?php echo aoe_catalog_render_pdf_icon_links( $has_specs, ! empty( $image_url ) ); ?></td>
+						<td class="aoe-catalog-actions"><?php echo aoe_catalog_render_pdf_icon_links( $has_pdf, $has_specs, ! empty( $image_url ) ); ?></td>
 					</tr>
 				<?php endforeach; ?>
 			</tbody>
