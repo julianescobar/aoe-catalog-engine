@@ -682,11 +682,20 @@
 }
 
 .aoe-cat-row.aoe-cat-level-3 td {
-	padding: 6px 12px 6px 24px;
+	padding: 10px 12px 6px 24px;
 }
 
 .aoe-cat-row.aoe-cat-level-4 td {
-	padding: 6px 12px 6px 40px;
+	padding: 10px 12px 6px 40px;
+}
+
+.aoe-cat-tree-table .aoe-cat-row.aoe-cat-level-4 + .aoe-cat-row.aoe-cat-level-3 td,
+.aoe-cat-tree-table .aoe-cat-row.aoe-cat-level-4 + .aoe-cat-row.aoe-cat-level-2 td,
+.aoe-cat-tree-table .aoe-cat-row.aoe-cat-level-4 + .aoe-cat-row.aoe-cat-level-1 td,
+.aoe-cat-tree-table .aoe-cat-row.aoe-cat-level-3 + .aoe-cat-row.aoe-cat-level-2 td,
+.aoe-cat-tree-table .aoe-cat-row.aoe-cat-level-3 + .aoe-cat-row.aoe-cat-level-1 td,
+.aoe-cat-tree-table .aoe-cat-row.aoe-cat-level-2 + .aoe-cat-row.aoe-cat-level-1 td {
+	padding-top: 20px;
 }
 
 .aoe-cat-name .count {

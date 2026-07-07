@@ -59,7 +59,7 @@ abstract class BaseProcessor implements ProcessorInterface {
 	}
 
 	public function get_page_threshold(): int {
-		return 190;
+		return 200;
 	}
 
 	/**
