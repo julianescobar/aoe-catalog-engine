@@ -78,6 +78,17 @@ class BatchProcessor {
 				continue;
 			}
 
+			// Override category from sku_map if available (producto → codigo_serie mapping)
+			$sku_map_table = $wpdb->prefix . 'aoe_catalog_sku_map';
+			$mapped_codigo = $wpdb->get_var( $wpdb->prepare(
+				"SELECT codigo_serie FROM $sku_map_table WHERE manufacturer_id = %d AND sku = %s",
+				$manufacturer->id,
+				$normalized['sku']
+			) );
+			if ( $mapped_codigo ) {
+				$normalized['category'] = $mapped_codigo;
+			}
+
 			$category_path = ! empty( $normalized['category_path'] ) ? $normalized['category_path'] : [];
 			if ( ! empty( $category_path ) ) {
 				$parent_cat_id = null;
@@ -279,9 +290,9 @@ class BatchProcessor {
 		$threshold = null !== $processor ? $processor->get_page_threshold() : 190;
 		$per_page  = 200;
 
-		// Get categories with product counts
+		// Get categories with products
 		$categories = $wpdb->get_results( $wpdb->prepare(
-			"SELECT id, name, slug, products_count FROM $table_cat WHERE manufacturer_id = %d AND products_count > 0 ORDER BY id ASC",
+			"SELECT id, name, slug, products_count, description, metadata_json FROM $table_cat WHERE manufacturer_id = %d AND (products_count > 0 OR (description IS NOT NULL AND description != '') OR (metadata_json IS NOT NULL AND metadata_json != '[]' AND metadata_json != '{}')) ORDER BY id ASC",
 			$manufacturer_id
 		) );
 
@@ -289,11 +300,12 @@ class BatchProcessor {
 			return;
 		}
 
-		// Separate large and small categories
+		// Separate large/categories-with-content and small categories
 		$large = [];
 		$small = [];
 		foreach ( $categories as $cat ) {
-			if ( (int) $cat->products_count >= $threshold ) {
+			$has_content = ! empty( $cat->description ) || ( ! empty( $cat->metadata_json ) && $cat->metadata_json !== '[]' && $cat->metadata_json !== '{}' );
+			if ( (int) $cat->products_count >= $threshold || $has_content ) {
 				$large[] = $cat;
 			} else {
 				$small[] = $cat;
@@ -329,7 +341,7 @@ class BatchProcessor {
 
 		// Tree pages: category index for /samtec/, /samtec-2/, etc.
 		$all_names = $wpdb->get_results( $wpdb->prepare(
-			"SELECT id, name, slug, parent_id, level, products_count FROM $table_cat WHERE manufacturer_id = %d ORDER BY level ASC, name ASC",
+			"SELECT id, name, slug, parent_id, level, products_count FROM $table_cat WHERE manufacturer_id = %d ORDER BY COALESCE(parent_id, 0) ASC, level ASC, id ASC",
 			$manufacturer_id
 		) );
 		if ( ! empty( $all_names ) ) {
@@ -353,7 +365,7 @@ class BatchProcessor {
 			$i = 0;
 			while ( $i < count( $all_names ) ) {
 				// When starting a new page, prepend ancestor chain of the first item
-				if ( $tree_accum >= 200 ) {
+				if ( $tree_accum >= 1000 ) {
 					// Finalize current page
 					$tree_slug = $manufacturer_slug . ( $tree_page > 1 ? '-' . $tree_page : '' );
 					$page_id   = PageRepository::insert( [

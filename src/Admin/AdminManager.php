@@ -19,6 +19,7 @@ class AdminManager {
 		add_action( 'wp_ajax_aoe_generate_template_cache', [ $this, 'ajax_generate_template_cache' ] );
 		add_action( 'wp_ajax_aoe_clear_all_cache', [ $this, 'ajax_clear_all_cache' ] );
 		add_action( 'wp_ajax_aoe_import_structure', [ $this, 'ajax_import_structure' ] );
+		add_action( 'wp_ajax_aoe_import_samtec_categories', [ $this, 'ajax_import_samtec_categories' ] );
 		add_action( 'save_post', [ $this, 'invalidate_cache_on_template_save' ], 10, 2 );
 	}
 
@@ -415,6 +416,341 @@ class AdminManager {
 				$created_series
 			),
 		] );
+	}
+
+	public function ajax_import_samtec_categories() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( 'Acceso no autorizado' );
+		}
+
+		global $wpdb;
+		$manufacturer_slug = sanitize_text_field( $_POST['manufacturer'] ?? '' );
+		$rows_json         = isset( $_POST['rows_json'] ) ? json_decode( wp_unslash( $_POST['rows_json'] ), true ) : [];
+
+		if ( empty( $manufacturer_slug ) || empty( $rows_json ) ) {
+			wp_send_json_error( 'Datos incompletos' );
+		}
+
+		$table_m  = $wpdb->prefix . 'aoe_catalog_manufacturers';
+		$table_c  = $wpdb->prefix . 'aoe_catalog_categories';
+		$table_p  = $wpdb->prefix . 'aoe_catalog_products';
+
+		$manufacturer = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $table_m WHERE slug = %s", $manufacturer_slug ) );
+		if ( ! $manufacturer ) {
+			wp_send_json_error( 'Fabricante no encontrado' );
+		}
+
+		$mfr_id = (int) $manufacturer->id;
+
+		$cat_map    = [];
+		$subcat_map = [];
+		$serie_map  = [];
+		$stats      = [ 'categorias' => 0, 'subcategorias' => 0, 'series' => 0, 'productos' => 0 ];
+
+		// Clean up previous CSV-imported categories before re-importing
+		$wpdb->delete( $table_c, [ 'manufacturer_id' => $mfr_id, 'level' => 1 ], [ '%d', '%d' ] );
+		$wpdb->delete( $table_c, [ 'manufacturer_id' => $mfr_id, 'level' => 2 ], [ '%d', '%d' ] );
+		$wpdb->delete( $table_c, [ 'manufacturer_id' => $mfr_id, 'level' => 3 ], [ '%d', '%d' ] );
+		$wpdb->delete( $table_c, [ 'manufacturer_id' => $mfr_id, 'slug' => 'sin-clasificar' ], [ '%d', '%s' ] );
+		// Reset any previously-updated level 4 categories back to level 0
+		$wpdb->query( $wpdb->prepare(
+			"UPDATE $table_c SET level = 0, parent_id = NULL, type = 'category' WHERE manufacturer_id = %d AND level = 4",
+			$mfr_id
+		) );
+
+		// Pass 1: categorias (level 1)
+		foreach ( $rows_json as $row ) {
+			if ( trim( $row['tipo'] ?? '' ) !== 'categoria' ) {
+				continue;
+			}
+			$slug = sanitize_title( trim( $row['categoria'] ?? '' ) );
+			if ( empty( $slug ) ) {
+				continue;
+			}
+			$name   = trim( $row['nombre'] ?? '' ) ?: $slug;
+			$titulo = trim( $row['titulo'] ?? '' );
+			$desc   = trim( $row['descripcion'] ?? '' );
+			$feats  = trim( $row['caracteristicas'] ?? '' );
+			$img    = trim( $row['imagen'] ?? '' );
+
+			$existing = $wpdb->get_var( $wpdb->prepare(
+				"SELECT id FROM $table_c WHERE manufacturer_id = %d AND slug = %s AND parent_id IS NULL AND type = 'category'",
+				$mfr_id, $slug
+			) );
+
+			if ( $existing ) {
+				$wpdb->update( $table_c, [
+					'name'          => $name,
+					'description'   => $desc,
+					'image'         => $img,
+					'level'         => 1,
+					'metadata_json' => json_encode( [
+						'titulo'   => $titulo,
+						'features' => $feats,
+					] ),
+				], [ 'id' => $existing ] );
+				$cat_map[ $slug ] = (int) $existing;
+			} else {
+				$wpdb->insert( $table_c, [
+					'manufacturer_id' => $mfr_id,
+					'parent_id'       => null,
+					'name'            => $name,
+					'slug'            => $slug,
+					'type'            => 'category',
+					'description'     => $desc,
+					'image'           => $img,
+					'level'           => 1,
+					'products_count'  => 0,
+					'metadata_json'   => json_encode( [
+						'titulo'   => $titulo,
+						'features' => $feats,
+					] ),
+				], [ '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%s' ] );
+				$cat_map[ $slug ] = (int) $wpdb->insert_id;
+			}
+			$stats['categorias']++;
+		}
+
+		// Pass 2: subcategorias (level 2)
+		foreach ( $rows_json as $row ) {
+			if ( trim( $row['tipo'] ?? '' ) !== 'subcategoria' ) {
+				continue;
+			}
+			$cat_slug = sanitize_title( trim( $row['categoria'] ?? '' ) );
+			$sub_slug = sanitize_title( trim( $row['subcategoria'] ?? '' ) );
+			if ( empty( $sub_slug ) || ! isset( $cat_map[ $cat_slug ] ) ) {
+				continue;
+			}
+			$parent_id = $cat_map[ $cat_slug ];
+			$name      = trim( $row['nombre'] ?? '' ) ?: $sub_slug;
+			$desc      = trim( $row['descripcion'] ?? '' );
+			$feats     = trim( $row['caracteristicas'] ?? '' );
+			$img       = trim( $row['imagen'] ?? '' );
+
+			$existing = $wpdb->get_var( $wpdb->prepare(
+				"SELECT id FROM $table_c WHERE manufacturer_id = %d AND slug = %s AND parent_id = %d",
+				$mfr_id, $sub_slug, $parent_id
+			) );
+
+			if ( $existing ) {
+				$wpdb->update( $table_c, [
+					'name'          => $name,
+					'description'   => $desc,
+					'image'         => $img,
+					'level'         => 2,
+					'metadata_json' => json_encode( [
+						'features' => $feats,
+					] ),
+				], [ 'id' => $existing ] );
+				$subcat_map[ $cat_slug . '/' . $sub_slug ] = (int) $existing;
+			} else {
+				$wpdb->insert( $table_c, [
+					'manufacturer_id' => $mfr_id,
+					'parent_id'       => $parent_id,
+					'name'            => $name,
+					'slug'            => $sub_slug,
+					'type'            => 'category',
+					'description'     => $desc,
+					'image'           => $img,
+					'level'           => 2,
+					'products_count'  => 0,
+					'metadata_json'   => json_encode( [
+						'features' => $feats,
+					] ),
+				], [ '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%s' ] );
+				$subcat_map[ $cat_slug . '/' . $sub_slug ] = (int) $wpdb->insert_id;
+			}
+			$stats['subcategorias']++;
+		}
+
+		// Pass 3: series (level 3)
+		foreach ( $rows_json as $row ) {
+			if ( trim( $row['tipo'] ?? '' ) !== 'serie' ) {
+				continue;
+			}
+			$cat_slug  = sanitize_title( trim( $row['categoria'] ?? '' ) );
+			$sub_slug  = sanitize_title( trim( $row['subcategoria'] ?? '' ) );
+			$ser_slug  = sanitize_title( trim( $row['serie'] ?? '' ) );
+			$path      = $cat_slug . '/' . $sub_slug;
+			if ( empty( $ser_slug ) || ! isset( $subcat_map[ $path ] ) ) {
+				continue;
+			}
+			$parent_id = $subcat_map[ $path ];
+			$name      = trim( $row['serie'] ?? '' ) ?: $ser_slug;
+			$desc      = trim( $row['descripcion'] ?? '' );
+			$feats     = trim( $row['caracteristicas'] ?? '' );
+			$img       = trim( $row['imagen'] ?? '' );
+			$titulo    = trim( $row['titulo'] ?? '' );
+
+			$existing = $wpdb->get_var( $wpdb->prepare(
+				"SELECT id FROM $table_c WHERE manufacturer_id = %d AND slug = %s AND parent_id = %d",
+				$mfr_id, $ser_slug, $parent_id
+			) );
+
+			if ( $existing ) {
+				$wpdb->update( $table_c, [
+					'name'          => $name,
+					'description'   => $desc,
+					'image'         => $img,
+					'level'         => 3,
+					'metadata_json' => json_encode( [
+						'titulo'   => $titulo,
+						'features' => $feats,
+					] ),
+				], [ 'id' => $existing ] );
+				$serie_map[ $path . '/' . $ser_slug ] = (int) $existing;
+			} else {
+				$wpdb->insert( $table_c, [
+					'manufacturer_id' => $mfr_id,
+					'parent_id'       => $parent_id,
+					'name'            => $name,
+					'slug'            => $ser_slug,
+					'type'            => 'series',
+					'description'     => $desc,
+					'image'           => $img,
+					'level'           => 3,
+					'products_count'  => 0,
+					'metadata_json'   => json_encode( [
+						'titulo'   => $titulo,
+						'features' => $feats,
+					] ),
+				], [ '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%s' ] );
+				$serie_map[ $path . '/' . $ser_slug ] = (int) $wpdb->insert_id;
+			}
+			$stats['series']++;
+		}
+
+		// Pass 4: productos (level 4) — reassign products to parent serie
+		foreach ( $rows_json as $row ) {
+			if ( trim( $row['tipo'] ?? '' ) !== 'producto' ) {
+				continue;
+			}
+			$cat_slug  = sanitize_title( trim( $row['categoria'] ?? '' ) );
+			$sub_slug  = sanitize_title( trim( $row['subcategoria'] ?? '' ) );
+			$ser_slug  = sanitize_title( trim( $row['serie'] ?? '' ) );
+			$prod_slug = sanitize_title( trim( $row['producto'] ?? '' ) );
+			$cod_serie = sanitize_title( trim( $row['codigo_serie'] ?? '' ) );
+
+			if ( empty( $prod_slug ) ) {
+				continue;
+			}
+
+			$serie_path   = $cat_slug . '/' . $sub_slug . '/' . $ser_slug;
+			$parent_serie = isset( $serie_map[ $serie_path ] ) ? $serie_map[ $serie_path ] : null;
+
+			$existing = $wpdb->get_var( $wpdb->prepare(
+				"SELECT id FROM $table_c WHERE manufacturer_id = %d AND slug = %s",
+				$mfr_id, $prod_slug
+			) );
+			if ( ! $existing && ! empty( $cod_serie ) && $cod_serie !== $prod_slug ) {
+				$existing = $wpdb->get_var( $wpdb->prepare(
+					"SELECT id FROM $table_c WHERE manufacturer_id = %d AND slug = %s",
+					$mfr_id, $cod_serie
+				) );
+			}
+
+			$name   = trim( $row['producto'] ?? '' ) ?: $prod_slug;
+			$desc   = trim( $row['descripcion'] ?? '' );
+			$feats  = trim( $row['caracteristicas'] ?? '' );
+			$img    = trim( $row['imagen'] ?? '' );
+			$titulo = trim( $row['titulo'] ?? '' );
+
+			if ( $existing ) {
+				$wpdb->update( $table_c, [
+					'parent_id'     => $parent_serie,
+					'name'          => $name,
+					'description'   => $desc,
+					'image'         => $img,
+					'level'         => 4,
+					'type'          => 'series',
+					'metadata_json' => json_encode( [
+						'titulo'   => $titulo,
+						'features' => $feats,
+					] ),
+				], [ 'id' => $existing ] );
+				$level4_id = (int) $existing;
+			} else {
+				$wpdb->insert( $table_c, [
+					'manufacturer_id' => $mfr_id,
+					'parent_id'       => $parent_serie,
+					'name'            => $name,
+					'slug'            => $prod_slug,
+					'type'            => 'series',
+					'description'     => $desc,
+					'image'           => $img,
+					'level'           => 4,
+					'products_count'  => 0,
+					'metadata_json'   => json_encode( [
+						'titulo'   => $titulo,
+						'features' => $feats,
+					] ),
+				], [ '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%s' ] );
+				$level4_id = (int) $wpdb->insert_id;
+			}
+
+			$stats['productos']++;
+		}
+
+		// Pass 5: move leftover level-0 categories under "Sin clasificar"
+		$orphans = $wpdb->get_results( $wpdb->prepare(
+			"SELECT id, name, slug FROM $table_c WHERE manufacturer_id = %d AND level = 0 AND products_count > 0",
+			$mfr_id
+		) );
+		if ( ! empty( $orphans ) ) {
+			$uncat_id = $wpdb->get_var( $wpdb->prepare(
+				"SELECT id FROM $table_c WHERE manufacturer_id = %d AND slug = 'sin-clasificar' AND level = 1",
+				$mfr_id
+			) );
+			if ( ! $uncat_id ) {
+				$wpdb->insert( $table_c, [
+					'manufacturer_id' => $mfr_id,
+					'parent_id'       => null,
+					'name'            => 'Sin clasificar',
+					'slug'            => 'sin-clasificar',
+					'type'            => 'category',
+					'description'     => '',
+					'image'           => '',
+					'level'           => 1,
+					'products_count'  => 0,
+					'metadata_json'   => '[]',
+				], [ '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%s' ] );
+				$uncat_id = (int) $wpdb->insert_id;
+				$stats['categorias']++;
+			}
+			$uncat_id = (int) $uncat_id;
+			foreach ( $orphans as $orphan ) {
+				$wpdb->update( $table_c, [
+					'parent_id' => $uncat_id,
+					'level'     => 2,
+				], [ 'id' => $orphan->id ] );
+				$stats['huérfanos'] = ( $stats['huérfanos'] ?? 0 ) + 1;
+			}
+			// Update sin-clasificar products_count to reflect its new children
+			$uncat_count = (int) $wpdb->get_var( $wpdb->prepare(
+				"SELECT SUM(products_count) FROM $table_c WHERE parent_id = %d",
+				$uncat_id
+			) );
+			$wpdb->update( $table_c, [ 'products_count' => $uncat_count ], [ 'id' => $uncat_id ] );
+		}
+
+		$msg = sprintf(
+			'Categorías Samtec importadas: %d categorías, %d subcategorías, %d series, %d productos.',
+			$stats['categorias'],
+			$stats['subcategorias'],
+			$stats['series'],
+			$stats['productos']
+		);
+		if ( ! empty( $stats['huérfanos'] ) ) {
+			$msg .= sprintf( ' %d huérfanos movidos a Sin clasificar.', $stats['huérfanos'] );
+		}
+
+		// Regenerate pages so tree reflects new hierarchy
+		$processor_mgr = new \AOE\CatalogEngine\Import\ProcessorManager();
+		$bp = new \AOE\CatalogEngine\Import\BatchProcessor( $processor_mgr );
+		$bp->pack_catalog( (int) $mfr_id, $manufacturer_slug, $processor_mgr->get_processor( $manufacturer_slug ) );
+
+		$msg .= ' Páginas regeneradas.';
+		wp_send_json_success( [ 'message' => $msg ] );
 	}
 
 	public function ajax_regenerate_pages() {

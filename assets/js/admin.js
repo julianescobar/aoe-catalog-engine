@@ -417,18 +417,23 @@ jQuery(document).ready(function ($) {
 				$status.html('<p style="color:#d63638;">El archivo no tiene datos.</p>');
 				return;
 			}
-			$status.html('<p><em>Importando ' + rows.length + ' registros de estructura...</em></p>');
+			$status.html('<p><em>Importando ' + rows.length + ' registros...</em></p>');
+			var manufacturer = $('#manufacturer_slug').val();
+			var action = manufacturer === 'samtec' ? 'aoe_import_samtec_categories' : 'aoe_import_structure';
 			$.ajax({
 				url: ajaxurl,
 				method: 'POST',
 				data: {
-					action: 'aoe_import_structure',
-					manufacturer: $('#manufacturer_slug').val(),
+					action: action,
+					manufacturer: manufacturer,
 					rows_json: JSON.stringify(rows)
 				},
 				success: function (resp) {
 					if (resp.success) {
 						$status.html('<p style="color:#46b450;font-weight:600;">✓ ' + resp.data.message + '</p>');
+						if ($('#aoe-skip-products').is(':checked')) {
+							$('#step-data-source, #aoe-action-step, #aoe-import-progress').hide();
+						}
 					} else {
 						$status.html('<p style="color:#d63638;">Error: ' + resp.data + '</p>');
 					}

@@ -158,7 +158,7 @@ function aoe_catalog_resolve_pdf_urls( array $pdf, string $manufacturer_slug, st
 	return $resolved;
 }
 
-function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, string $category, array $page_products, int $current_page, int $total_pages, bool $is_preview = false, string $manufacturer_slug = '', array $grouped_segments = [], ?array $category_metadata = null, array $breadcrumb_path = [] ): string {
+function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, string $category, array $page_products, int $current_page, int $total_pages, bool $is_preview = false, string $manufacturer_slug = '', array $grouped_segments = [], ?array $category_metadata = null, array $breadcrumb_path = [], array $category_chain = [] ): string {
 	$first        = $page_products[0] ?? null;
 	if ( $is_preview ) {
 		$first_images = is_array( $first['images'] ?? null ) ? $first['images'] : [];
@@ -361,6 +361,37 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 		<?php if ( ! empty( $breadcrumb_path ) ) : ?>
 			<h3 class="aoe-cat-breadcrumb"><?php echo esc_html( implode( ' > ', $breadcrumb_path ) ); ?></h3>
 		<?php endif; ?>
+		<?php if ( $manufacturer_slug === 'samtec' && ! empty( $category_chain ) ) : ?>
+		<div class="aoe-category-chain">
+			<?php foreach ( $category_chain as $link ) :
+				$name  = $link['name'] ?? '';
+				$desc  = $link['description'] ?? '';
+				$feats = $link['features'] ?? '';
+				$img   = $link['image'] ?? '';
+				$level = $link['level'] ?? 0;
+				if ( empty( $name ) ) continue;
+				$label = ( $level === 1 ) ? 'Categoría' : ( ( $level === 2 ) ? 'Subcategoría' : ( ( $level === 3 ) ? 'Serie' : 'Producto' ) );
+			?>
+			<div class="aoe-chain-level aoe-chain-level-<?php echo (int) $level; ?>">
+				<h4><?php echo esc_html( $label . ': ' . $name ); ?></h4>
+				<?php if ( ! empty( $desc ) ) : ?>
+				<div class="aoe-chain-desc"><?php echo wp_kses_post( nl2br( str_replace( '\n', "\n", $desc ) ) ); ?></div>
+				<?php endif; ?>
+				<?php if ( ! empty( $img ) ) : ?>
+				<div class="aoe-chain-img"><img src="<?php echo esc_url( $img ); ?>" alt="<?php echo esc_attr( $name ); ?>"></div>
+				<?php endif; ?>
+				<?php 
+				$feat_list = array_filter( array_map( 'trim', explode( "\n", str_replace( '\n', "\n", $feats ) ) ) );
+				if ( ! empty( $feat_list ) ) : ?>
+				<div class="aoe-chain-features"><h5>Características</h5>
+					<ul><?php foreach ( $feat_list as $f ) : ?><li><?php echo esc_html( $f ); ?></li><?php endforeach; ?></ul>
+				</div>
+				<?php endif; ?>
+			</div>
+			<?php endforeach; ?>
+		</div>
+		<?php endif; ?>
+		<?php if ( $manufacturer_slug !== 'samtec' ) : ?>
 		<?php if ( ! empty( $category_metadata['description'] ) ) : ?>
 		<div class="aoe-series-description"><?php echo wp_kses_post( $category_metadata['description'] ); ?></div>
 		<?php endif; ?>
@@ -371,6 +402,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 		<div class="aoe-series-features"><h4 style="font-weight: bold;">Características</h4>
 			<ul><?php foreach ( explode( "\n", str_replace( '\n', "\n", $category_metadata['features'] ) ) as $feat ) : ?><?php $feat = trim( $feat ); if ( '' !== $feat ) : ?><li><?php echo esc_html( $feat ); ?></li><?php endif; ?><?php endforeach; ?></ul>
 		</div>
+		<?php endif; ?>
 		<?php endif; ?>
 		<table class="aoe-catalog-table" itemscope itemtype="https://schema.org/ItemList">
 			<thead>

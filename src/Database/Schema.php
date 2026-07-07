@@ -91,6 +91,17 @@ class Schema {
 			KEY category_id (category_id)
 		) $charset_collate;";
 
+		$table_sku_map = $wpdb->prefix . 'aoe_catalog_sku_map';
+		$sql_sku_map = "CREATE TABLE $table_sku_map (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			manufacturer_id bigint(20) unsigned NOT NULL,
+			sku varchar(255) NOT NULL,
+			codigo_serie varchar(255) NOT NULL,
+			PRIMARY KEY  (id),
+			UNIQUE KEY manufacturer_sku (manufacturer_id, sku),
+			KEY codigo_serie (codigo_serie)
+		) $charset_collate;";
+
 		require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
 		
 		dbDelta( $sql_manufacturers );
@@ -98,5 +109,6 @@ class Schema {
 		dbDelta( $sql_products );
 		dbDelta( $sql_pages );
 		dbDelta( $sql_segments );
+		dbDelta( $sql_sku_map );
 	}
 }

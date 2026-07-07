@@ -11,15 +11,23 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 	<input type="hidden" id="manufacturer_slug" value="<?php echo esc_attr( $manufacturer->slug ); ?>" data-supported-columns="<?php echo esc_attr( wp_json_encode( isset( $supported_columns ) ? $supported_columns : [] ) ); ?>" />
 
-	<?php if ( 'edac' === $manufacturer->slug ) : ?>
+	<?php if ( in_array( $manufacturer->slug, [ 'edac', 'samtec' ], true ) ) : ?>
 	<div class="aoe-card" id="aoe-structure-card">
 		<div class="aoe-step active">
-			<div class="aoe-step-title">0. Importar estructura (categorías, subcategorías y series)</div>
-			<p>EDAC requiere importar primero la estructura del catálogo (archivo <strong>catalog.csv</strong>).</p>
+			<div class="aoe-step-title">0. Información de categorías</div>
+			<p>Sube el archivo <strong>catalogo.csv</strong> con la clasificación de 4 niveles y contenidos (descripciones, características, imágenes).</p>
 			<div class="aoe-form-group">
-				<label for="csv_structure">Subir archivo de estructura (catalog.csv)</label>
+				<label for="csv_structure">Seleccionar archivo CSV</label>
 				<input type="file" id="csv_structure" accept=".csv" />
 			</div>
+			<?php if ( 'samtec' === $manufacturer->slug ) : ?>
+			<div class="aoe-form-group" style="margin-top:10px;">
+				<label style="font-weight: normal;">
+					<input type="checkbox" id="aoe-skip-products" />
+					<strong>Saltar importación de productos</strong> — Solo actualizar categorías, no importar productos.
+				</label>
+			</div>
+			<?php endif; ?>
 			<div id="aoe-structure-status" style="margin-top: 10px;"></div>
 		</div>
 	</div>
