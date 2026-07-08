@@ -1,0 +1,19 @@
+Cache de páginas de catálogo
+====================================
+
+Comportamiento actual:
+- Sin constante definida → no-cache (siempre pregunta al server, Last-Modified + 304)
+- Con constante definida → Cache-Control: public, max-age=N
+
+Para producción, descomentar en wp-config.php:
+
+define( 'AOE_CATALOG_CACHE_MAX_AGE', 3600 );   // 1 hora
+define( 'AOE_CATALOG_CACHE_MAX_AGE', 7200 );   // 2 horas
+define( 'AOE_CATALOG_CACHE_MAX_AGE', 86400 );  // 1 día
+define( 'AOE_CATALOG_CACHE_MAX_AGE', 604800 ); // 7 días
+
+Last-Modified se actualiza automáticamente al:
+- Importar catálogo
+- Regenerar páginas
+- Limpiar caché
+- Generar template cache

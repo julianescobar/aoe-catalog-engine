@@ -26,8 +26,8 @@ function aoe_catalog_pdf_labels(): array {
 function aoe_catalog_render_pdf_links( array $pdf ): string {
 	$labels = aoe_catalog_pdf_labels();
 	$html = '';
-	foreach ( $pdf as $key => $url ) {
-		$url = trim( (string) $url );
+	foreach ( $pdf as $key => $val ) {
+		$url = is_array( $val ) ? trim( $val['url'] ?? '' ) : trim( (string) $val );
 		if ( '' === $url ) {
 			continue;
 		}
@@ -119,9 +119,11 @@ function aoe_catalog_resolve_pdf_urls( array $pdf, string $manufacturer_slug, st
 	}
 
 	$resolved = [];
-	foreach ( $pdf as $key => $url ) {
+	foreach ( $pdf as $key => $val ) {
+		$url      = is_array( $val ) ? trim( $val['url'] ?? '' ) : trim( (string) $val );
+		$name     = is_array( $val ) ? ( $val['name'] ?? '' ) : '';
 		if ( '' === $url ) {
-			$resolved[ $key ] = '';
+			$resolved[ $key ] = is_array( $val ) ? $val : '';
 			continue;
 		}
 
@@ -138,24 +140,21 @@ function aoe_catalog_resolve_pdf_urls( array $pdf, string $manufacturer_slug, st
 
 		foreach ( $filenames as $fname ) {
 			$fname_encoded = rawurlencode( urldecode( $fname ) );
-			// 1. Firmado
 			if ( file_exists( $base_pdf . $fname ) ) {
-				$resolved[ $key ] = trailingslashit( AOE_CATALOG_PDF_URL ) . $manufacturer_slug . '/' . $fname_encoded;
+				$resolved[ $key ] = ! empty( $name ) ? [ 'url' => trailingslashit( AOE_CATALOG_PDF_URL ) . $manufacturer_slug . '/' . $fname_encoded, 'name' => $name ] : trailingslashit( AOE_CATALOG_PDF_URL ) . $manufacturer_slug . '/' . $fname_encoded;
 				continue 2;
 			}
-			// 2. Original nuevo
 			if ( file_exists( $base_pdf . 'originals/' . $fname ) ) {
-				$resolved[ $key ] = trailingslashit( AOE_CATALOG_PDF_URL ) . $manufacturer_slug . '/originals/' . $fname_encoded;
+				$resolved[ $key ] = ! empty( $name ) ? [ 'url' => trailingslashit( AOE_CATALOG_PDF_URL ) . $manufacturer_slug . '/originals/' . $fname_encoded, 'name' => $name ] : trailingslashit( AOE_CATALOG_PDF_URL ) . $manufacturer_slug . '/originals/' . $fname_encoded;
 				continue 2;
 			}
-			// 3. Original viejo (backward compat)
 			if ( file_exists( $base_old . $fname ) ) {
-				$resolved[ $key ] = trailingslashit( AOE_CATALOG_MEDIA_URL ) . $manufacturer_slug . '/pdfs/' . $fname_encoded;
+				$resolved[ $key ] = ! empty( $name ) ? [ 'url' => trailingslashit( AOE_CATALOG_MEDIA_URL ) . $manufacturer_slug . '/pdfs/' . $fname_encoded, 'name' => $name ] : trailingslashit( AOE_CATALOG_MEDIA_URL ) . $manufacturer_slug . '/pdfs/' . $fname_encoded;
 				continue 2;
 			}
 		}
 
-		$resolved[ $key ] = $url;
+		$resolved[ $key ] = ! empty( $name ) ? [ 'url' => $url, 'name' => $name ] : $url;
 	}
 	return $resolved;
 }

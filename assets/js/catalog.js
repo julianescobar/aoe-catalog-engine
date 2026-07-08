@@ -79,17 +79,25 @@ jQuery(document).ready(function ($) {
 		var pdfData = {};
 		try { pdfData = JSON.parse($btn.attr('data-pdf-json') || '{}'); } catch (e) { }
 		var pdfHtml = '';
-		$.each(pdfData, function (key, url) {
-			if (!url) return;
-			var label = pdfLabels[key] || key.replace(/_/g, ' ').replace(/\b\w/g, function (c) { return c.toUpperCase(); });
-			pdfHtml += '<a class="aoe-catalog-doc-card" href="#"'
-				+ ' data-doc="' + url + '"'
-				+ ' data-target=".fusion-modal.descargar"'
-				+ ' title="' + label + '"'
-				+ ' aria-label="' + label + '">'
-				+ '<i class="fas fa-file-pdf"></i>'
-				+ '<span><strong>' + label + '</strong><em>Oficial ' + manufacturerName + ' Document</em></span>'
-				+ '</a>';
+		$.each(pdfData, function (key, val) {
+			if (!val) return;
+			var entries = Array.isArray(val) ? val : [val];
+			$.each(entries, function (i, entry) {
+				if (!entry) return;
+				var url = typeof entry === 'object' ? entry.url : entry;
+				if (!url) return;
+				var name = typeof entry === 'object' ? entry.name : '';
+				var label = pdfLabels[key] || key.replace(/_/g, ' ').replace(/\b\w/g, function (c) { return c.toUpperCase(); });
+				var pdfName = (key === 'datasheet' || !name) ? label : name;
+				pdfHtml += '<a class="aoe-catalog-doc-card" href="#"'
+					+ ' data-doc="' + url + '"'
+					+ ' data-target=".fusion-modal.descargar"'
+					+ ' title="' + label + '"'
+					+ ' aria-label="' + label + '">'
+					+ '<i class="fas fa-file-pdf"></i>'
+					+ '<span><strong>' + pdfName + '</strong><em>Oficial ' + manufacturerName + ' Document</em></span>'
+					+ '</a>';
+			});
 		});
 		$modal.find('#titulo-documentacion').text('Descarga de catálogos de ' + sku);
 		var $docs = $modal.find('#lista-pdfs-dinamica');

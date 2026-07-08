@@ -123,6 +123,7 @@ class BatchProcessor {
 			) );
 
 			$this->pack_catalog( (int) $manufacturer->id, $manufacturer_slug, $processor );
+			update_option( 'aoe_catalog_last_modified_' . $manufacturer_slug, time() );
 
 			$this->add_log( 'Importacion Catalogo', $manufacturer->name, "Importacion completada. Modo: $import_mode. Total catalogo: $total_products." );
 		}

@@ -298,15 +298,17 @@ foreach ( $all_cats_lookup as $c ) {
 
 if ( 'category' === $page_type ) {
 	$cat_seg = $segments[0] ?? null;
-	if ( $cat_seg ) {
-		// Redirect to linked WP page if configured
-		$meta = ! empty( $cat_seg->metadata_json ) ? json_decode( $cat_seg->metadata_json, true ) : [];
-		$wp_post_id = ! empty( $meta['wp_post_id'] ) ? intval( $meta['wp_post_id'] ) : 0;
-		if ( $wp_post_id ) {
-			ob_end_clean();
-			wp_redirect( get_permalink( $wp_post_id ), 301 );
-			exit;
-		}
+		if ( $cat_seg ) {
+			$meta = ! empty( $cat_seg->metadata_json ) ? json_decode( $cat_seg->metadata_json, true ) : [];
+			$wp_post_id = ! empty( $meta['wp_post_id'] ) ? intval( $meta['wp_post_id'] ) : 0;
+			if ( $wp_post_id ) {
+				ob_end_clean();
+				global $wp_query;
+				$wp_query->set_404();
+				status_header( 404 );
+				get_template_part( '404' );
+				exit;
+			}
 
 		$display_category = $cat_seg->category_name;
 
@@ -608,23 +610,21 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 				if ( (int) $item->level === $max_level && $count === 0 ) continue;
 				// Samtec: hide level-3 items with no level-4 children in DB
 				if ( $manufacturer_slug === 'samtec' && (int) $item->level === 3 && ! isset( $level3_with_children[ (int) $item->category_id ] ) ) continue;
-				// Hide non-leaf items with no descendants anywhere in DB
-				if ( (int) $item->level < $max_level && ! isset( $cats_with_descendants[ (int) $item->category_id ] ) ) continue;
+				// Hide non-leaf items with no descendants and no products
+				if ( (int) $item->level < $max_level && ! isset( $cats_with_descendants[ (int) $item->category_id ] ) && $count === 0 ) continue;
 
 				$meta = ! empty( $item->metadata_json ) ? json_decode( $item->metadata_json, true ) : [];
 				$wp_post_id = ! empty( $meta['wp_post_id'] ) ? intval( $meta['wp_post_id'] ) : 0;
 
-				$is_leaf = (int) $item->level === $max_level;
+				$is_leaf = empty( $tree_by_parent[ (int) $item->category_id ] ?? [] );
 				$can_link = $is_leaf;
-				if ( $can_link && isset( $cat_has_dedicated_page[ (int) $item->category_id ] ) && $wp_post_id ) {
+				if ( $can_link && $wp_post_id ) {
 					$cat_url = get_permalink( $wp_post_id );
 				} elseif ( $can_link && isset( $cat_page_map[ $item->category_id ] ) ) {
 					$cat_url = home_url( '/catalogo/' . $cat_page_map[ $item->category_id ] . '/' );
 				} else {
 					$cat_url = '#';
 				}
-
-				$is_leaf = (int) $item->level === $max_level;
 				$display_level = (int) $item->level;
 				$row_class = 'aoe-cat-row aoe-cat-level-' . $display_level;
 				if ( $is_leaf ) {

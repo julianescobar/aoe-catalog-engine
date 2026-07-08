@@ -754,6 +754,7 @@ class AdminManager {
 	}
 
 	public function ajax_regenerate_pages() {
+		@set_time_limit( 0 );
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_send_json_error( 'Acceso no autorizado' );
 		}
@@ -781,6 +782,7 @@ class AdminManager {
 			$batch         = new \AOE\CatalogEngine\Import\BatchProcessor( $processor_mgr );
 
 			$batch->pack_catalog( (int) $manufacturer->id, $slug, $processor );
+			$this->update_last_modified( $slug );
 
 			// Clean again in case pack_catalog output something
 			while ( ob_get_level() ) { ob_end_clean(); }
@@ -803,6 +805,7 @@ class AdminManager {
 		}
 
 		\AOE\CatalogEngine\PublicFacing\CacheCatalog::invalidate( $slug );
+		$this->update_last_modified( $slug );
 		wp_send_json_success( [ 'message' => 'Cache limpiado para ' . $slug ] );
 	}
 
@@ -818,6 +821,7 @@ class AdminManager {
 
 		if ( ! empty( $_POST['clear_cache'] ) ) {
 			\AOE\CatalogEngine\PublicFacing\CacheCatalog::invalidate( $slug );
+			$this->update_last_modified( $slug );
 		}
 
 		$frontend_url = home_url( '/__gen-template/' . $slug . '/' );
@@ -856,6 +860,7 @@ class AdminManager {
 				$logs[] = "Template cache {$m->name} ({$m->slug}) no existe.";
 			}
 			\AOE\CatalogEngine\PublicFacing\CacheCatalog::invalidate( $m->slug );
+			$this->update_last_modified( $m->slug );
 			$logs[] = "Page cache {$m->name} ({$m->slug}) invalidado.";
 		}
 
@@ -884,7 +889,12 @@ class AdminManager {
 		) );
 		if ( $manufacturer ) {
 			\AOE\CatalogEngine\PublicFacing\CacheCatalog::invalidate( $manufacturer->slug );
+			$this->update_last_modified( $manufacturer->slug );
 		}
+	}
+
+	private function update_last_modified( string $slug ) {
+		update_option( 'aoe_catalog_last_modified_' . $slug, time() );
 	}
 
 	/**

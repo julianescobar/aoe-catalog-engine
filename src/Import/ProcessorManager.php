@@ -18,6 +18,7 @@ class ProcessorManager {
 		$this->register_processor( new Processors\CamdenBossProcessor() );
 		$this->register_processor( new Processors\EdacProcessor() );
 		$this->register_processor( new Processors\BulginProcessor() );
+		$this->register_processor( new Processors\PanduitProcessor() );
 
 		// Allow other plugins/themes to register their own processors
 		do_action( 'aoe_catalog_register_processors', $this );
