@@ -61,6 +61,10 @@ class TemplateCache {
 		}
 
 		add_filter( 'show_admin_bar', '__return_false' );
+		add_action( 'wp_enqueue_scripts', function() {
+			wp_dequeue_style( 'admin-bar' );
+			remove_action( 'wp_head', '_admin_bar_bump_cb' );
+		}, 99999 );
 
 		if ( ! is_a( $wp_query, 'WP_Query' ) ) {
 			$wp_query = new \WP_Query();
