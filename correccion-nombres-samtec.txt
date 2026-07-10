@@ -1,0 +1,36 @@
+Corrección de nombres de categorías Samtec
+============================================
+
+Paso 1: Subir catalogo.csv
+  - Ir a Samtec en el admin
+  - Sección "Información de categorías"
+  - Subir catalogo.csv
+  - Marcar "Saltar importación de productos"
+  - Hacer clic en "Importar estructura"
+
+Paso 2: Promover Sin clasificar a level 3
+  - Ejecutar en la base de datos:
+
+  DELETE FROM {prefix}_aoe_catalog_categories
+  WHERE slug = 'sin-clasificar' AND level = 3 AND manufacturer_id = 1;
+
+  UPDATE {prefix}_aoe_catalog_categories
+  SET level = 3
+  WHERE slug = 'sin-clasificar' AND level = 1 AND manufacturer_id = 1;
+
+  (Reemplazar {prefix} por tc_ en producción, wp_ en local)
+
+Paso 3: Regenerar páginas
+  - En el listado de fabricantes, hacer clic en "Regenerar páginas" para Samtec
+
+Paso 4: Asignar level-4 huérfanos a Sin clasificar
+   - Ejecutar en la base de datos:
+
+   UPDATE {prefix}_aoe_catalog_categories c4
+   JOIN {prefix}_aoe_catalog_categories sc
+     ON sc.slug = 'sin-clasificar' AND sc.manufacturer_id = 1 AND sc.level = 3
+   SET c4.parent_id = sc.id
+   WHERE c4.manufacturer_id = 1 AND c4.level = 4 AND c4.parent_id IS NULL;
+
+Paso 5: Limpiar caché
+   - Botón "Limpiar caché" en el admin o desde el listado de fabricantes

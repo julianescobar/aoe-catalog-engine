@@ -373,6 +373,28 @@ class BatchProcessor {
 				}
 			}
 
+			// Reorder so items under "sin-clasificar" go to the end
+			$sin_clasificar = null;
+			foreach ( $all_names as $cat ) {
+				if ( $cat->slug === 'sin-clasificar' ) {
+					$sin_clasificar = $cat;
+					break;
+				}
+			}
+			if ( $sin_clasificar ) {
+				$sin_id = (int) $sin_clasificar->id;
+				$under_sin = [];
+				$others    = [];
+				foreach ( $level4_items as $item ) {
+					if ( (int) $item->parent_id === $sin_id ) {
+						$under_sin[] = $item;
+					} else {
+						$others[] = $item;
+					}
+				}
+				$level4_items = array_merge( $others, $under_sin );
+			}
+
 			if ( ! empty( $level4_items ) ) {
 				// New approach: batch level-4 items by 200, include all ancestors
 				$level4_batches = array_chunk( $level4_items, 200 );
@@ -395,6 +417,8 @@ class BatchProcessor {
 						}
 					}
 					usort( $ancestors_ordered, function( $a, $b ) {
+						if ( ( $a->slug ?? '' ) === 'sin-clasificar' && ( $b->slug ?? '' ) !== 'sin-clasificar' ) return 1;
+						if ( ( $b->slug ?? '' ) === 'sin-clasificar' && ( $a->slug ?? '' ) !== 'sin-clasificar' ) return -1;
 						$cmp = (int) $a->level - (int) $b->level;
 						if ( $cmp !== 0 ) return $cmp;
 						$pa = (int) ( $a->parent_id ?: 0 );

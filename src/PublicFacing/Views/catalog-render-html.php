@@ -374,18 +374,21 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 				$img   = $link['image'] ?? '';
 				$level = $link['level'] ?? 0;
 				if ( empty( $name ) ) continue;
-				$label = ( $level === 1 ) ? 'Categoría' : ( ( $level === 2 ) ? 'Subcategoría' : ( ( $level === 3 ) ? 'Serie' : 'Producto' ) );
+				$heading_tag = $level <= 1 ? 'h3' : ( $level === 2 ? 'h4' : 'h5' );
+				$desc_wrapper = $level >= 3 || preg_match( '/<[a-z][\s>]/', $desc ) ? 'div' : 'p';
 			?>
-			<div class="aoe-chain-level aoe-chain-level-<?php echo (int) $level; ?>">
-				<h4><?php echo esc_html( $label . ': ' . $name ); ?></h4>
+			<div class="aoe-chain-level aoe-chain-level-<?php echo (int) $level; ?> aoe-cat-level-<?php echo (int) $level; ?>">
+				<<?php echo $heading_tag; ?>><?php echo esc_html( $name ); ?></<?php echo $heading_tag; ?>>
 				<?php if ( ! empty( $desc ) ) : ?>
-				<div class="aoe-chain-desc"><?php echo wp_kses_post( nl2br( str_replace( '\n', "\n", $desc ) ) ); ?></div>
+				<<?php echo $desc_wrapper; ?> class="aoe-chain-desc"><?php echo wp_kses_post( str_replace( '\n', "\n", $desc ) ); ?></<?php echo $desc_wrapper; ?>>
 				<?php endif; ?>
 				<?php if ( ! empty( $img ) ) : ?>
 				<div class="aoe-chain-img"><img src="<?php echo esc_url( $img ); ?>" alt="<?php echo esc_attr( $name ); ?>"></div>
 				<?php endif; ?>
-				<?php 
-				$feat_list = array_filter( array_map( 'trim', explode( "\n", str_replace( '\n', "\n", $feats ) ) ) );
+				<?php
+				$feat_text = str_replace( '\n', "\n", $feats );
+				$feat_parts = preg_split( '/\s*[|;\n]\s*/', $feat_text );
+				$feat_list = array_values( array_filter( array_map( 'trim', $feat_parts ) ) );
 				if ( ! empty( $feat_list ) ) : ?>
 				<div class="aoe-chain-features"><h5>Características</h5>
 					<ul><?php foreach ( $feat_list as $f ) : ?><li><?php echo esc_html( $f ); ?></li><?php endforeach; ?></ul>

@@ -667,17 +667,20 @@
 	border: 1px solid #ddd;
 }
 
-#aoe-catalog-container.aoe-tree .aoe-cat-name h3 {
+#aoe-catalog-container.aoe-tree .aoe-cat-name h3,
+#aoe-catalog-container.aoe-tree-samtec h3 {
 	margin: 0;
 	font-size: var(--h3_typography-font-size, 1.3em) !important;
 }
 
-#aoe-catalog-container.aoe-tree .aoe-cat-name h4 {
+#aoe-catalog-container.aoe-tree .aoe-cat-name h4,
+#aoe-catalog-container.aoe-tree-samtec h4 {
 	margin: 0;
 	font-size: var(--h4_typography-font-size, 1.1em) !important;
 }
 
-#aoe-catalog-container.aoe-tree .aoe-cat-name h5 {
+#aoe-catalog-container.aoe-tree .aoe-cat-name h5,
+#aoe-catalog-container.aoe-tree-samtec h5 {
 	margin: 0;
 	font-size: var(--h5_typography-font-size, 1em) !important;
 }
@@ -990,9 +993,6 @@
 
 .aoe-chain-level {
 	margin-bottom: 20px;
-	padding: 15px;
-	background: #f8f9fa;
-	border-left: 4px solid #004b87;
 }
 
 .aoe-chain-level h4 {
@@ -1011,6 +1011,10 @@
 	line-height: 1.5;
 	font-weight: 100;
 	color: #333;
+}
+
+.aoe-category-chain h3 {
+	margin: 10px 0;
 }
 
 .aoe-chain-desc p {
@@ -1035,4 +1039,71 @@
 .aoe-chain-features li {
 	margin-bottom: 3px;
 	font-size: 13px;
+}
+
+#aoe-catalog-container.aoe-tree-samtec .aoe-cat-level-2,
+.aoe-chain-level-2 {
+	padding: 0 12px;
+}
+
+#aoe-catalog-container.aoe-tree-samtec .aoe-cat-level-3,
+.aoe-chain-level-3 {
+	padding: 0 24px;
+}
+
+#aoe-catalog-container.aoe-tree-samtec .aoe-cat-level-4,
+.aoe-chain-level-4 {
+	padding: 0 36px;
+}
+
+#aoe-catalog-container.aoe-tree-samtec .aoe-cat-desc,
+.aoe-chain-desc {
+	margin: 0;
+}
+
+#aoe-catalog-container.aoe-tree-samtec .aoe-cat-desc p {
+	margin: 0;
+}
+
+#aoe-catalog-container.aoe-tree-samtec .aoe-cat-heading {
+	margin-bottom: 15px;
+}
+
+#aoe-catalog-container.aoe-tree-samtec .aoe-cat-level-1,
+#aoe-catalog-container.aoe-tree-samtec .aoe-cat-level-2,
+#aoe-catalog-container.aoe-tree-samtec .aoe-cat-level-3 {
+	margin: 15px 0;
+}
+
+#aoe-catalog-container.aoe-tree-samtec .aoe-cat-level-4 {
+	margin-top: 15px;
+}
+
+.aoe-cat-table-level-4 {
+	padding: 0 12px;
+}
+
+#aoe-catalog-container.aoe-tree-samtec .aoe-cat-row.aoe-cat-level-4 td {
+	padding: 10px 12px;
+}
+
+#aoe-catalog-container.aoe-tree-samtec table {
+	width: auto;
+}
+
+#aoe-catalog-container.aoe-tree-samtec .aoe-cat-level-3:has(.aoe-cat-desc:not(:empty)) .aoe-cat-name {
+	width: auto;
+	max-width: max-content !important;
+}
+
+.aoe-cat-uncategorized {
+	padding: 0;
+}
+
+.aoe-category-chain strong {
+	font-weight: bold;
+}
+
+.aoe-chain-features ul li {
+	font-weight: 100;
 }

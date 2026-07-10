@@ -576,7 +576,7 @@ class AdminManager {
 				continue;
 			}
 			$parent_id = $subcat_map[ $path ];
-			$name      = trim( $row['serie'] ?? '' ) ?: $ser_slug;
+			$name      = trim( $row['nombre'] ?? '' ) ?: ( trim( $row['serie'] ?? '' ) ?: $ser_slug );
 			$desc      = trim( $row['descripcion'] ?? '' );
 			$feats     = trim( $row['caracteristicas'] ?? '' );
 			$img       = trim( $row['imagen'] ?? '' );
@@ -649,7 +649,7 @@ class AdminManager {
 				) );
 			}
 
-			$name   = trim( $row['producto'] ?? '' ) ?: $prod_slug;
+			$name   = trim( $row['nombre'] ?? '' ) ?: ( trim( $row['producto'] ?? '' ) ?: $prod_slug );
 			$desc   = trim( $row['descripcion'] ?? '' );
 			$feats  = trim( $row['caracteristicas'] ?? '' );
 			$img    = trim( $row['imagen'] ?? '' );

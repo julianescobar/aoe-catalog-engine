@@ -599,6 +599,109 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 				return;
 			}
 
+			if ( $manufacturer_slug === 'samtec' && $tree_layout !== 'columns' ) {
+				$real_level = ! empty( $items ) ? (int) $items[0]->level : $level;
+				if ( $real_level >= 4 ) {
+					echo '<div class="aoe-cat-table-level-4"><table class="aoe-cat-tree-table">';
+					foreach ( $items as $item ) {
+						$count = (int) ( $segments_by_id[ $item->category_id ]->products_to ?? 0 );
+						if ( $count === 0 ) continue;
+
+						$meta = ! empty( $item->metadata_json ) ? json_decode( $item->metadata_json, true ) : [];
+						$wp_post_id = ! empty( $meta['wp_post_id'] ) ? intval( $meta['wp_post_id'] ) : 0;
+
+						$is_leaf = empty( $tree_by_parent[ (int) $item->category_id ] ?? [] );
+						if ( $is_leaf && $wp_post_id ) {
+							$cat_url = get_permalink( $wp_post_id );
+						} elseif ( $is_leaf && isset( $cat_page_map[ $item->category_id ] ) ) {
+							$cat_url = home_url( '/catalogo/' . $cat_page_map[ $item->category_id ] . '/' );
+						} else {
+							$cat_url = '#';
+						}
+
+						$display_level = min( (int) $item->level, 4 );
+						$row_class = 'aoe-cat-row aoe-cat-level-' . $display_level;
+						$row_class .= ( $leaf_idx % 2 === 0 ) ? ' aoe-cat-row-even' : ' aoe-cat-row-odd';
+						$leaf_idx++;
+
+						$desc = ! empty( $item->category_description ) ? trim( str_replace( '\n', "\n", $item->category_description ) ) : '';
+						if ( ! empty( $desc ) ) {
+							if ( preg_match( '/<p[^>]*>.*?<\/p>/s', $desc, $m ) ) {
+								$desc = $m[0];
+							} elseif ( ! preg_match( '/<[a-z][\s>]/', $desc ) ) {
+								$desc = '<p>' . esc_html( $desc ) . '</p>';
+							}
+						}
+						$has_desc = ! empty( $desc );
+
+						echo '<tr class="' . $row_class . '">';
+						echo '<td class="aoe-cat-name"' . ( $has_desc ? '' : ' colspan="2"' ) . '>';
+						if ( $cat_url !== '#' ) {
+							echo '<a href="' . esc_url( $cat_url ) . '">' . esc_html( $item->category_name ) . '</a>';
+						} else {
+							echo esc_html( $item->category_name );
+						}
+						if ( $count > 0 ) {
+							echo ' <span class="count">(' . esc_html( $count ) . ')</span>';
+						}
+						echo '</td>';
+						if ( $has_desc ) {
+							echo '<td class="aoe-cat-desc">' . wp_kses_post( $desc ) . '</td>';
+						}
+						echo '</tr>';
+					}
+					echo '</table></div>';
+					return;
+				}
+
+				$heading = $real_level === 0 ? 'h3' : ( $real_level === 1 ? 'h4' : 'h5' );
+				foreach ( $items as $item ) {
+					$count = (int) ( $segments_by_id[ $item->category_id ]->products_to ?? 0 );
+					$children = $tree_by_parent[ $item->category_id ] ?? [];
+					if ( (int) $item->level === $max_level && $count === 0 ) continue;
+					if ( (int) $item->level === 3 && ! isset( $level3_with_children[ (int) $item->category_id ] ) ) continue;
+					if ( (int) $item->level < $max_level && ! isset( $cats_with_descendants[ (int) $item->category_id ] ) && $count === 0 ) continue;
+
+					$desc = ! empty( $item->category_description ) ? trim( str_replace( '\n', "\n", $item->category_description ) ) : '';
+					if ( ! empty( $desc ) ) {
+						if ( preg_match( '/<p[^>]*>.*?<\/p>/s', $desc, $m ) ) {
+							$desc = $m[0];
+						} elseif ( ! preg_match( '/<[a-z][\s>]/', $desc ) ) {
+							$desc = '<p>' . esc_html( $desc ) . '</p>';
+						}
+					}
+
+					$meta = ! empty( $item->metadata_json ) ? json_decode( $item->metadata_json, true ) : [];
+					$wp_post_id = ! empty( $meta['wp_post_id'] ) ? intval( $meta['wp_post_id'] ) : 0;
+					$is_leaf = empty( $tree_by_parent[ (int) $item->category_id ] ?? [] );
+					if ( $is_leaf && $wp_post_id ) {
+						$cat_url = get_permalink( $wp_post_id );
+					} elseif ( $is_leaf && isset( $cat_page_map[ $item->category_id ] ) ) {
+						$cat_url = home_url( '/catalogo/' . $cat_page_map[ $item->category_id ] . '/' );
+					} else {
+						$cat_url = '#';
+					}
+
+					$sin_class = ( $item->category_slug ?? '' ) === 'sin-clasificar' ? ' aoe-cat-uncategorized' : '';
+					echo '<div class="aoe-cat-level-' . (int) $item->level . $sin_class . '">';
+					echo '<' . $heading . ' class="aoe-cat-heading aoe-cat-level-' . (int) $item->level . '">';
+					if ( $cat_url !== '#' ) {
+						echo '<a href="' . esc_url( $cat_url ) . '">' . esc_html( $item->category_name ) . '</a>';
+					} else {
+						echo esc_html( $item->category_name );
+					}
+					echo '</' . $heading . '>';
+
+					if ( ! empty( $desc ) ) {
+						echo str_replace( '<p', '<p class="aoe-cat-desc"', wp_kses_post( $desc ) );
+					}
+
+					aoe_render_cat_tree( $children, $tree_by_parent, $segments_by_id, $cat_page_map, $level + 1, false, $leaf_idx, $tree_layout, $tree_columns, $manufacturer_slug, $level3_with_children, $cat_has_dedicated_page, $max_level, $cats_with_descendants );
+					echo '</div>';
+				}
+				return;
+			}
+
 			if ( $is_root ) {
 				echo '<table class="aoe-cat-tree-table">';
 			}
@@ -634,16 +737,17 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 
 				$desc = ! empty( $item->category_description ) ? trim( str_replace( '\n', "\n", $item->category_description ) ) : '';
 
-				if ( $manufacturer_slug === 'samtec' && (int) $item->level === 3 && ! empty( $desc ) ) {
+				if ( $manufacturer_slug === 'samtec' && ! empty( $desc ) ) {
 					if ( preg_match( '/<p[^>]*>.*?<\/p>/s', $desc, $m ) ) {
 						$desc = $m[0];
+					} elseif ( ! preg_match( '/<[a-z][\s>]/', $desc ) ) {
+						$desc = '<p>' . esc_html( $desc ) . '</p>';
 					}
 				}
 
 				$has_desc = ! empty( $desc );
 				$desc_separate_row = $has_desc && (int) $item->level < $max_level;
 
-				// Normal table mode
 				echo '<tr class="' . $row_class . '">';
 				echo '<td class="aoe-cat-name"' . ( $has_desc ? '' : ' colspan="2"' ) . '>';
 
