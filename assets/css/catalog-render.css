@@ -1096,6 +1096,12 @@
 	max-width: max-content !important;
 }
 
+#aoe-catalog-container.aoe-tree-samtec h3,
+#aoe-catalog-container.aoe-tree-samtec h4,
+#aoe-catalog-container.aoe-tree-samtec h5 {
+	padding: 0;
+}
+
 .aoe-cat-uncategorized {
 	padding: 0;
 }

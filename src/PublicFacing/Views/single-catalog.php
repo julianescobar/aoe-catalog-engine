@@ -654,7 +654,7 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 					return;
 				}
 
-				$heading = $real_level === 0 ? 'h3' : ( $real_level === 1 ? 'h4' : 'h5' );
+				$heading = $real_level <= 1 ? 'h3' : ( $real_level === 2 ? 'h4' : 'h5' );
 				foreach ( $items as $item ) {
 					$count = (int) ( $segments_by_id[ $item->category_id ]->products_to ?? 0 );
 					$children = $tree_by_parent[ $item->category_id ] ?? [];
@@ -684,7 +684,7 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 
 					$sin_class = ( $item->category_slug ?? '' ) === 'sin-clasificar' ? ' aoe-cat-uncategorized' : '';
 					echo '<div class="aoe-cat-level-' . (int) $item->level . $sin_class . '">';
-					echo '<' . $heading . ' class="aoe-cat-heading aoe-cat-level-' . (int) $item->level . '">';
+					echo '<' . $heading . ' class="aoe-cat-heading">';
 					if ( $cat_url !== '#' ) {
 						echo '<a href="' . esc_url( $cat_url ) . '">' . esc_html( $item->category_name ) . '</a>';
 					} else {
