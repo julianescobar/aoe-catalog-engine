@@ -159,7 +159,7 @@ function aoe_catalog_resolve_pdf_urls( array $pdf, string $manufacturer_slug, st
 	return $resolved;
 }
 
-function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, string $category, array $page_products, int $current_page, int $total_pages, bool $is_preview = false, string $manufacturer_slug = '', array $grouped_segments = [], ?array $category_metadata = null, array $breadcrumb_path = [], array $category_chain = [] ): string {
+function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, string $category, array $page_products, int $current_page, int $total_pages, bool $is_preview = false, string $manufacturer_slug = '', array $grouped_segments = [], ?array $category_metadata = null, array $breadcrumb_path = [], array $category_chain = [], string $post_url = '' ): string {
 	$first        = $page_products[0] ?? null;
 	if ( $is_preview ) {
 		$first_images = is_array( $first['images'] ?? null ) ? $first['images'] : [];
@@ -250,9 +250,13 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 			<span class="aoe-catalog-bold">Ir a la pagina:</span>
 			<?php for ( $i = 1; $i <= $total_pages; $i++ ) : ?>
 				<?php
-				$page_url = ( $i === 1 )
-					? home_url( '/catalogo/' . $page_slug . '/' )
-					: home_url( '/catalogo/' . $page_slug . '-' . $i . '/' );
+				if ( $i === 1 && ! empty( $post_url ) ) {
+					$page_url = $post_url;
+				} elseif ( $i === 1 ) {
+					$page_url = home_url( '/catalogo/' . $page_slug . '/' );
+				} else {
+					$page_url = home_url( '/catalogo/' . $page_slug . '-' . $i . '/' );
+				}
 				?>
 				<?php if ( $i === $current_page ) : ?>
 					<span class="aoe-catalog-page-link current"><?php echo $i; ?></span>

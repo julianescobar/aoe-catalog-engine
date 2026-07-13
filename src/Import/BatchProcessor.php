@@ -322,9 +322,13 @@ class BatchProcessor {
 
 		// Large categories: one or more dedicated pages (type=category)
 		foreach ( $large as $cat ) {
+			$cat_meta = ! empty( $cat->metadata_json ) ? json_decode( $cat->metadata_json, true ) : [];
+			$has_wp_post = ! empty( $cat_meta['wp_post_id'] );
 			$total_prods  = (int) $cat->products_count;
 			$total_pages  = max( 1, ceil( $total_prods / $per_page ) );
-			for ( $p = 1; $p <= $total_pages; $p++ ) {
+			// If category has wp_post_id, page 1 is handled by shortcode; start from page 2
+			$start_page = $has_wp_post ? 2 : 1;
+			for ( $p = $start_page; $p <= $total_pages; $p++ ) {
 				$page_slug = $manufacturer_slug . '/' . $cat->slug . ( $p > 1 ? '-' . $p : '' );
 				$from      = ( $p - 1 ) * $per_page;
 				$to        = min( $p * $per_page, $total_prods );

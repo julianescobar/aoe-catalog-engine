@@ -36,7 +36,7 @@ class PublicManager {
 		add_action( 'wp_ajax_aoe_get_form', [ $this, 'ajax_get_form' ] );
 		add_action( 'wp_ajax_nopriv_aoe_get_form', [ $this, 'ajax_get_form' ] );
 
-		// add_shortcode( 'catalogo', [ $this, 'shortcode_catalogo' ] ); // pendiente validación
+		add_shortcode( 'catalogo', [ $this, 'shortcode_catalogo' ] );
 	}
 
 	public function maybe_flush_rewrite_rules() {
@@ -81,6 +81,7 @@ class PublicManager {
 		$vars[] = 'aoe_catalog_page';
 		$vars[] = 'aoe_catalog_type';
 		$vars[] = 'aoe_catalog_generate_template';
+		$vars[] = 'pag';
 		return $vars;
 	}
 
@@ -779,89 +780,119 @@ class PublicManager {
 	}
 
 	public function shortcode_catalogo( $atts ) {
-		$atts = shortcode_atts( [ 'slug' => '' ], $atts, 'catalogo' );
-		if ( empty( $atts['slug'] ) ) {
+		$atts = shortcode_atts( [ 'manufacturer' => '', 'category' => '' ], $atts, 'catalogo' );
+		// No attributes → placeholder marker for template caching (str_replace in single-catalog.php)
+		if ( empty( $atts['manufacturer'] ) && empty( $atts['category'] ) ) {
 			return '[catalogo]';
 		}
+		if ( empty( $atts['manufacturer'] ) || empty( $atts['category'] ) ) {
+			return '';
+		}
+
+		$plugin_dir      = dirname( __DIR__, 2 );
+		$plugin_url      = plugin_dir_url( $plugin_dir . '/aoe-catalog-engine.php' );
+		$catalog_css_path = $plugin_dir . '/assets/css/catalog-render.css';
+		$catalog_js_path  = $plugin_dir . '/assets/js/catalog.js';
+		$css_ver = file_exists( $catalog_css_path ) ? filemtime( $catalog_css_path ) : '1.0.0';
+		$js_ver  = file_exists( $catalog_js_path ) ? filemtime( $catalog_js_path ) : '1.0.0';
+		wp_enqueue_style( 'aoe-catalog-render', $plugin_url . 'assets/css/catalog-render.css', [], $css_ver );
+		wp_enqueue_script( 'aoe-catalog-js', $plugin_url . 'assets/js/catalog.js', [ 'jquery' ], $js_ver, true );
 
 		global $wpdb;
-		$table_pages = $wpdb->prefix . 'aoe_catalog_pregenerated_pages';
-		$table_seg   = $wpdb->prefix . 'aoe_catalog_page_segments';
-		$table_cat   = $wpdb->prefix . 'aoe_catalog_categories';
-		$table_prod  = $wpdb->prefix . 'aoe_catalog_products';
-		$table_m     = $wpdb->prefix . 'aoe_catalog_manufacturers';
+		$table_m    = $wpdb->prefix . 'aoe_catalog_manufacturers';
+		$table_cat  = $wpdb->prefix . 'aoe_catalog_categories';
+		$table_prod = $wpdb->prefix . 'aoe_catalog_products';
 
-		$page = $wpdb->get_row( $wpdb->prepare(
-			"SELECT p.*, m.name AS manufacturer_name, m.slug AS manufacturer_slug
-			 FROM $table_pages p
-			 JOIN $table_m m ON p.manufacturer_id = m.id
-			 WHERE p.slug = %s AND p.type = 'category'",
-			$atts['slug']
+		$manufacturer = $wpdb->get_row( $wpdb->prepare(
+			"SELECT id, name AS manufacturer_name FROM $table_m WHERE slug = %s",
+			$atts['manufacturer']
 		) );
-		if ( ! $page ) {
+		if ( ! $manufacturer ) {
 			return '';
 		}
 
-		$segments = $wpdb->get_results( $wpdb->prepare(
-			"SELECT s.*, c.name AS category_name, c.slug AS category_slug, c.parent_id, c.level, c.metadata_json, c.description AS category_description
-			 FROM $table_seg s
-			 JOIN $table_cat c ON s.category_id = c.id
-			 WHERE s.page_id = %d
-			 ORDER BY s.sort_order ASC",
-			$page->id
+		$category = $wpdb->get_row( $wpdb->prepare(
+			"SELECT * FROM $table_cat WHERE manufacturer_id = %d AND slug = %s",
+			(int) $manufacturer->id, $atts['category']
 		) );
-		if ( empty( $segments ) ) {
+		if ( ! $category ) {
 			return '';
 		}
 
-		$cat_seg = $segments[0];
-		$from    = (int) $cat_seg->products_from;
-		$to      = (int) $cat_seg->products_to;
-		$limit   = $to - $from;
+		$page_slug_base = $atts['manufacturer'] . '/' . $atts['category'];
+		$req_page = max( 1, intval( $_GET['pag'] ?? 1 ) );
+		if ( $req_page > 1 ) {
+			$redirect = home_url( '/catalogo/' . $page_slug_base . '-' . $req_page . '/' );
+			wp_redirect( $redirect, 301 );
+			exit;
+		}
 
-		$page_products = $wpdb->get_results( $wpdb->prepare(
-			"SELECT * FROM $table_prod WHERE category_id = %d ORDER BY id ASC LIMIT %d OFFSET %d",
-			$cat_seg->category_id, $limit, $from
-		) );
+		$per_page       = 200;
 		$total_products = (int) $wpdb->get_var( $wpdb->prepare(
 			"SELECT COUNT(*) FROM $table_prod WHERE category_id = %d",
-			$cat_seg->category_id
+			(int) $category->id
 		) );
-		$per_page    = 200;
-		$total_pages = max( 1, ceil( $total_products / $per_page ) );
+		$total_pages    = max( 1, ceil( $total_products / $per_page ) );
 
-		$breadcrumb_path = [];
-		$cur = (int) $cat_seg->category_id;
-		$all_cats = $wpdb->get_results( $wpdb->prepare(
-			"SELECT id, name, parent_id FROM $table_cat WHERE manufacturer_id = %d",
-			$page->manufacturer_id
+		$page_products = $wpdb->get_results( $wpdb->prepare(
+			"SELECT * FROM $table_prod WHERE category_id = %d ORDER BY id ASC LIMIT %d",
+			(int) $category->id, $per_page
 		) );
-		$cat_name_lookup = [];
+
+		// Build breadcrumb and category chain
+		$all_cats = $wpdb->get_results( $wpdb->prepare(
+			"SELECT id, name, parent_id, level, description, metadata_json, image FROM $table_cat WHERE manufacturer_id = %d",
+			(int) $manufacturer->id
+		) );
+		$cat_lookup = [];
 		$cat_parent_lookup = [];
 		foreach ( $all_cats as $c ) {
-			$cat_name_lookup[ (int) $c->id ] = $c->name;
+			$cat_lookup[ (int) $c->id ] = $c;
 			$cat_parent_lookup[ (int) $c->id ] = (int) $c->parent_id;
 		}
-		while ( $cur && isset( $cat_name_lookup[ $cur ] ) ) {
-			array_unshift( $breadcrumb_path, $cat_name_lookup[ $cur ] );
+		$breadcrumb_path = [];
+		$chain_ids = [];
+		$cur = (int) $category->id;
+		while ( $cur && isset( $cat_lookup[ $cur ] ) ) {
+			array_unshift( $breadcrumb_path, $cat_lookup[ $cur ]->name );
+			array_unshift( $chain_ids, $cur );
 			$cur = $cat_parent_lookup[ $cur ] ?? 0;
 		}
+		$category_chain = [];
+		if ( ! empty( $chain_ids ) ) {
+			foreach ( $chain_ids as $cid ) {
+				if ( isset( $cat_lookup[ $cid ] ) ) {
+					$cr = $cat_lookup[ $cid ];
+					$meta = ! empty( $cr->metadata_json ) ? json_decode( $cr->metadata_json, true ) : [];
+					$category_chain[] = [
+						'name'        => $cr->name,
+						'level'       => (int) $cr->level,
+						'description' => $cr->description ?? '',
+						'image'       => $cr->image ?? '',
+						'features'    => $meta['features'] ?? '',
+					];
+				}
+			}
+		}
+
+		$post_url = get_permalink();
 
 		ob_start();
 		require_once __DIR__ . '/Views/catalog-render-html.php';
 		echo aoe_catalog_render_html(
-			$page->manufacturer_name,
-			$page->slug,
-			$cat_seg->category_name,
+			$manufacturer->manufacturer_name,
+			$page_slug_base,
+			$category->name,
 			$page_products,
 			1,
 			$total_pages,
 			false,
-			$page->manufacturer_slug,
+			$atts['manufacturer'],
 			[],
 			null,
 			$breadcrumb_path,
-			[]
+			$category_chain,
+			$post_url
 		);
 		return ob_get_clean();
 	}

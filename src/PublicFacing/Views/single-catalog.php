@@ -301,12 +301,10 @@ if ( 'category' === $page_type ) {
 		if ( $cat_seg ) {
 			$meta = ! empty( $cat_seg->metadata_json ) ? json_decode( $cat_seg->metadata_json, true ) : [];
 			$wp_post_id = ! empty( $meta['wp_post_id'] ) ? intval( $meta['wp_post_id'] ) : 0;
-			if ( $wp_post_id ) {
+			$is_page_one = $current_page <= 1;
+			if ( $wp_post_id && $is_page_one ) {
 				ob_end_clean();
-				global $wp_query;
-				$wp_query->set_404();
-				status_header( 404 );
-				get_template_part( '404' );
+				wp_redirect( get_permalink( $wp_post_id ), 301 );
 				exit;
 			}
 
@@ -863,6 +861,14 @@ if ( ! $template_post ) {
 	wp_die( 'La plantilla asociada a este fabricante no existe.', 'Plantilla no encontrada', [ 'response' => 404 ] );
 }
 
+$post_url = '';
+if ( $page_type === 'category' && isset( $cat_seg ) && ! empty( $cat_seg->metadata_json ) ) {
+	$sc_meta = json_decode( $cat_seg->metadata_json, true );
+	if ( ! empty( $sc_meta['wp_post_id'] ) && $current_page > 1 ) {
+		$post_url = get_permalink( (int) $sc_meta['wp_post_id'] );
+	}
+}
+
 require_once __DIR__ . '/catalog-render-html.php';
 
 aoe_profile_mark( 'before_render_html' );
@@ -878,7 +884,8 @@ $catalog_html = aoe_catalog_render_html(
 	$grouped_segments,
 	$category_metadata,
 	$breadcrumb_path,
-	$category_chain ?? []
+	$category_chain ?? [],
+	$post_url
 );
 aoe_profile_mark( 'after_render_html' );
 
