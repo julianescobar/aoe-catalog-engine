@@ -293,7 +293,7 @@ class BatchProcessor {
 
 		// Get categories with products
 		$categories = $wpdb->get_results( $wpdb->prepare(
-			"SELECT id, name, slug, products_count, description, metadata_json, image FROM $table_cat WHERE manufacturer_id = %d AND (products_count > 0 OR (description IS NOT NULL AND description != '') OR (metadata_json IS NOT NULL AND metadata_json != '[]' AND metadata_json != '{}') OR (image IS NOT NULL AND image != '')) ORDER BY id ASC",
+			"SELECT id, name, slug, level, products_count, description, metadata_json, image FROM $table_cat WHERE manufacturer_id = %d AND (products_count > 0 OR (description IS NOT NULL AND description != '') OR (metadata_json IS NOT NULL AND metadata_json != '[]' AND metadata_json != '{}') OR (image IS NOT NULL AND image != '')) ORDER BY id ASC",
 			$manufacturer_id
 		) );
 
@@ -322,6 +322,10 @@ class BatchProcessor {
 
 		// Large categories: one or more dedicated pages (type=category)
 		foreach ( $large as $cat ) {
+			// Samtec level-1 categories are handled by subtree tree pages, skip category pages
+			if ( $manufacturer_slug === 'samtec' && (int) $cat->level === 1 ) {
+				continue;
+			}
 			$cat_meta = ! empty( $cat->metadata_json ) ? json_decode( $cat->metadata_json, true ) : [];
 			$has_wp_post = ! empty( $cat_meta['wp_post_id'] );
 			$total_prods  = (int) $cat->products_count;
@@ -369,7 +373,7 @@ class BatchProcessor {
 				$cat_by_id[ (int) $cat->id ] = $cat;
 			}
 
-			// Separate level-4 items for Samtec-style pagination
+			// Separate level-4 items for tree pagination
 			$level4_items = [];
 			foreach ( $all_names as $cat ) {
 				if ( (int) $cat->level === 4 ) {
@@ -377,109 +381,296 @@ class BatchProcessor {
 				}
 			}
 
-			// Reorder so items under "sin-clasificar" go to the end
-			$sin_clasificar = null;
-			foreach ( $all_names as $cat ) {
-				if ( $cat->slug === 'sin-clasificar' ) {
-					$sin_clasificar = $cat;
-					break;
-				}
-			}
-			if ( $sin_clasificar ) {
-				$sin_id = (int) $sin_clasificar->id;
-				$under_sin = [];
-				$others    = [];
+			if ( $manufacturer_slug === 'samtec' ) {
+				// --- SAMTEC: level-1 index + subtree pages ---
+				// Collect level-1 categories (include sin-clasificar regardless of level)
+				// Map each level-4 item to its level-1 ancestor
+				$level4_by_level1 = [];
 				foreach ( $level4_items as $item ) {
-					if ( (int) $item->parent_id === $sin_id ) {
-						$under_sin[] = $item;
-					} else {
-						$others[] = $item;
+					$cur    = (int) $item->parent_id;
+					$first  = true;
+					while ( $cur ) {
+						$cc = $cat_by_id[ $cur ] ?? null;
+						if ( $cc ) {
+							if ( (int) $cc->level === 1 ) {
+								$level4_by_level1[ $cur ][] = $item;
+								break;
+							}
+							// If direct parent is sin-clasificar, map to it
+							if ( $first && $cc->slug === 'sin-clasificar' ) {
+								$level4_by_level1[ $cur ][] = $item;
+								break;
+							}
+						}
+						$first = false;
+						$cur   = $parent_lookup[ $cur ] ?? 0;
 					}
 				}
-				$level4_items = array_merge( $others, $under_sin );
-			}
 
-			if ( ! empty( $level4_items ) ) {
-				// New approach: batch level-4 items by 200, include all ancestors
-				$level4_batches = array_chunk( $level4_items, 200 );
+				$level1_cats = [];
+				foreach ( $all_names as $cat ) {
+					if ( (int) $cat->level === 1 || $cat->slug === 'sin-clasificar' ) {
+						$level1_cats[] = $cat;
+					}
+				}
 
-				$tree_page = 1;
-				foreach ( $level4_batches as $batch ) {
-					$unique_ancestor_ids = [];
-					foreach ( $batch as $item ) {
-						$cur = (int) $item->parent_id;
-						while ( $cur ) {
-							$unique_ancestor_ids[ $cur ] = true;
-							$cur = $parent_lookup[ $cur ] ?? 0;
+				// Sin-clasificar level-4 items at the end of their level-1 group
+				// (skip if sin-clasificar itself is the level-1 group)
+				foreach ( $level1_cats as $l1 ) {
+					if ( $l1->slug === 'sin-clasificar' ) {
+						continue;
+					}
+					$l1_id = (int) $l1->id;
+					if ( ! empty( $level4_by_level1[ $l1_id ] ) ) {
+						$under_sin = [];
+						$others    = [];
+						$sin_id    = null;
+						foreach ( $all_names as $c ) {
+							if ( $c->slug === 'sin-clasificar' && (int) $c->parent_id === $l1_id ) {
+								$sin_id = (int) $c->id;
+								break;
+							}
+						}
+						if ( $sin_id ) {
+							foreach ( $level4_by_level1[ $l1_id ] as $item ) {
+								if ( (int) $item->parent_id === $sin_id ) {
+									$under_sin[] = $item;
+								} else {
+									$others[] = $item;
+								}
+							}
+							$level4_by_level1[ $l1_id ] = array_merge( $others, $under_sin );
 						}
 					}
+				}
 
-					$ancestors_ordered = [];
-					foreach ( array_keys( $unique_ancestor_ids ) as $aid ) {
-						if ( isset( $cat_by_id[ $aid ] ) ) {
-							$ancestors_ordered[] = $cat_by_id[ $aid ];
-						}
-					}
-					usort( $ancestors_ordered, function( $a, $b ) {
-						if ( ( $a->slug ?? '' ) === 'sin-clasificar' && ( $b->slug ?? '' ) !== 'sin-clasificar' ) return 1;
-						if ( ( $b->slug ?? '' ) === 'sin-clasificar' && ( $a->slug ?? '' ) !== 'sin-clasificar' ) return -1;
-						$cmp = (int) $a->level - (int) $b->level;
-						if ( $cmp !== 0 ) return $cmp;
-						$pa = (int) ( $a->parent_id ?: 0 );
-						$pb = (int) ( $b->parent_id ?: 0 );
-						$cmp = $pa - $pb;
-						if ( $cmp !== 0 ) return $cmp;
-						return (int) $a->id - (int) $b->id;
-					} );
-
-					$tree_segments = [];
-
-					foreach ( $ancestors_ordered as $acat ) {
-						$tree_segments[] = [
-							'manufacturer_id' => $manufacturer_id,
-							'category_id'    => $acat->id,
-							'segment_type'   => 'category',
-							'products_from'  => 0,
-							'products_to'    => (int) $acat->products_count,
-							'sort_order'     => count( $tree_segments ) + 1,
-						];
-					}
-
-					foreach ( $batch as $item ) {
-						$tree_segments[] = [
-							'manufacturer_id' => $manufacturer_id,
-							'category_id'    => $item->id,
-							'segment_type'   => 'category',
-							'products_from'  => 0,
-							'products_to'    => (int) $item->products_count,
-							'sort_order'     => count( $tree_segments ) + 1,
-						];
-					}
-
-					$link_count = count( $batch );
-					$tree_slug  = $manufacturer_slug . ( $tree_page > 1 ? '-' . $tree_page : '' );
-					$page_id    = PageRepository::insert( [
+				// 1. Main tree page: single page with all level-1 segments
+				$tree_segments = [];
+				foreach ( $level1_cats as $cat ) {
+					$tree_segments[] = [
 						'manufacturer_id' => $manufacturer_id,
-						'type'            => 'tree',
-						'slug'            => $tree_slug,
-						'page_number'     => $tree_page,
-						'link_count'      => $link_count,
-					] );
-					foreach ( $tree_segments as $seg ) {
-						$seg['page_id'] = $page_id;
-						PageSegmentRepository::insert( $seg );
-					}
+						'category_id'    => $cat->id,
+						'segment_type'   => 'category',
+						'products_from'  => 0,
+						'products_to'    => (int) $cat->products_count,
+						'sort_order'     => count( $tree_segments ) + 1,
+					];
+				}
+				$page_id = PageRepository::insert( [
+					'manufacturer_id' => $manufacturer_id,
+					'type'            => 'tree',
+					'slug'            => $manufacturer_slug,
+					'page_number'     => 1,
+					'link_count'      => count( $level1_cats ),
+				] );
+				foreach ( $tree_segments as $seg ) {
+					$seg['page_id'] = $page_id;
+					PageSegmentRepository::insert( $seg );
+				}
 
-					$tree_page++;
+				// 2. Level-1 subtree pages
+				foreach ( $level1_cats as $l1 ) {
+					$l1_id   = (int) $l1->id;
+					$batches = array_chunk( $level4_by_level1[ $l1_id ] ?? [], 200 );
+					foreach ( $batches as $batch_idx => $batch ) {
+						$unique_ancestor_ids = [];
+						foreach ( $batch as $item ) {
+							$cur = (int) $item->parent_id;
+							while ( $cur ) {
+								$unique_ancestor_ids[ $cur ] = true;
+								$cur = $parent_lookup[ $cur ] ?? 0;
+							}
+						}
+
+						$ancestors_ordered = [];
+						foreach ( array_keys( $unique_ancestor_ids ) as $aid ) {
+							if ( isset( $cat_by_id[ $aid ] ) ) {
+								$ancestors_ordered[] = $cat_by_id[ $aid ];
+							}
+						}
+						usort( $ancestors_ordered, function( $a, $b ) {
+							if ( ( $a->slug ?? '' ) === 'sin-clasificar' && ( $b->slug ?? '' ) !== 'sin-clasificar' ) return 1;
+							if ( ( $b->slug ?? '' ) === 'sin-clasificar' && ( $a->slug ?? '' ) !== 'sin-clasificar' ) return -1;
+							$cmp = (int) $a->level - (int) $b->level;
+							if ( $cmp !== 0 ) return $cmp;
+							$pa = (int) ( $a->parent_id ?: 0 );
+							$pb = (int) ( $b->parent_id ?: 0 );
+							$cmp = $pa - $pb;
+							if ( $cmp !== 0 ) return $cmp;
+							return (int) $a->id - (int) $b->id;
+						} );
+
+						$sub_segments = [];
+						foreach ( $ancestors_ordered as $acat ) {
+							$sub_segments[] = [
+								'manufacturer_id' => $manufacturer_id,
+								'category_id'    => $acat->id,
+								'segment_type'   => 'category',
+								'products_from'  => 0,
+								'products_to'    => (int) $acat->products_count,
+								'sort_order'     => count( $sub_segments ) + 1,
+							];
+						}
+						foreach ( $batch as $item ) {
+							$sub_segments[] = [
+								'manufacturer_id' => $manufacturer_id,
+								'category_id'    => $item->id,
+								'segment_type'   => 'category',
+								'products_from'  => 0,
+								'products_to'    => (int) $item->products_count,
+								'sort_order'     => count( $sub_segments ) + 1,
+							];
+						}
+
+						$page_num = $batch_idx + 1;
+						$slug     = $manufacturer_slug . '/' . $l1->slug . ( $page_num > 1 ? '-' . $page_num : '' );
+						$page_id  = PageRepository::insert( [
+							'manufacturer_id' => $manufacturer_id,
+							'type'            => 'tree',
+							'slug'            => $slug,
+							'page_number'     => $page_num,
+							'link_count'      => count( $batch ),
+						] );
+						foreach ( $sub_segments as $seg ) {
+							$seg['page_id'] = $page_id;
+							PageSegmentRepository::insert( $seg );
+						}
+					}
 				}
 			} else {
-				// Fallback: iterate all items sequentially (no level-4 categories)
-				$tree_page     = 1;
-				$tree_accum    = 0;
-				$tree_segments = [];
-
+				// --- OTHER MANUFACTURERS: existing global batching logic ---
+				// Reorder so items under "sin-clasificar" go to the end
+				$sin_clasificar = null;
 				foreach ( $all_names as $cat ) {
-					if ( $tree_accum >= 200 ) {
+					if ( $cat->slug === 'sin-clasificar' ) {
+						$sin_clasificar = $cat;
+						break;
+					}
+				}
+				if ( $sin_clasificar ) {
+					$sin_id = (int) $sin_clasificar->id;
+					$under_sin = [];
+					$others    = [];
+					foreach ( $level4_items as $item ) {
+						if ( (int) $item->parent_id === $sin_id ) {
+							$under_sin[] = $item;
+						} else {
+							$others[] = $item;
+						}
+					}
+					$level4_items = array_merge( $others, $under_sin );
+				}
+
+				if ( ! empty( $level4_items ) ) {
+					// Batch level-4 items by 200, include all ancestors
+					$level4_batches = array_chunk( $level4_items, 200 );
+
+					$tree_page = 1;
+					foreach ( $level4_batches as $batch ) {
+						$unique_ancestor_ids = [];
+						foreach ( $batch as $item ) {
+							$cur = (int) $item->parent_id;
+							while ( $cur ) {
+								$unique_ancestor_ids[ $cur ] = true;
+								$cur = $parent_lookup[ $cur ] ?? 0;
+							}
+						}
+
+						$ancestors_ordered = [];
+						foreach ( array_keys( $unique_ancestor_ids ) as $aid ) {
+							if ( isset( $cat_by_id[ $aid ] ) ) {
+								$ancestors_ordered[] = $cat_by_id[ $aid ];
+							}
+						}
+						usort( $ancestors_ordered, function( $a, $b ) {
+							if ( ( $a->slug ?? '' ) === 'sin-clasificar' && ( $b->slug ?? '' ) !== 'sin-clasificar' ) return 1;
+							if ( ( $b->slug ?? '' ) === 'sin-clasificar' && ( $a->slug ?? '' ) !== 'sin-clasificar' ) return -1;
+							$cmp = (int) $a->level - (int) $b->level;
+							if ( $cmp !== 0 ) return $cmp;
+							$pa = (int) ( $a->parent_id ?: 0 );
+							$pb = (int) ( $b->parent_id ?: 0 );
+							$cmp = $pa - $pb;
+							if ( $cmp !== 0 ) return $cmp;
+							return (int) $a->id - (int) $b->id;
+						} );
+
+						$tree_segments = [];
+
+						foreach ( $ancestors_ordered as $acat ) {
+							$tree_segments[] = [
+								'manufacturer_id' => $manufacturer_id,
+								'category_id'    => $acat->id,
+								'segment_type'   => 'category',
+								'products_from'  => 0,
+								'products_to'    => (int) $acat->products_count,
+								'sort_order'     => count( $tree_segments ) + 1,
+							];
+						}
+
+						foreach ( $batch as $item ) {
+							$tree_segments[] = [
+								'manufacturer_id' => $manufacturer_id,
+								'category_id'    => $item->id,
+								'segment_type'   => 'category',
+								'products_from'  => 0,
+								'products_to'    => (int) $item->products_count,
+								'sort_order'     => count( $tree_segments ) + 1,
+							];
+						}
+
+						$link_count = count( $batch );
+						$tree_slug  = $manufacturer_slug . ( $tree_page > 1 ? '-' . $tree_page : '' );
+						$page_id    = PageRepository::insert( [
+							'manufacturer_id' => $manufacturer_id,
+							'type'            => 'tree',
+							'slug'            => $tree_slug,
+							'page_number'     => $tree_page,
+							'link_count'      => $link_count,
+						] );
+						foreach ( $tree_segments as $seg ) {
+							$seg['page_id'] = $page_id;
+							PageSegmentRepository::insert( $seg );
+						}
+
+						$tree_page++;
+					}
+				} else {
+					// Fallback: iterate all items sequentially (no level-4 categories)
+					$tree_page     = 1;
+					$tree_accum    = 0;
+					$tree_segments = [];
+
+					foreach ( $all_names as $cat ) {
+						if ( $tree_accum >= 200 ) {
+							$tree_slug = $manufacturer_slug . ( $tree_page > 1 ? '-' . $tree_page : '' );
+							$page_id   = PageRepository::insert( [
+								'manufacturer_id' => $manufacturer_id,
+								'type'            => 'tree',
+								'slug'            => $tree_slug,
+								'page_number'     => $tree_page,
+								'link_count'      => $tree_accum,
+							] );
+							foreach ( $tree_segments as $seg ) {
+								$seg['page_id'] = $page_id;
+								PageSegmentRepository::insert( $seg );
+							}
+							$tree_page++;
+							$tree_accum    = 0;
+							$tree_segments = [];
+						}
+
+						$tree_segments[] = [
+							'manufacturer_id' => $manufacturer_id,
+							'category_id'    => $cat->id,
+							'segment_type'   => 'category',
+							'products_from'  => 0,
+							'products_to'    => (int) $cat->products_count,
+							'sort_order'     => count( $tree_segments ) + 1,
+						];
+						$tree_accum++;
+					}
+
+					if ( ! empty( $tree_segments ) ) {
 						$tree_slug = $manufacturer_slug . ( $tree_page > 1 ? '-' . $tree_page : '' );
 						$page_id   = PageRepository::insert( [
 							'manufacturer_id' => $manufacturer_id,
@@ -492,34 +683,6 @@ class BatchProcessor {
 							$seg['page_id'] = $page_id;
 							PageSegmentRepository::insert( $seg );
 						}
-						$tree_page++;
-						$tree_accum    = 0;
-						$tree_segments = [];
-					}
-
-					$tree_segments[] = [
-						'manufacturer_id' => $manufacturer_id,
-						'category_id'    => $cat->id,
-						'segment_type'   => 'category',
-						'products_from'  => 0,
-						'products_to'    => (int) $cat->products_count,
-						'sort_order'     => count( $tree_segments ) + 1,
-					];
-					$tree_accum++;
-				}
-
-				if ( ! empty( $tree_segments ) ) {
-					$tree_slug = $manufacturer_slug . ( $tree_page > 1 ? '-' . $tree_page : '' );
-					$page_id   = PageRepository::insert( [
-						'manufacturer_id' => $manufacturer_id,
-						'type'            => 'tree',
-						'slug'            => $tree_slug,
-						'page_number'     => $tree_page,
-						'link_count'      => $tree_accum,
-					] );
-					foreach ( $tree_segments as $seg ) {
-						$seg['page_id'] = $page_id;
-						PageSegmentRepository::insert( $seg );
 					}
 				}
 			}
@@ -533,6 +696,10 @@ class BatchProcessor {
 			$page_id        = null;
 
 			foreach ( $small as $cat ) {
+				// Skip Samtec level-1 categories (handled by subtree tree pages)
+				if ( $manufacturer_slug === 'samtec' && (int) $cat->level === 1 ) {
+					continue;
+				}
 				$count = (int) $cat->products_count;
 				if ( $group_accum + $count > $per_page && $group_accum > 0 ) {
 					// Finalize current grouped page

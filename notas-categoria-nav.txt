@@ -1,0 +1,8 @@
+Categoría Nav (Samtec tree)
+============================
+- "Categoría:" nav listing level-1 categories con subtree pages está oculto vía CSS
+- Para reactivar: eliminar `display: none` de `.aoe-categoria-nav` en assets/css/catalog-render.css:1118
+- La nav usa los page_segments del main tree page (slug=samtec, type=tree)
+- Solo muestra level-1 categories que tienen level-4 items (filtrados en BatchProcessor.php)
+- Categoría activa tiene current class (span en vez de link, clase .current)
+- Si se necesita cambiar texto "Categoría:" buscarlo en single-catalog.php (línea ~502)

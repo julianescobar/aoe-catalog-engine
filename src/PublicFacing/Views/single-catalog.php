@@ -421,12 +421,26 @@ if ( 'category' === $page_type ) {
 
 // If tree page, show category list and exit without render table
 if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_category ) && empty( $page_products ) ) ) {
-	$tree_pages = $wpdb->get_results( $wpdb->prepare(
-		"SELECT page_number, link_count FROM $table_pages
-		 WHERE manufacturer_id = %d AND type = 'tree'
-		 ORDER BY page_number ASC",
-		$page->manufacturer_id
-	) );
+	$is_samtec_subtree = ( $manufacturer_slug === 'samtec' && strpos( $page->slug, '/' ) !== false );
+	if ( $is_samtec_subtree ) {
+		// Samtec subtree: count only pages under the same level-1 slug
+		$slug_prefix = $page->slug;
+		$slug_prefix = preg_replace( '/-\d+$/', '', $slug_prefix );
+		$tree_pages = $wpdb->get_results( $wpdb->prepare(
+			"SELECT page_number, link_count FROM $table_pages
+			 WHERE manufacturer_id = %d AND type = 'tree' AND slug LIKE %s
+			 ORDER BY page_number ASC",
+			$page->manufacturer_id,
+			$slug_prefix . '%'
+		) );
+	} else {
+		$tree_pages = $wpdb->get_results( $wpdb->prepare(
+			"SELECT page_number, link_count FROM $table_pages
+			 WHERE manufacturer_id = %d AND type = 'tree'
+			 ORDER BY page_number ASC",
+			$page->manufacturer_id
+		) );
+	}
 	$total_pages = count( $tree_pages );
 
 	// Build a lookup: for each category_id, find the best page slug
@@ -457,22 +471,80 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 	}
 
 	ob_start();
+
+	$is_samtec_index = ( $manufacturer_slug === 'samtec' && strpos( $page->slug, '/' ) === false );
+
 	?>
 	<div class="aoe-tree aoe-tree-<?php echo esc_attr( $manufacturer_slug ); ?>" id="aoe-catalog-container">
-		<h2>Catálogo de componentes <?php echo esc_html( $page->manufacturer_name ); ?><?php
-			$tree_pnum = (int) $page->page_number;
-			if ( $total_pages > 1 ) {
-				echo ' (Página ' . $tree_pnum . ' de ' . $total_pages . ')';
+		<h2>Catálogo de componentes <?php echo esc_html( $page->manufacturer_name ); ?></h2>
+		<?php if ( $manufacturer_slug === 'samtec' ) :
+			if ( $is_samtec_index ) {
+				$level1_for_nav = $segments;
+			} else {
+				$level1_for_nav = $wpdb->get_results( $wpdb->prepare(
+					"SELECT c.slug AS category_slug, c.name AS category_name
+					 FROM {$wpdb->prefix}aoe_catalog_page_segments ps
+					 JOIN {$wpdb->prefix}aoe_catalog_pregenerated_pages p ON ps.page_id = p.id
+					 JOIN {$wpdb->prefix}aoe_catalog_categories c ON ps.category_id = c.id
+					 WHERE p.manufacturer_id = %d AND p.type = 'tree' AND p.slug = %s
+					 ORDER BY ps.sort_order ASC",
+					$page->manufacturer_id,
+					$manufacturer_slug_base
+				) );
 			}
-		?></h2>
-		<?php if ( $total_pages > 1 ) : ?>
+		?>
+		<?php if ( $is_samtec_index || ( $is_samtec_subtree ) ) :
+			// Build map of level-1 slugs that have a subtree page 1
+			$tree_page_slugs = $wpdb->get_col( $wpdb->prepare(
+				"SELECT slug FROM {$wpdb->prefix}aoe_catalog_pregenerated_pages
+				 WHERE manufacturer_id = %d AND type = 'tree' AND slug LIKE %s",
+				$page->manufacturer_id,
+				$wpdb->esc_like( $manufacturer_slug_base . '/' ) . '%'
+			) );
+			$valid_slug_map = [];
+			foreach ( $tree_page_slugs as $s ) {
+				$parts = explode( '/', $s, 2 );
+				$cat_slug = isset( $parts[1] ) ? preg_replace( '/-\d+$/', '', $parts[1] ) : '';
+				if ( $cat_slug !== '' ) {
+					$valid_slug_map[ $cat_slug ] = true;
+				}
+			}
+			// Current category slug for highlighting
+			$current_cat_slug = $is_samtec_subtree
+				? ( preg_match( '~^[^/]+/([^/]+)~', $page->slug, $m ) ? preg_replace( '/-\d+$/', '', $m[1] ) : '' )
+				: '';
+		?>
+		<nav class="aoe-catalog-pagination" aria-label="Categoria">
+			<span class="aoe-catalog-bold">Categoría:</span>
+			<?php foreach ( $level1_for_nav as $l1 ) :
+				if ( ! isset( $valid_slug_map[ $l1->category_slug ] ) ) continue;
+				$cat_url = home_url( '/catalogo/' . $manufacturer_slug_base . '/' . $l1->category_slug . '/' );
+				$is_current = ( $l1->category_slug === $current_cat_slug );
+			?>
+				<?php if ( $is_current ) : ?>
+					<span class="aoe-catalog-page-link current"><?php echo esc_html( $l1->category_name ); ?></span>
+				<?php else : ?>
+					<a class="aoe-catalog-page-link" href="<?php echo esc_url( $cat_url ); ?>"><?php echo esc_html( $l1->category_name ); ?></a>
+				<?php endif; ?>
+			<?php endforeach; ?>
+		</nav>
+		<?php endif; ?>
+		<?php endif; ?>
+		<?php if ( $total_pages > 1 && ! $is_samtec_index ) : ?>
 		<nav class="aoe-catalog-pagination" aria-label="Paginacion de categorias">
 			<span class="aoe-catalog-bold">Ir a la pagina:</span>
 			<?php for ( $i = 1; $i <= $total_pages; $i++ ) : ?>
 				<?php
-				$page_url = ( $i === 1 )
-					? home_url( '/catalogo/' . $manufacturer_slug_base . '/' )
-					: home_url( '/catalogo/' . $manufacturer_slug_base . '-' . $i . '/' );
+				if ( $is_samtec_subtree ) {
+					$slug_prefix = preg_replace( '/-\d+$/', '', $page->slug );
+					$page_url = ( $i === 1 )
+						? home_url( '/catalogo/' . $slug_prefix . '/' )
+						: home_url( '/catalogo/' . $slug_prefix . '-' . $i . '/' );
+				} else {
+					$page_url = ( $i === 1 )
+						? home_url( '/catalogo/' . $manufacturer_slug_base . '/' )
+						: home_url( '/catalogo/' . $manufacturer_slug_base . '-' . $i . '/' );
+				}
 				?>
 				<?php if ( $i === (int) $page->page_number ) : ?>
 					<span class="aoe-catalog-page-link current"><?php echo $i; ?></span>
@@ -482,6 +554,7 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 			<?php endfor; ?>
 		</nav>
 		<?php endif; ?>
+		<?php if ( ! $is_samtec_index ) : ?>
 		<?php
 		global $wpdb;
 		$level3_with_children = [];
@@ -680,8 +753,8 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 						$cat_url = '#';
 					}
 
-					$sin_class = ( $item->category_slug ?? '' ) === 'sin-clasificar' ? ' aoe-cat-uncategorized' : '';
-					echo '<div class="aoe-cat-level-' . (int) $item->level . $sin_class . '">';
+					$sin_id = ( $item->category_slug ?? '' ) === 'sin-clasificar' ? ' id="aoe-cat-uncategorized"' : '';
+					echo '<div class="aoe-cat-level-' . (int) $item->level . '"' . $sin_id . '>';
 					echo '<' . $heading . ' class="aoe-cat-heading">';
 					if ( $cat_url !== '#' ) {
 						echo '<a href="' . esc_url( $cat_url ) . '">' . esc_html( $item->category_name ) . '</a>';
@@ -802,7 +875,7 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 		}
 		$leaf_idx = 0;
 		aoe_render_cat_tree( $root_items, $tree_by_parent, $segments_by_id, $cat_page_map, 0, true, $leaf_idx, $tree_layout, $tree_columns, $manufacturer_slug, $level3_with_children, $cat_has_dedicated_page, $max_level, $cats_with_descendants );
-		?>
+		?><?php endif; ?>
 	</div>
 	<?php
 	aoe_profile_mark( 'tree_rendered' );
