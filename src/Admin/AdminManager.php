@@ -20,6 +20,7 @@ class AdminManager {
 		add_action( 'wp_ajax_aoe_clear_all_cache', [ $this, 'ajax_clear_all_cache' ] );
 		add_action( 'wp_ajax_aoe_import_structure', [ $this, 'ajax_import_structure' ] );
 		add_action( 'wp_ajax_aoe_import_samtec_categories', [ $this, 'ajax_import_samtec_categories' ] );
+		add_action( 'wp_ajax_aoe_import_samtec_specs', [ $this, 'ajax_import_samtec_specs' ] );
 		add_action( 'save_post', [ $this, 'invalidate_cache_on_template_save' ], 10, 2 );
 	}
 
@@ -891,6 +892,91 @@ class AdminManager {
 			\AOE\CatalogEngine\PublicFacing\CacheCatalog::invalidate( $manufacturer->slug );
 			$this->update_last_modified( $manufacturer->slug );
 		}
+	}
+
+	public function ajax_import_samtec_specs() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( 'Acceso no autorizado' );
+		}
+
+		global $wpdb;
+		$manufacturer_slug = sanitize_text_field( $_POST['manufacturer'] ?? '' );
+		$rows              = isset( $_POST['rows_json'] ) ? json_decode( wp_unslash( $_POST['rows_json'] ), true ) : [];
+
+		if ( empty( $manufacturer_slug ) || empty( $rows ) ) {
+			wp_send_json_error( 'Datos incompletos' );
+		}
+
+		$table_p = $wpdb->prefix . 'aoe_catalog_products';
+
+		$manufacturer = $wpdb->get_row( $wpdb->prepare(
+			"SELECT id FROM {$wpdb->prefix}aoe_catalog_manufacturers WHERE slug = %s",
+			$manufacturer_slug
+		) );
+		if ( ! $manufacturer ) {
+			wp_send_json_error( 'Fabricante no encontrado' );
+		}
+
+		$mfr_id      = (int) $manufacturer->id;
+		$processed   = 0;
+		$errors      = 0;
+		$headers     = [];
+		$first       = true;
+
+		foreach ( $rows as $row ) {
+			if ( $first ) {
+				$headers = $row;
+				$first   = false;
+				continue;
+			}
+
+			$sku = trim( $row[0] ?? '' );
+			if ( empty( $sku ) ) {
+				continue;
+			}
+
+			$specs = [];
+			for ( $i = 2; $i < count( $row ) && $i < count( $headers ); $i++ ) {
+				$key   = trim( $headers[ $i ] ?? '' );
+				$value = trim( $row[ $i ] ?? '' );
+				if ( $key !== '' && $value !== '' ) {
+					$specs[ $key ] = $value;
+				}
+			}
+
+			if ( empty( $specs ) ) {
+				continue;
+			}
+
+			$product = $wpdb->get_var( $wpdb->prepare(
+				"SELECT id FROM $table_p WHERE manufacturer_id = %d AND sku = %s",
+				$mfr_id, $sku
+			) );
+
+			if ( ! $product ) {
+				$errors++;
+				continue;
+			}
+
+			$existing = $wpdb->get_var( $wpdb->prepare(
+				"SELECT additional_data FROM $table_p WHERE id = %d", $product
+			) );
+			$additional = $existing ? (array) json_decode( $existing, true ) : [];
+			$additional['specs'] = $specs;
+
+			$wpdb->update( $table_p,
+				[ 'additional_data' => json_encode( $additional, JSON_UNESCAPED_UNICODE ) ],
+				[ 'id' => $product ],
+				[ '%s' ],
+				[ '%d' ]
+			);
+			$processed++;
+		}
+
+		wp_send_json_success( [
+			'processed' => $processed,
+			'errors'    => $errors,
+		] );
 	}
 
 	private function update_last_modified( string $slug ) {

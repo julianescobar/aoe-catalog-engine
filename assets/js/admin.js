@@ -567,4 +567,83 @@ jQuery(document).ready(function ($) {
 			}
 		});
 	});
+
+	// --- Samtec Specs CSV Import ---
+	var $specsInput = $('#csv_specs');
+	if ($specsInput.length) {
+		var specsBatchSize = 100;
+
+		$specsInput.on('change', function () {
+			var file = this.files[0];
+			if (!file) return;
+
+			var reader = new FileReader();
+			reader.onload = function (e) {
+				var text = e.target.result;
+				var lines = text.split('\n').filter(function (l) { return l.trim() !== ''; });
+				if (lines.length < 2) {
+					$('#aoe-specs-status').html('<span style="color:#d63638;">El archivo no tiene datos.</span>');
+					return;
+				}
+
+				var sep = detectSeparator(lines[0]);
+				var headerRow = lines[0].split(sep).map(function (c) { return c.trim(); });
+				var dataRows = [];
+				for (var i = 1; i < lines.length; i++) {
+					dataRows.push(lines[i].split(sep).map(function (c) { return c.trim(); }));
+				}
+
+				var total = dataRows.length;
+				var processed = 0;
+				var errors = 0;
+				var mfr = $('#manufacturer_slug').val();
+				var $status = $('#aoe-specs-status');
+				var $progress = $('#aoe-specs-progress-container');
+				var $bar = $('#aoe-specs-progress-bar');
+				var $text = $('#aoe-specs-progress-text');
+				var $log = $('#aoe-specs-log');
+
+				$status.html('<span style="color:#007cba;">Iniciando importación...</span>');
+				$progress.show();
+				$log.show().text('');
+
+				function sendBatch(start) {
+					var batch = dataRows.slice(start, start + specsBatchSize);
+					if (batch.length === 0) {
+						var msg = 'Importación completa. Procesados: ' + processed + ', Errores: ' + errors;
+						$status.html('<span style="color:#46b450;font-weight:600;">✓ ' + msg + '</span>');
+						$text.text(msg);
+						return;
+					}
+					// Prepend header row so PHP can map column names
+					var payload = [headerRow].concat(batch);
+
+					$.post(aoe_catalog.ajax_url, {
+						action: 'aoe_import_samtec_specs',
+						manufacturer: mfr,
+						rows_json: JSON.stringify(payload)
+					}, function (resp) {
+						if (resp.success) {
+							processed += resp.data.processed;
+							errors += resp.data.errors;
+							var done = Math.min(start + specsBatchSize, total);
+							var pct = Math.round((done / total) * 100);
+							$bar.css('width', pct + '%');
+							$text.text(done + ' / ' + total + ' SKUs procesados (' + errors + ' errores)');
+							$log.append(resp.data.processed + ' ok, ' + resp.data.errors + ' errors\n');
+							$log.scrollTop($log[0].scrollHeight);
+							sendBatch(done);
+						} else {
+							$status.html('<span style="color:#d63638;">Error: ' + (resp.data || 'Error desconocido') + '</span>');
+						}
+					}, 'json').fail(function (xhr, status, err) {
+						$status.html('<span style="color:#d63638;">Error AJAX: ' + status + ' - ' + (err || 'sin respuesta') + '</span>');
+					});
+				}
+
+				sendBatch(0);
+			};
+			reader.readAsText(file);
+		});
+	}
 });

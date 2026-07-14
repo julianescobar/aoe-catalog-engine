@@ -1113,3 +1113,91 @@
 .aoe-chain-features ul li {
 	font-weight: 100;
 }
+
+.aoe-catalog-table-samtec>thead>tr>th:first-child,
+.aoe-catalog-table-samtec>thead>tr>th:nth-child(2),
+.aoe-catalog-table-samtec>tbody>tr>td:first-child,
+.aoe-catalog-table-samtec>tbody>tr>td:nth-child(2) {
+	width: 1%;
+	white-space: nowrap;
+}
+
+.aoe-catalog-caracteristicas {
+	position: relative;
+}
+
+.aoe-catalog-caracteristicas-texto {
+	display: block;
+	max-width: 350px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.aoe-caracteristicas-popup {
+	display: none;
+	position: absolute;
+	z-index: 100;
+	top: 100%;
+	left: 0;
+	right: 0;
+	max-width: 480px;
+	background: #fff;
+	border: 1px solid #ccc;
+	border-radius: 4px;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+	padding: 8px;
+	min-width: 300px;
+	max-height: 80vh;
+	overflow-y: auto;
+
+}
+
+.aoe-catalog-caracteristicas:hover .aoe-caracteristicas-popup {
+	display: block;
+}
+
+.aoe-caracteristicas-popup-table {
+	width: 100%;
+	border-collapse: collapse;
+	border: 1px solid #dddddd;
+}
+
+.aoe-caracteristicas-popup-table th,
+.aoe-caracteristicas-popup-table td {
+	padding: 4px 8px;
+	border-bottom: 1px solid #eee;
+	text-align: left;
+	font-size: 12px;
+	line-height: 1.4;
+}
+
+.aoe-caracteristicas-popup-table th {
+	font-weight: 600;
+	color: #333 !important;
+	background: none !important;
+	padding: 4px 16px 4px 8px;
+	white-space: nowrap;
+	font-size: 12px;
+	line-height: 1.4;
+	border: none;
+}
+
+#aoe-catalog-container .aoe-caracteristicas-popup-table td {
+	color: #666;
+	word-break: break-word;
+	overflow-wrap: break-word;
+	white-space: normal;
+}
+
+.aoe-caracteristicas-popup-table tbody tr:last-child th,
+.aoe-caracteristicas-popup-table tbody tr:last-child td {
+	border-bottom: none;
+}
+
+#aoe-catalog-container .aoe-caracteristicas-popup-table th {
+	background-color: #3b0c0c00 !important;
+	color: #000 !important;
+	font-weight: bold;
+	border: 1px solid #dddddd;
+}

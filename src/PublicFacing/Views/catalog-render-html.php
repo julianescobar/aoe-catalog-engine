@@ -298,11 +298,14 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 				?>
 				<div class="aoe-catalog-group-section">
 					<h3 class="aoe-cat-breadcrumb"><?php echo esc_html( implode( ' > ', $path_parts ) ); ?></h3>
-					<table class="aoe-catalog-table" itemscope itemtype="https://schema.org/ItemList">
+					<table class="aoe-catalog-table<?php echo $manufacturer_slug === 'samtec' ? ' aoe-catalog-table-samtec' : ''; ?>" itemscope itemtype="https://schema.org/ItemList">
 						<thead>
 							<tr>
 								<th>Codigo</th>
 								<th class="aoe-catalog-underlined">Nombre</th>
+								<?php if ( $manufacturer_slug === 'samtec' ) : ?>
+								<th>Características</th>
+								<?php endif; ?>
 								<th class="aoe-catalog-underlined">Fabricante</th>
 								<th>PDFs</th>
 							</tr>
@@ -315,6 +318,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 									$name      = (string) ( $product['name'] ?? '' );
 									$images    = is_array( $product['images'] ?? null ) ? $product['images'] : [];
 									$pdf       = is_array( $product['pdf'] ?? null ) ? $product['pdf'] : [];
+									$specs     = [];
 								} else {
 									$sku       = (string) ( $product->sku ?? '' );
 									$name      = (string) ( $product->name ?? '' );
@@ -323,8 +327,9 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 									$additional = (array) ( json_decode( $product->additional_data ?? '{}', true ) ?: [] );
 									$specs     = $additional['specs'] ?? [];
 								}
-								$has_specs = ! empty( $specs );
-								$images = array_map( function( $img ) use ( $manufacturer_slug, $media_source ) {
+					$has_specs = ! empty( $specs );
+					$specs_flat = $has_specs ? implode( ', ', array_values( $specs ) ) : '';
+					$images = array_map( function( $img ) use ( $manufacturer_slug, $media_source ) {
 									return aoe_catalog_resolve_media_url( $img, $manufacturer_slug, 'images', $media_source );
 								}, $images );
 								$pdf = aoe_catalog_resolve_pdf_urls( $pdf, $manufacturer_slug, $media_source );
@@ -357,6 +362,22 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 											<link itemprop="availability" href="https://schema.org/InStock">
 										</div>
 									</td>
+									<?php if ( $manufacturer_slug === 'samtec' ) : ?>
+									<td class="aoe-catalog-caracteristicas">
+										<span class="aoe-catalog-caracteristicas-texto"><?php echo esc_html( $specs_flat ); ?></span>
+										<?php if ( $has_specs ) : ?>
+										<div class="aoe-caracteristicas-popup">
+											<table class="aoe-caracteristicas-popup-table">
+												<tbody>
+													<?php foreach ( $specs as $skey => $sval ) : ?>
+													<tr><th><?php echo esc_html( $skey ); ?></th><td><?php echo esc_html( $sval ); ?></td></tr>
+													<?php endforeach; ?>
+												</tbody>
+											</table>
+										</div>
+										<?php endif; ?>
+									</td>
+									<?php endif; ?>
 									<td itemprop="brand" itemscope itemtype="https://schema.org/Brand"><span itemprop="name"><?php echo esc_html( ucfirst( $manufacturer_name ) ); ?></span></td>
 									<td class="aoe-catalog-actions"><?php echo aoe_catalog_render_pdf_icon_links( $has_pdf, $has_specs, ! empty( $image_url ) ); ?></td>
 								</tr>
@@ -415,11 +436,14 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 		</div>
 		<?php endif; ?>
 		<?php endif; ?>
-		<table class="aoe-catalog-table" itemscope itemtype="https://schema.org/ItemList">
+			<table class="aoe-catalog-table<?php echo $manufacturer_slug === 'samtec' ? ' aoe-catalog-table-samtec' : ''; ?>" itemscope itemtype="https://schema.org/ItemList">
 			<thead>
 				<tr>
 					<th>Codigo</th>
 					<th class="aoe-catalog-underlined">Nombre</th>
+					<?php if ( $manufacturer_slug === 'samtec' ) : ?>
+					<th>Características</th>
+					<?php endif; ?>
 					<th class="aoe-catalog-underlined">Fabricante</th>
 					<th>PDFs</th>
 				</tr>
@@ -442,6 +466,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 						$specs     = $additional['specs'] ?? [];
 					}
 					$has_specs = ! empty( $specs );
+					$specs_flat = $has_specs ? implode( ', ', array_values( $specs ) ) : '';
 					$images = array_map( function( $img ) use ( $manufacturer_slug, $media_source ) {
 						return aoe_catalog_resolve_media_url( $img, $manufacturer_slug, 'images', $media_source );
 					}, $images );
@@ -475,6 +500,22 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 								<link itemprop="availability" href="https://schema.org/InStock">
 							</div>
 						</td>
+						<?php if ( $manufacturer_slug === 'samtec' ) : ?>
+						<td class="aoe-catalog-caracteristicas">
+							<span class="aoe-catalog-caracteristicas-texto"><?php echo esc_html( $specs_flat ); ?></span>
+							<?php if ( $has_specs ) : ?>
+							<div class="aoe-caracteristicas-popup">
+								<table class="aoe-caracteristicas-popup-table">
+									<tbody>
+										<?php foreach ( $specs as $skey => $sval ) : ?>
+										<tr><th><?php echo esc_html( $skey ); ?></th><td><?php echo esc_html( $sval ); ?></td></tr>
+										<?php endforeach; ?>
+									</tbody>
+								</table>
+							</div>
+							<?php endif; ?>
+						</td>
+						<?php endif; ?>
 						<td itemprop="brand" itemscope itemtype="https://schema.org/Brand"><span itemprop="name"><?php echo esc_html( ucfirst( $manufacturer_name ) ); ?></span></td>
 						<td class="aoe-catalog-actions"><?php echo aoe_catalog_render_pdf_icon_links( $has_pdf, $has_specs, ! empty( $image_url ) ); ?></td>
 					</tr>

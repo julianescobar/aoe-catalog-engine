@@ -31,6 +31,24 @@ if ( ! defined( 'ABSPATH' ) ) {
 			<div id="aoe-structure-status" style="margin-top: 10px;"></div>
 		</div>
 	</div>
+	<?php if ( 'samtec' === $manufacturer->slug ) : ?>
+	<div class="aoe-card" id="aoe-specs-card">
+		<div class="aoe-step active">
+			<div class="aoe-step-title">Ficha Técnica de productos</div>
+			<p>Sube el archivo CSV con las especificaciones técnicas de cada producto (544 columnas de atributos). Solo se actualizarán los productos existentes.</p>
+			<div class="aoe-form-group">
+				<label for="csv_specs">Subir Ficha Técnica CSV de producto</label>
+				<input type="file" id="csv_specs" accept=".csv" />
+			</div>
+			<div id="aoe-specs-status" style="margin-top: 10px;"></div>
+			<div class="aoe-progress-container" id="aoe-specs-progress-container" style="display:none;">
+				<div class="aoe-progress-bar" id="aoe-specs-progress-bar"></div>
+			</div>
+			<div class="aoe-progress-status" id="aoe-specs-progress-text"></div>
+			<pre class="aoe-log-box" id="aoe-specs-log" style="display:none;"></pre>
+		</div>
+	</div>
+	<?php endif; ?>
 	<?php endif; ?>
 
 	<div class="aoe-card">
