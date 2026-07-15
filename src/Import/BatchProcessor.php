@@ -504,16 +504,7 @@ class BatchProcessor {
 								'sort_order'     => count( $tree_segments ) + 1,
 							];
 						}
-					} else {
-						$tree_segments[] = [
-							'manufacturer_id' => $manufacturer_id,
-							'category_id'    => $cat->id,
-							'segment_type'   => 'category',
-							'products_from'  => 0,
-							'products_to'    => (int) $cat->products_count,
-							'sort_order'     => count( $tree_segments ) + 1,
-						];
-					}
+				}
 				}
 				$page_id = PageRepository::insert( [
 					'manufacturer_id' => $manufacturer_id,

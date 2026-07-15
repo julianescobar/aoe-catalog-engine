@@ -410,14 +410,8 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 				<?php if ( ! empty( $img ) ) : ?>
 				<div class="aoe-chain-img"><img src="<?php echo esc_url( $img ); ?>" alt="<?php echo esc_attr( $name ); ?>"></div>
 				<?php endif; ?>
-				<?php
-				$feat_text = str_replace( '\n', "\n", $feats );
-				$feat_parts = preg_split( '/\s*[|;\n]\s*/', $feat_text );
-				$feat_list = array_values( array_filter( array_map( 'trim', $feat_parts ) ) );
-				if ( ! empty( $feat_list ) ) : ?>
-				<div class="aoe-chain-features"><h5>Características</h5>
-					<ul><?php foreach ( $feat_list as $f ) : ?><li><?php echo esc_html( $f ); ?></li><?php endforeach; ?></ul>
-				</div>
+				<?php $feats = trim( $feats ); if ( $feats !== '' ) : ?>
+				<div class="aoe-chain-features"><?php echo wp_kses_post( $feats ); ?></div>
 				<?php endif; ?>
 			</div>
 			<?php endforeach; ?>
