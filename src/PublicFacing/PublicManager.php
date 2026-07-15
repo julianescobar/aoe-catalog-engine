@@ -780,12 +780,12 @@ class PublicManager {
 	}
 
 	public function shortcode_catalogo( $atts ) {
-		$atts = shortcode_atts( [ 'manufacturer' => '', 'category' => '' ], $atts, 'catalogo' );
+		$atts = shortcode_atts( [ 'fabricante' => '', 'categoria' => '' ], $atts, 'catalogo' );
 		// No attributes → placeholder marker for template caching (str_replace in single-catalog.php)
-		if ( empty( $atts['manufacturer'] ) && empty( $atts['category'] ) ) {
+		if ( empty( $atts['fabricante'] ) && empty( $atts['categoria'] ) ) {
 			return '[catalogo]';
 		}
-		if ( empty( $atts['manufacturer'] ) || empty( $atts['category'] ) ) {
+		if ( empty( $atts['fabricante'] ) || empty( $atts['categoria'] ) ) {
 			return '';
 		}
 
@@ -805,7 +805,7 @@ class PublicManager {
 
 		$manufacturer = $wpdb->get_row( $wpdb->prepare(
 			"SELECT id, name AS manufacturer_name FROM $table_m WHERE slug = %s",
-			$atts['manufacturer']
+			$atts['fabricante']
 		) );
 		if ( ! $manufacturer ) {
 			return '';
@@ -813,13 +813,13 @@ class PublicManager {
 
 		$category = $wpdb->get_row( $wpdb->prepare(
 			"SELECT * FROM $table_cat WHERE manufacturer_id = %d AND slug = %s",
-			(int) $manufacturer->id, $atts['category']
+			(int) $manufacturer->id, $atts['categoria']
 		) );
 		if ( ! $category ) {
 			return '';
 		}
 
-		$page_slug_base = $atts['manufacturer'] . '/' . $atts['category'];
+		$page_slug_base = $atts['fabricante'] . '/' . $atts['categoria'];
 		$req_page = max( 1, intval( $_GET['pag'] ?? 1 ) );
 		if ( $req_page > 1 ) {
 			$redirect = home_url( '/catalogo/' . $page_slug_base . '-' . $req_page . '/' );
@@ -887,7 +887,7 @@ class PublicManager {
 			1,
 			$total_pages,
 			false,
-			$atts['manufacturer'],
+			$atts['fabricante'],
 			[],
 			null,
 			$breadcrumb_path,
