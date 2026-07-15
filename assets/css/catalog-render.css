@@ -1124,11 +1124,11 @@
 
 .aoe-catalog-caracteristicas {
 	position: relative;
+	max-width: 260px;
 }
 
 .aoe-catalog-caracteristicas-texto {
 	display: block;
-	max-width: 350px;
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;

@@ -477,12 +477,14 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 	?>
 	<div class="aoe-tree aoe-tree-<?php echo esc_attr( $manufacturer_slug ); ?>" id="aoe-catalog-container">
 		<h2>Catálogo de componentes <?php echo esc_html( $page->manufacturer_name ); ?></h2>
-		<?php if ( $manufacturer_slug === 'samtec' ) :
+		<?php 		if ( $manufacturer_slug === 'samtec' ) :
 			if ( $is_samtec_index ) {
-				$level1_for_nav = $segments;
+				$level1_for_nav = array_values( array_filter( $segments, function( $s ) {
+					return (int) $s->level === 1 || $s->category_slug === 'sin-clasificar';
+				} ) );
 			} else {
 				$level1_for_nav = $wpdb->get_results( $wpdb->prepare(
-					"SELECT c.slug AS category_slug, c.name AS category_name
+					"SELECT c.slug AS category_slug, c.name AS category_name, c.level
 					 FROM {$wpdb->prefix}aoe_catalog_page_segments ps
 					 JOIN {$wpdb->prefix}aoe_catalog_pregenerated_pages p ON ps.page_id = p.id
 					 JOIN {$wpdb->prefix}aoe_catalog_categories c ON ps.category_id = c.id
@@ -491,6 +493,9 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 					$page->manufacturer_id,
 					$manufacturer_slug_base
 				) );
+				$level1_for_nav = array_values( array_filter( $level1_for_nav, function( $s ) {
+					return (int) $s->level === 1 || $s->category_slug === 'sin-clasificar';
+				} ) );
 			}
 		?>
 		<?php if ( $is_samtec_index || ( $is_samtec_subtree ) ) :
@@ -516,10 +521,16 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 		?>
 		<nav class="aoe-catalog-pagination" aria-label="Categoria">
 			<span class="aoe-catalog-bold">Categoría:</span>
-			<?php foreach ( $level1_for_nav as $l1 ) :
-				if ( ! isset( $valid_slug_map[ $l1->category_slug ] ) ) continue;
-				$cat_url = home_url( '/catalogo/' . $manufacturer_slug_base . '/' . $l1->category_slug . '/' );
-				$is_current = ( $l1->category_slug === $current_cat_slug );
+			<?php foreach ( $level1_for_nav as $idx => $l1 ) :
+				$has_page = isset( $valid_slug_map[ $l1->category_slug ] );
+				if ( ! $has_page && $idx > 0 ) continue;
+				if ( $has_page ) {
+					$cat_url = home_url( '/catalogo/' . $manufacturer_slug_base . '/' . $l1->category_slug . '/' );
+					$is_current = ( $l1->category_slug === $current_cat_slug );
+				} else {
+					$cat_url = home_url( '/catalogo/' . $manufacturer_slug_base . '/' );
+					$is_current = $is_samtec_index;
+				}
 			?>
 				<?php if ( $is_current ) : ?>
 					<span class="aoe-catalog-page-link current"><?php echo esc_html( $l1->category_name ); ?></span>
@@ -554,7 +565,7 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 			<?php endfor; ?>
 		</nav>
 		<?php endif; ?>
-		<?php if ( ! $is_samtec_index ) : ?>
+		<?php if ( true ) : ?>
 		<?php
 		global $wpdb;
 		$level3_with_children = [];
