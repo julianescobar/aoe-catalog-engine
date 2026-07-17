@@ -87,8 +87,9 @@ $catalogs = get_posts( [
 					<select name="tree_layout" id="m_tree_layout">
 						<option value="normal" <?php selected( $tree_layout, 'normal' ); ?>>Normal (tabla jerárquica)</option>
 						<option value="columns" <?php selected( $tree_layout, 'columns' ); ?>>Columnas (grilla plana)</option>
+						<option value="table_desc" <?php selected( $tree_layout, 'table_desc' ); ?>>Tabla con descripción</option>
 					</select>
-					<p class="description">Usar "Columnas" cuando no haya clasificación y sea una lista plana de modelos sin más información.</p>
+					<p class="description">"Tabla con descripción" agrega una columna extra con la descripción al final del árbol. Ideal para series/familias de productos.</p>
 				</div>
 
 				<div class="aoe-form-group" id="aoe-columns-field" style="<?php echo $tree_layout !== 'columns' ? 'display:none;' : ''; ?>">

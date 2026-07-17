@@ -32,4 +32,12 @@ interface ProcessorInterface {
 	 * @return int
 	 */
 	public function get_page_threshold(): int;
+
+	/**
+	 * Whether this manufacturer manages categories via a separate import (Step 0).
+	 * If true, product import in replace mode will NOT delete categories.
+	 *
+	 * @return bool
+	 */
+	public function has_separate_categories(): bool;
 }

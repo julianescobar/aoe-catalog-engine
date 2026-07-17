@@ -49,6 +49,25 @@ if ( ! defined( 'ABSPATH' ) ) {
 		</div>
 	</div>
 	<?php endif; ?>
+	<?php elseif ( 'bivar' === $manufacturer->slug ) : ?>
+	<div class="aoe-card" id="aoe-bivar-structure-card">
+		<div class="aoe-step active">
+			<div class="aoe-step-title">0. Estructura de categorías</div>
+			<p>Sube el archivo <strong>categories.csv</strong> de Bivar con la jerarquía de categorías.</p>
+			<div class="aoe-form-group">
+				<label for="csv_bivar_structure">Seleccionar archivo CSV</label>
+				<input type="file" id="csv_bivar_structure" accept=".csv" />
+			</div>
+			<div class="aoe-form-group" style="margin-top:10px;">
+				<label style="font-weight: normal;">
+					<input type="checkbox" id="aoe-bivar-update-only" />
+					<strong>Solo actualizar información</strong> — No borrar categorías existentes, solo actualizar descripción e imagen.
+				</label>
+			</div>
+			<div id="aoe-bivar-sep-row" style="margin-top:10px;"></div>
+			<div id="aoe-bivar-structure-status" style="margin-top: 10px;"></div>
+		</div>
+	</div>
 	<?php endif; ?>
 
 	<div class="aoe-card">

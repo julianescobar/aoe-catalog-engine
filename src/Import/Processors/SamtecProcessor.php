@@ -8,6 +8,10 @@ class SamtecProcessor extends BaseProcessor {
 		return 'samtec';
 	}
 
+	public function has_separate_categories(): bool {
+		return true;
+	}
+
 	public function get_supported_columns(): array {
 		return [ 'Part', 'Description', 'ImageUrl', 'Print', 'Footprint', 'CatalogPage', 'SpecSheet' ];
 	}

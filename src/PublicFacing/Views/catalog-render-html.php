@@ -222,7 +222,8 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 				z-index: 100000 !important;
 			}
 	</style>
-	<div class="aoe-catalog-render" id="aoe-catalog-container">
+	<?php $tree_layout = $category_metadata['tree_layout'] ?? ''; ?>
+	<div class="aoe-catalog-render aoe-catalog-<?php echo esc_attr( $manufacturer_slug ); ?> aoe-tree-layout-<?php echo esc_attr( $tree_layout ); ?>" id="aoe-catalog-container">
 		<header>
 			<h2>Catálogo de componentes <?php echo esc_html( ucfirst( $manufacturer_name ) ); ?><?php
 				if ( ! empty( $category_display_name ) ) {
@@ -390,7 +391,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 		<?php if ( ! empty( $breadcrumb_path ) ) : ?>
 			<h3 class="aoe-cat-breadcrumb"><?php echo esc_html( implode( ' > ', $breadcrumb_path ) ); ?></h3>
 		<?php endif; ?>
-		<?php if ( $manufacturer_slug === 'samtec' && ! empty( $category_chain ) ) : ?>
+		<?php if ( in_array( $manufacturer_slug, [ 'samtec', 'bivar' ], true ) && ! empty( $category_chain ) ) : ?>
 		<div class="aoe-category-chain">
 			<?php foreach ( $category_chain as $link ) :
 				$name  = $link['name'] ?? '';
@@ -404,9 +405,20 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 			?>
 			<div class="aoe-chain-level aoe-chain-level-<?php echo (int) $level; ?> aoe-cat-level-<?php echo (int) $level; ?>">
 				<<?php echo $heading_tag; ?>><?php echo esc_html( $name ); ?></<?php echo $heading_tag; ?>>
-				<?php if ( ! empty( $desc ) ) : ?>
-				<<?php echo $desc_wrapper; ?> class="aoe-chain-desc"><?php echo wp_kses_post( str_replace( '\n', "\n", $desc ) ); ?></<?php echo $desc_wrapper; ?>>
-				<?php endif; ?>
+				<?php if ( ! empty( $desc ) ) :
+					if ( $manufacturer_slug === 'bivar' && $level >= 3 ) {
+						$lines = explode( "\n", str_replace( '\n', "\n", $desc ) );
+						echo '<ul class="aoe-chain-desc">';
+						foreach ( $lines as $line ) {
+							$line = trim( $line );
+							if ( $line === '' ) continue;
+							$line = preg_replace( '/^-\s*/', '', $line );
+							echo '<li>' . esc_html( $line ) . '</li>';
+						}
+						echo '</ul>';
+					} else {
+				?><<?php echo $desc_wrapper; ?> class="aoe-chain-desc"><?php echo wp_kses_post( str_replace( '\n', "\n", $desc ) ); ?></<?php echo $desc_wrapper; ?>>
+				<?php } endif; ?>
 				<?php if ( ! empty( $img ) ) : ?>
 				<div class="aoe-chain-img"><img src="<?php echo esc_url( $img ); ?>" alt="<?php echo esc_attr( $name ); ?>"></div>
 				<?php endif; ?>
@@ -417,7 +429,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 			<?php endforeach; ?>
 		</div>
 		<?php endif; ?>
-		<?php if ( $manufacturer_slug !== 'samtec' ) : ?>
+		<?php if ( ! in_array( $manufacturer_slug, [ 'samtec', 'bivar' ], true ) ) : ?>
 		<?php if ( ! empty( $category_metadata['description'] ) ) : ?>
 		<div class="aoe-series-description"><?php echo wp_kses_post( $category_metadata['description'] ); ?></div>
 		<?php endif; ?>
@@ -558,49 +570,8 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 						</div>
 					</div>
 				</div>
-		</div>
-
-		<!--<div class="fusion-modal modal modal-productos-formulario aoe-catalog-modal" tabindex="-1" role="dialog" aria-hidden="true">
-			<div class="modal-dialog modal-lg" role="document">
-				<div class="modal-content fusion-modal-content">
-					<div class="modal-header">
-						<button class="close" type="button" data-dismiss="modal" aria-hidden="true">&times;</button>
-						<h3 class="modal-title">Quiero más información</h3>
-					</div>
-					<div class="modal-body fusion-clearfix">
-						<p id="modal-contacto-sku-info" class="aoe-catalog-contact-sku"></p>
-						<?php
-						// Reemplazar con el shortcode del formulario Avada:
-						// echo do_shortcode( '[fusion_form form_post_id="XXX" /]' );
-						?>
-						<form id="aoe-contacto-form" class="aoe-catalog-form">
-							<input type="hidden" name="sku" id="aoe-contacto-sku" value="">
-							<div class="aoe-form-row">
-								<label for="aoe-contacto-nombre">Nombre *</label>
-								<input type="text" name="nombre" id="aoe-contacto-nombre" required>
-							</div>
-							<div class="aoe-form-row">
-								<label for="aoe-contacto-email">Email *</label>
-								<input type="email" name="email" id="aoe-contacto-email" required>
-							</div>
-							<div class="aoe-form-row">
-								<label for="aoe-contacto-telefono">Teléfono</label>
-								<input type="tel" name="telefono" id="aoe-contacto-telefono">
-							</div>
-							<div class="aoe-form-row">
-								<label for="aoe-contacto-mensaje">Mensaje *</label>
-								<textarea name="mensaje" id="aoe-contacto-mensaje" rows="4" required></textarea>
-							</div>
-							<div class="aoe-form-row">
-								<button type="submit" class="fusion-button button-flat fusion-button-default-size button-default fusion-button-default">Enviar</button>
-							</div>
-						</form>
-					</div>
-				</div>
-			</div>
-		</div>-->
+		</div>		
 	</div>
-
 	</div>
 	<?php
 	return ob_get_clean();

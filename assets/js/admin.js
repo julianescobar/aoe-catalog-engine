@@ -486,6 +486,61 @@ jQuery(document).ready(function ($) {
 		});
 	}
 
+	// Bivar structure import (different CSV format: categories.csv)
+	$('#csv_bivar_structure').on('change', function (e) {
+		var file = e.target.files[0];
+		if (!file) return;
+
+		var reader = new FileReader();
+		reader.onload = function (evt) {
+			var content = evt.target.result.replace(/^\uFEFF/, '');
+			window.aoeBivarCsvContent = content;
+
+			var firstLine = content.split('\n')[0] || '';
+			var sep = firstLine.indexOf('\t') !== -1 ? '\t' : firstLine.indexOf(';') !== -1 ? ';' : ',';
+
+			var html = '<label style="font-weight:600;">Separador: </label>';
+			html += '<select id="aoe-bivar-sep-select">';
+			['\t', ';', ','].forEach(function (s) {
+				var label = s === '\t' ? 'Tabulación' : s === ';' ? 'Punto y coma' : 'Coma';
+				html += '<option value="' + s + '"' + (s === sep ? ' selected' : '') + '>' + label + '</option>';
+			});
+			html += '</select> <button type="button" class="button button-primary" id="aoe-btn-import-bivar-structure" style="margin-left:10px;">Importar estructura</button>';
+			$('#aoe-bivar-sep-row').html(html);
+
+			var $status = $('#aoe-bivar-structure-status');
+			var rows = content.split('\n').filter(function (l) { return l.trim(); });
+			$status.html('<p style="color:#888;">' + (rows.length - 1) + ' registros detectados.</p>');
+
+			$('#aoe-btn-import-bivar-structure').off('click').on('click', function () {
+				$('#aoe-bivar-structure-status').html('<p><em>Importando estructura...</em></p>');
+				$.ajax({
+					url: ajaxurl,
+					method: 'POST',
+					data: {
+						action: 'aoe_import_bivar_categories',
+						manufacturer: $('#manufacturer_slug').val(),
+						csv_content: window.aoeBivarCsvContent,
+						update_only: $('#aoe-bivar-update-only').is(':checked') ? '1' : '0'
+					},
+					success: function (resp) {
+						var $status = $('#aoe-bivar-structure-status');
+						if (resp.success) {
+							$status.html('<p style="color:#46b450;font-weight:600;">✓ ' + resp.data.message + '</p>');
+						} else {
+							$status.html('<p style="color:#d63638;">Error: ' + resp.data + '</p>');
+						}
+					},
+					error: function () {
+						$('#aoe-bivar-structure-status').html('<p style="color:#d63638;">Error de conexión al importar estructura.</p>');
+					}
+				});
+			});
+		};
+
+		reader.readAsText(file);
+	});
+
 	// Regenerate pages per manufacturer
 	$(document).on('click', '.aoe-regenerate-pages', function (e) {
 		e.preventDefault();

@@ -21,6 +21,7 @@ class AdminManager {
 		add_action( 'wp_ajax_aoe_import_structure', [ $this, 'ajax_import_structure' ] );
 		add_action( 'wp_ajax_aoe_import_samtec_categories', [ $this, 'ajax_import_samtec_categories' ] );
 		add_action( 'wp_ajax_aoe_import_samtec_specs', [ $this, 'ajax_import_samtec_specs' ] );
+		add_action( 'wp_ajax_aoe_import_bivar_categories', [ $this, 'ajax_import_bivar_categories' ] );
 		add_action( 'save_post', [ $this, 'invalidate_cache_on_template_save' ], 10, 2 );
 	}
 
@@ -245,7 +246,7 @@ class AdminManager {
 			}
 			$config['seo_title_template'] = sanitize_text_field( $_POST['seo_title_template'] ?? '' );
 			$config['seo_description_template'] = sanitize_textarea_field( $_POST['seo_description_template'] ?? '' );
-			$config['tree_layout'] = in_array( $_POST['tree_layout'] ?? '', [ 'normal', 'columns' ] ) ? $_POST['tree_layout'] : 'normal';
+			$config['tree_layout'] = in_array( $_POST['tree_layout'] ?? '', [ 'normal', 'columns', 'table_desc' ] ) ? $_POST['tree_layout'] : 'normal';
 			$config['tree_columns'] = min( 8, max( 2, intval( $_POST['tree_columns'] ?? 4 ) ) );
 			$config['media_source'] = in_array( $_POST['media_source'] ?? '', [ 'remote', 'local' ] ) ? $_POST['media_source'] : 'local';
 
@@ -976,6 +977,181 @@ class AdminManager {
 		wp_send_json_success( [
 			'processed' => $processed,
 			'errors'    => $errors,
+		] );
+	}
+
+	public function ajax_import_bivar_categories() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( 'Acceso no autorizado' );
+		}
+
+		global $wpdb;
+		$manufacturer_slug = sanitize_text_field( $_POST['manufacturer'] ?? '' );
+		$csv_content       = isset( $_POST['csv_content'] ) ? wp_unslash( $_POST['csv_content'] ) : '';
+		$update_only       = ! empty( $_POST['update_only'] );
+
+		if ( empty( $manufacturer_slug ) || empty( $csv_content ) ) {
+			wp_send_json_error( 'Datos incompletos' );
+		}
+
+		$table_m = $wpdb->prefix . 'aoe_catalog_manufacturers';
+		$table_c = $wpdb->prefix . 'aoe_catalog_categories';
+
+		$manufacturer = $wpdb->get_row( $wpdb->prepare(
+			"SELECT id FROM $table_m WHERE slug = %s",
+			$manufacturer_slug
+		) );
+		if ( ! $manufacturer ) {
+			wp_send_json_error( 'Fabricante no encontrado' );
+		}
+		$mfr_id = (int) $manufacturer->id;
+
+		// Parse CSV
+		$lines = explode( "\n", $csv_content );
+		if ( count( $lines ) < 2 ) {
+			wp_send_json_error( 'CSV vacío o sin datos' );
+		}
+
+		$header = str_getcsv( trim( $lines[0] ), ',' );
+		$header = array_map( 'trim', $header );
+
+		$col_map = array_flip( $header );
+		foreach ( [ 'name', 'level' ] as $col ) {
+			if ( ! isset( $col_map[ $col ] ) ) {
+				wp_send_json_error( "Columna requerida '$col' no encontrada en CSV" );
+			}
+		}
+
+		$has_breadcrumb = isset( $col_map['breadcrumb_names'] );
+
+		// Parse rows, skip level <= 1 (All Categories)
+		$rows = [];
+		for ( $i = 1; $i < count( $lines ); $i++ ) {
+			$line = trim( $lines[ $i ] );
+			if ( $line === '' ) continue;
+			$cols = str_getcsv( $line, ',' );
+			if ( count( $cols ) < count( $header ) ) continue;
+			$data = [];
+			foreach ( $col_map as $col_name => $col_idx ) {
+				$data[ $col_name ] = isset( $cols[ $col_idx ] ) ? trim( $cols[ $col_idx ] ) : '';
+			}
+			$level = (int) $data['level'];
+			if ( $level <= 1 ) continue;
+			$data['_normalized_level'] = $level >= 5 ? 3 : ( $level - 1 );
+			$rows[] = $data;
+		}
+
+		if ( empty( $rows ) ) {
+			wp_send_json_error( 'No se encontraron filas válidas en el CSV' );
+		}
+
+		// Sort by level so parents come before children
+		usort( $rows, function ( $a, $b ) {
+			return $a['_normalized_level'] - $b['_normalized_level'];
+		} );
+
+		if ( ! $update_only ) {
+			// Clean import: delete existing categories
+			$wpdb->delete( $table_c, [ 'manufacturer_id' => $mfr_id ], [ '%d' ] );
+		}
+
+		/**
+		 * Find a category by name + parent_id within this manufacturer.
+		 */
+		$find_cat = function ( $name, $parent_id ) use ( $wpdb, $table_c, $mfr_id ) {
+			if ( $parent_id === null ) {
+				return $wpdb->get_var( $wpdb->prepare(
+					"SELECT id FROM $table_c WHERE manufacturer_id = %d AND name = %s AND parent_id IS NULL LIMIT 1",
+					$mfr_id, $name
+				) );
+			}
+			return $wpdb->get_var( $wpdb->prepare(
+				"SELECT id FROM $table_c WHERE manufacturer_id = %d AND name = %s AND parent_id = %d LIMIT 1",
+				$mfr_id, $name, $parent_id
+			) );
+		};
+
+		$is_null_literal = function ( $v ) {
+			return strtolower( trim( (string) $v ) ) === 'null';
+		};
+
+		$created = 0;
+		$updated = 0;
+		foreach ( $rows as $row ) {
+			$name  = $row['name'] ?? '';
+			$level = $row['_normalized_level'] ?? 1;
+
+			if ( empty( $name ) || $is_null_literal( $name ) ) continue;
+
+			// Resolve parent
+			$parent_id = null;
+			if ( $level > 1 && $has_breadcrumb ) {
+				$bc_raw = $row['breadcrumb_names'] ?? '';
+				$bc_parts = array_values( array_filter(
+					array_map( 'trim', explode( '>', $bc_raw ) ),
+					function ( $p ) use ( $is_null_literal ) {
+						return strtolower( $p ) !== 'all categories'
+							&& strtolower( $p ) !== 'view items'
+							&& ! $is_null_literal( $p );
+					}
+				) );
+				if ( count( $bc_parts ) >= 2 ) {
+					$parent_name    = $bc_parts[ count( $bc_parts ) - 2 ];
+					$grandparent_id = null;
+					if ( count( $bc_parts ) > 2 ) {
+						$gp_name = $bc_parts[ count( $bc_parts ) - 3 ] ?? '';
+						if ( ! empty( $gp_name ) && ! $is_null_literal( $gp_name ) ) {
+							$grandparent_id = $find_cat( $gp_name, null );
+						}
+					}
+					if ( ! $is_null_literal( $parent_name ) ) {
+						$parent_id = $find_cat( $parent_name, $grandparent_id );
+						if ( ! $parent_id && $grandparent_id !== null ) {
+							$parent_id = $find_cat( $parent_name, null );
+						}
+					}
+				}
+			}
+
+			$desc = ( $row['description'] ?? '' );
+			$img  = ( $row['image_url'] ?? '' );
+			if ( $is_null_literal( $desc ) ) $desc = '';
+			if ( $is_null_literal( $img ) ) $img = '';
+
+			$existing_id = $find_cat( $name, $parent_id );
+			if ( $existing_id ) {
+				if ( $update_only ) {
+					$wpdb->update( $table_c,
+						[ 'description' => $desc, 'image' => $img ],
+						[ 'id' => $existing_id ],
+						[ '%s', '%s' ],
+						[ '%d' ]
+					);
+				}
+				$updated++;
+			} else {
+				$slug = sanitize_title( $name );
+				$wpdb->insert( $table_c, [
+					'manufacturer_id' => $mfr_id,
+					'parent_id'       => $parent_id,
+					'name'            => $name,
+					'slug'            => $slug,
+					'type'            => 'category',
+					'description'     => $desc,
+					'image'           => $img,
+					'level'           => $level,
+					'products_count'  => 0,
+					'metadata_json'   => json_encode( [] ),
+				], [ '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%s' ] );
+				$created++;
+			}
+		}
+
+		wp_send_json_success( [
+			'message' => sprintf(
+				'Categorías: %d creadas, %d actualizadas.',
+				$created, $updated
+			),
 		] );
 	}
 

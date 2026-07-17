@@ -10,6 +10,10 @@ class EdacProcessor extends BaseProcessor {
 		return 'edac';
 	}
 
+	public function has_separate_categories(): bool {
+		return true;
+	}
+
 	public function get_page_threshold(): int {
 		return 0;
 	}

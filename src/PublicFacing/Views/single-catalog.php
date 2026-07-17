@@ -259,12 +259,12 @@ $total_pages       = 1;
 
 // Tree layout config
 $mfr_config = json_decode( $page->config_json ?? '', true ) ?: [];
-$tree_layout = $mfr_config['tree_layout'] ?? 'normal';
-// Samtec uses hierarchical normal layout regardless of config
-if ( $manufacturer_slug === 'samtec' ) {
-	$tree_layout = 'normal';
-}
-$tree_columns = min( 8, max( 2, intval( $mfr_config['tree_columns'] ?? 4 ) ) );
+	$tree_layout  = $mfr_config['tree_layout'] ?? 'normal';
+	$tree_columns = min( 8, max( 2, intval( $mfr_config['tree_columns'] ?? 4 ) ) );
+
+	if ( $manufacturer_slug === 'samtec' && $tree_layout === 'normal' ) {
+		$tree_layout = 'table_desc';
+	}
 
 aoe_profile_mark( 'before_segments_query' );
 $segments = $wpdb->get_results( $wpdb->prepare(
@@ -475,7 +475,7 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 	$is_samtec_index = ( $manufacturer_slug === 'samtec' && strpos( $page->slug, '/' ) === false );
 
 	?>
-	<div class="aoe-tree aoe-tree-<?php echo esc_attr( $manufacturer_slug ); ?>" id="aoe-catalog-container">
+	<div class="aoe-tree aoe-tree-<?php echo esc_attr( $manufacturer_slug ); ?> aoe-tree-layout-<?php echo esc_attr( $tree_layout ); ?>" id="aoe-catalog-container">
 		<h2>Catálogo de componentes <?php echo esc_html( $page->manufacturer_name ); ?></h2>
 		<?php 		if ( $manufacturer_slug === 'samtec' ) :
 			$level1_for_nav = $wpdb->get_results( $wpdb->prepare(
@@ -669,9 +669,9 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 				return;
 			}
 
-			if ( $manufacturer_slug === 'samtec' && $tree_layout !== 'columns' ) {
+			if ( $tree_layout === 'table_desc' ) {
 				$real_level = ! empty( $items ) ? (int) $items[0]->level : $level;
-				if ( $real_level >= 4 ) {
+				if ( $real_level >= $max_level ) {
 					echo '<div class="aoe-cat-table-level-4"><table class="aoe-cat-tree-table">';
 					foreach ( $items as $item ) {
 						$count = (int) ( $segments_by_id[ $item->category_id ]->products_to ?? 0 );
@@ -813,7 +813,7 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 				}
 				$display_level = (int) $item->level;
 				$row_class = 'aoe-cat-row aoe-cat-level-' . $display_level;
-				if ( $is_leaf ) {
+				if ( $is_leaf && ! ( $manufacturer_slug === 'camdenboss' && (int) $item->level <= 1 ) ) {
 					$row_class .= ( $leaf_idx % 2 === 0 ) ? ' aoe-cat-row-even' : ' aoe-cat-row-odd';
 					$leaf_idx++;
 				}
@@ -834,7 +834,7 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 				echo '<tr class="' . $row_class . '">';
 				echo '<td class="aoe-cat-name"' . ( $has_desc ? '' : ' colspan="2"' ) . '>';
 
-				if ( ! $is_leaf && $level === 0 ) {
+				if ( $level === 0 ) {
 					echo '<h3>';
 				} elseif ( ! $is_leaf && $level === 1 ) {
 					echo '<h4>';
@@ -848,7 +848,7 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 					echo esc_html( $item->category_name );
 				}
 
-				if ( ! $is_leaf && $level === 0 ) {
+				if ( $level === 0 ) {
 					echo '</h3>';
 				} elseif ( ! $is_leaf && $level === 1 ) {
 					echo '</h4>';
