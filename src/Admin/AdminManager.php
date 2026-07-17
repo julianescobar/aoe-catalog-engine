@@ -47,17 +47,7 @@ class AdminManager {
 			[ $this, 'display_manufacturers_page' ]
 		);
 
-		// Submenu 2: SEO
-		add_submenu_page(
-			'aoe-catalog-engine',
-			'SEO Catálogo',
-			'SEO',
-			'manage_options',
-			'aoe-catalog-seo',
-			[ $this, 'display_seo_settings_page' ]
-		);
-
-		// Submenu 3: Logs
+		// Submenu 2: Logs
 		add_submenu_page(
 			'aoe-catalog-engine',
 			'Logs',
@@ -124,21 +114,6 @@ class AdminManager {
 		// Default view: list manufacturers
 		$manufacturers = $wpdb->get_results( "SELECT * FROM $table_name ORDER BY name ASC" );
 		require_once __DIR__ . '/Views/manufacturers-list.php';
-	}
-
-	/**
-	 * Display System Logs
-	 */
-	public function display_seo_settings_page() {
-		if ( isset( $_POST['save_aoe_seo'] ) && wp_verify_nonce( $_POST['_wpnonce'], 'aoe_seo_settings' ) ) {
-			update_option( 'aoe_catalog_seo_title_template', sanitize_text_field( $_POST['seo_title_template'] ?? '' ) );
-			update_option( 'aoe_catalog_seo_description_template', sanitize_textarea_field( $_POST['seo_description_template'] ?? '' ) );
-			echo '<div class="notice notice-success"><p>Ajustes SEO guardados.</p></div>';
-		}
-
-		$title_template = get_option( 'aoe_catalog_seo_title_template', 'Catálogo de productos de {manufacturer}: TC Componentes' );
-		$desc_template  = get_option( 'aoe_catalog_seo_description_template', 'TC Componentes es distribuidor de {manufacturer} en España. Catálogo completo de productos, documentación técnica y soporte técnico especializado.' );
-		require_once __DIR__ . '/Views/seo-settings.php';
 	}
 
 	public function display_logs_page() {
@@ -244,8 +219,7 @@ class AdminManager {
 			} else {
 				$config = [];
 			}
-			$config['seo_title_template'] = sanitize_text_field( $_POST['seo_title_template'] ?? '' );
-			$config['seo_description_template'] = sanitize_textarea_field( $_POST['seo_description_template'] ?? '' );
+			unset( $config['seo_title_template'], $config['seo_description_template'] );
 			$config['tree_layout'] = in_array( $_POST['tree_layout'] ?? '', [ 'normal', 'columns', 'table_desc' ] ) ? $_POST['tree_layout'] : 'normal';
 			$config['tree_columns'] = min( 8, max( 2, intval( $_POST['tree_columns'] ?? 4 ) ) );
 			$config['media_source'] = in_array( $_POST['media_source'] ?? '', [ 'remote', 'local' ] ) ? $_POST['media_source'] : 'local';

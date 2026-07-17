@@ -223,8 +223,8 @@ $page = $wpdb->get_row( $wpdb->prepare(
 aoe_profile_mark( 'after_page_query' );
 
 if ( ! $page ) {
-	// Only fall back to manufacturer tree if no specific category/grouped was requested
-	if ( empty( $category_slug ) && 'grouped' !== $catalog_type ) {
+	// Fall back to manufacturer tree only if no specific page number was requested
+	if ( $page_num <= 1 && empty( $category_slug ) && 'grouped' !== $catalog_type ) {
 		$page = $wpdb->get_row( $wpdb->prepare(
 			"SELECT p.*, m.name AS manufacturer_name, m.wp_post_id AS template_post_id, m.config_json
 			 FROM $table_pages p

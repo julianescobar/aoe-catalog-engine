@@ -86,10 +86,18 @@
 
 .aoe-catalog-sku {
 	font-weight: bold;
+}
+
+.aoe-catalog-sku-icon {
+	vertical-align: middle;
+	margin-left: 3px;
+	opacity: 0.4;
+	transition: opacity 0.15s;
+	pointer-events: none;
 	color: #20acdb;
-	text-decoration: none;
-	cursor: pointer;
-	text-decoration: underline;
+}
+.fila-producto:hover .aoe-catalog-sku-icon {
+	opacity: 1;
 }
 
 .aoe-catalog-actions {

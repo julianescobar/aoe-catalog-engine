@@ -254,18 +254,6 @@ class PublicManager {
 			return null;
 		}
 
-		$config = json_decode( $mfr->config_json ?? '', true ) ?: [];
-
-		$title_template = $config['seo_title_template'] ?? '';
-		$desc_template  = $config['seo_description_template'] ?? '';
-
-		if ( empty( $title_template ) ) {
-			$title_template = get_option( 'aoe_catalog_seo_title_template', 'Catálogo de productos de {manufacturer}: TC Componentes' );
-		}
-		if ( empty( $desc_template ) ) {
-			$desc_template = get_option( 'aoe_catalog_seo_description_template', 'TC Componentes es distribuidor de {manufacturer} en España. Catálogo completo de productos, documentación técnica y soporte técnico especializado.' );
-		}
-
 		$category_slug = get_query_var( 'aoe_catalog_category' );
 		$page         = get_query_var( 'aoe_catalog_page' );
 		$page_num     = ! empty( $page ) ? (int) $page : 0;
@@ -281,38 +269,101 @@ class PublicManager {
 			$category_name = $cat_row ? $cat_row->name : str_replace( '-', ' ', ucwords( $category_slug, '-' ) );
 		}
 
-		$category_label = '';
-		if ( ! empty( $category_name ) && 'grouped' !== $type ) {
-			$category_label = $category_name;
-		}
+		$site_name = get_bloginfo( 'name' );
 
-		$replacements = [
-			'{manufacturer}' => $mfr->name,
-			'{category}'     => $category_label,
-			'{page}'         => $page_num > 0 ? (string) $page_num : '',
-		];
-
-		$title = str_replace( array_keys( $replacements ), array_values( $replacements ), $title_template );
-		$description = str_replace( array_keys( $replacements ), array_values( $replacements ), $desc_template );
-
-		if ( ! empty( $category_label ) && strpos( $title_template, '{category}' ) === false ) {
-			$title .= ' | ' . $category_label;
-		}
-
-		if ( $page_num > 0 ) {
-			$total = 0;
-			if ( 'tree' === $type || ( empty( $type ) && empty( $category_slug ) ) ) {
-				$total = (int) $wpdb->get_var( $wpdb->prepare(
-					"SELECT COUNT(*) FROM {$wpdb->prefix}aoe_catalog_pregenerated_pages
-					 WHERE manufacturer_id = %d AND type = 'tree'",
-					$mfr->id
+		// --- Resolve product count ---
+		$products_count = 0;
+		if ( $mfr->id && $category_slug && 'category' === $type ) {
+			$products_count = (int) $wpdb->get_var( $wpdb->prepare(
+				"SELECT products_count FROM {$wpdb->prefix}aoe_catalog_categories WHERE manufacturer_id = %d AND slug = %s LIMIT 1",
+				$mfr->id, $category_slug
+			) );
+		} elseif ( $mfr->id && $category_slug && 'tree' === $type ) {
+			$root = (int) $wpdb->get_var( $wpdb->prepare(
+				"SELECT id FROM {$wpdb->prefix}aoe_catalog_categories WHERE manufacturer_id = %d AND slug = %s LIMIT 1",
+				$mfr->id, $category_slug
+			) );
+			if ( $root ) {
+				$cat_ids = [ $root ];
+				$collect = [ $root ];
+				while ( ! empty( $collect ) ) {
+					$ids = $wpdb->get_col( $wpdb->prepare(
+						"SELECT id FROM {$wpdb->prefix}aoe_catalog_categories WHERE manufacturer_id = %d AND parent_id IN (" .
+						implode( ',', array_fill( 0, count( $collect ), '%d' ) ) . ")",
+						array_merge( [ $mfr->id ], $collect )
+					) );
+					if ( ! empty( $ids ) ) {
+						$cat_ids = array_merge( $cat_ids, $ids );
+						$collect = array_map( 'intval', $ids );
+					} else {
+						$collect = [];
+					}
+				}
+				$placeholders = implode( ',', array_fill( 0, count( $cat_ids ), '%d' ) );
+				$products_count = (int) $wpdb->get_var( $wpdb->prepare(
+					"SELECT SUM(products_count) FROM {$wpdb->prefix}aoe_catalog_categories WHERE id IN ($placeholders)",
+					$cat_ids
 				) );
 			}
-			if ( $total > 0 ) {
-				$title .= ' (Página ' . $page_num . ' de ' . $total . ')';
-			} elseif ( $page_num > 1 ) {
-				$title .= ' (Página ' . $page_num . ')';
+		} elseif ( $mfr->id ) {
+			$products_count = (int) $wpdb->get_var( $wpdb->prepare(
+				"SELECT SUM(products_count) FROM {$wpdb->prefix}aoe_catalog_categories WHERE manufacturer_id = %d",
+				$mfr->id
+			) );
+		}
+
+		// --- Resolve pagination total ---
+		$page_type = $type ?: 'tree';
+		if ( 'grouped' === $page_type ) {
+			$pagination_base = $manufacturer_slug . '/productos';
+		} elseif ( 'category' === $page_type && $category_slug ) {
+			$pagination_base = $manufacturer_slug . '/' . $category_slug;
+		} else {
+			$pagination_base = $manufacturer_slug;
+		}
+
+		$pagination_total = 1;
+		if ( $mfr->id && $pagination_base ) {
+			$pagination_total = max( 1, (int) $wpdb->get_var( $wpdb->prepare(
+				"SELECT MAX(page_number) FROM {$wpdb->prefix}aoe_catalog_pregenerated_pages
+				 WHERE manufacturer_id = %d AND type = %s
+				 AND (slug = %s OR slug LIKE %s)",
+				$mfr->id, $page_type, $pagination_base,
+				$wpdb->esc_like( $pagination_base ) . '-%'
+			) ) );
+		}
+
+		// --- Build title & description ---
+		$page_suffix = '';
+		if ( $pagination_total > 1 && $page_num > 1 ) {
+			$page_suffix = ' (p. ' . $page_num . ')';
+		}
+
+		if ( 'category' === $page_type ) {
+			$title = 'Catálogo ' . $mfr->name . ' ' . $category_name . $page_suffix . ' | ' . $site_name;
+			$description = 'Catálogo de ' . $category_name . ' de ' . $mfr->name;
+			if ( $products_count > 0 ) {
+				$description .= '. ' . number_format( $products_count ) . ' productos disponibles';
 			}
+			$description .= '. Somos distribuidores en España.';
+		} elseif ( 'grouped' === $page_type ) {
+			$title = 'Catálogo ' . $mfr->name . $page_suffix . ' | ' . $site_name;
+			$description = 'Catálogo completo de productos de ' . $mfr->name;
+			if ( $products_count > 0 ) {
+				$description .= ', ' . number_format( $products_count ) . ' productos disponibles';
+			}
+			$description .= '. Somos distribuidores en España.';
+		} else {
+			$category_part = '';
+			if ( $manufacturer_slug === 'samtec' && $category_name ) {
+				$category_part = ' ' . $category_name;
+			}
+			$title = 'Catálogo ' . $mfr->name . $category_part . $page_suffix . ' | ' . $site_name;
+			$description = 'Catálogo completo de productos' . ( $category_part ? ' de ' . $category_name . ' de ' . $mfr->name : ' de ' . $mfr->name );
+			if ( $products_count > 0 ) {
+				$description .= ', ' . number_format( $products_count ) . ' productos disponibles';
+			}
+			$description .= '. Somos distribuidores en España.';
 		}
 
 		$result = [ 'title' => $title, 'description' => $description ];

@@ -89,49 +89,100 @@ function aoe_get_catalog_seo_context( array $extra = [] ): array {
 		}
 	}
 
-	// --- Build title ---
-	$title_template = $mfr_config['seo_title_template'] ?? '';
-	$desc_template  = $mfr_config['seo_description_template'] ?? '';
-	if ( empty( $title_template ) ) {
-		$title_template = get_option( 'aoe_catalog_seo_title_template', 'Catálogo de productos de {manufacturer}: TC Componentes' );
-	}
-	if ( empty( $desc_template ) ) {
-		$desc_template = get_option( 'aoe_catalog_seo_description_template', 'TC Componentes es distribuidor de {manufacturer} en España. Catálogo completo de productos, documentación técnica y soporte técnico especializado.' );
-	}
-
-	$category_label = ( $category_name && 'grouped' !== $page_type ) ? $category_name : '';
-
-	$replacements = [
-		'{manufacturer}' => $manufacturer_name,
-		'{category}'     => $category_label,
-		'{page}'         => $page_num > 0 ? (string) $page_num : '',
-	];
-
-	$title = str_replace( array_keys( $replacements ), array_values( $replacements ), $title_template );
-	$description = str_replace( array_keys( $replacements ), array_values( $replacements ), $desc_template );
-
-	if ( $category_label && strpos( $title_template, '{category}' ) === false ) {
-		$title .= ' | ' . $category_label;
-	}
-
-	// Page number suffix for tree pages
-	if ( $page_num > 1 && 'tree' === $page_type ) {
-		$total_tree = (int) $wpdb->get_var( $wpdb->prepare(
-			"SELECT COUNT(*) FROM {$wpdb->prefix}aoe_catalog_pregenerated_pages WHERE manufacturer_id = %d AND type = 'tree'",
+	// --- Resolve product count for description ---
+	$products_count = 0;
+	if ( $mfr_id && $category_slug && 'category' === $page_type ) {
+		$products_count = (int) $wpdb->get_var( $wpdb->prepare(
+			"SELECT products_count FROM {$wpdb->prefix}aoe_catalog_categories WHERE manufacturer_id = %d AND slug = %s LIMIT 1",
+			$mfr_id, $category_slug
+		) );
+	} elseif ( $mfr_id && $category_slug && 'tree' === $page_type ) {
+		$root = (int) $wpdb->get_var( $wpdb->prepare(
+			"SELECT id FROM {$wpdb->prefix}aoe_catalog_categories WHERE manufacturer_id = %d AND slug = %s LIMIT 1",
+			$mfr_id, $category_slug
+		) );
+		if ( $root ) {
+			$cat_ids = [ $root ];
+			$collect = [ $root ];
+			while ( ! empty( $collect ) ) {
+				$ids = $wpdb->get_col( $wpdb->prepare(
+					"SELECT id FROM {$wpdb->prefix}aoe_catalog_categories WHERE manufacturer_id = %d AND parent_id IN (" .
+					implode( ',', array_fill( 0, count( $collect ), '%d' ) ) . ")",
+					array_merge( [ $mfr_id ], $collect )
+				) );
+				if ( ! empty( $ids ) ) {
+					$cat_ids = array_merge( $cat_ids, $ids );
+					$collect = array_map( 'intval', $ids );
+				} else {
+					$collect = [];
+				}
+			}
+			$placeholders = implode( ',', array_fill( 0, count( $cat_ids ), '%d' ) );
+			$products_count = (int) $wpdb->get_var( $wpdb->prepare(
+				"SELECT SUM(products_count) FROM {$wpdb->prefix}aoe_catalog_categories WHERE id IN ($placeholders)",
+				$cat_ids
+			) );
+		}
+	} elseif ( $mfr_id ) {
+		$products_count = (int) $wpdb->get_var( $wpdb->prepare(
+			"SELECT SUM(products_count) FROM {$wpdb->prefix}aoe_catalog_categories WHERE manufacturer_id = %d",
 			$mfr_id
 		) );
-		if ( $total_tree > 0 ) {
-			$title .= ' (Página ' . $page_num . ' de ' . $total_tree . ')';
-		}
-	} elseif ( $page_num > 1 ) {
-		$title .= ' (Página ' . $page_num . ')';
 	}
 
-	// --- Build canonical URL ---
-	$canonical_url = trailingslashit( home_url( $wp->request ) );
+	// --- Resolve total pages for prev/next & page suffix ---
+	if ( 'grouped' === $page_type ) {
+		$pagination_base = $manufacturer_slug . '/productos';
+	} elseif ( 'category' === $page_type && $category_slug ) {
+		$pagination_base = $manufacturer_slug . '/' . $category_slug;
+	} else {
+		$pagination_base = $manufacturer_slug;
+	}
 
-	// --- Build manufacturer URL ---
-	$manufacturer_url = $manufacturer_slug ? home_url( '/catalogo/' . $manufacturer_slug . '/' ) : '';
+	$pagination_total = 1;
+	if ( $mfr_id && $pagination_base ) {
+		$pagination_total = max( 1, (int) $wpdb->get_var( $wpdb->prepare(
+			"SELECT MAX(page_number) FROM {$wpdb->prefix}aoe_catalog_pregenerated_pages
+			 WHERE manufacturer_id = %d AND type = %s
+			 AND (slug = %s OR slug LIKE %s)",
+			$mfr_id, $page_type, $pagination_base,
+			$wpdb->esc_like( $pagination_base ) . '-%'
+		) ) );
+	}
+
+	// --- Build title & description ---
+	$page_suffix = '';
+	if ( $pagination_total > 1 && $page_num > 1 ) {
+		$page_suffix = ' (p. ' . $page_num . ')';
+	}
+
+	if ( 'category' === $page_type ) {
+		$title = 'Catálogo ' . $manufacturer_name . ' ' . $category_name . $page_suffix . ' | ' . $site_name;
+		$description = 'Catálogo de ' . $category_name . ' de ' . $manufacturer_name;
+		if ( $products_count > 0 ) {
+			$description .= '. ' . number_format( $products_count ) . ' productos disponibles';
+		}
+		$description .= '. Somos distribuidores en España.';
+	} elseif ( 'grouped' === $page_type ) {
+		$title = 'Catálogo ' . $manufacturer_name . $page_suffix . ' | ' . $site_name;
+		$description = 'Catálogo completo de productos de ' . $manufacturer_name;
+		if ( $products_count > 0 ) {
+			$description .= ', ' . number_format( $products_count ) . ' productos disponibles';
+		}
+		$description .= '. Somos distribuidores en España.';
+	} else {
+		// Tree / navigation page
+		$category_part = '';
+		if ( $manufacturer_slug === 'samtec' && $category_name ) {
+			$category_part = ' ' . $category_name;
+		}
+		$title = 'Catálogo ' . $manufacturer_name . $category_part . $page_suffix . ' | ' . $site_name;
+		$description = 'Catálogo completo de productos' . ( $category_part ? ' de ' . $category_name . ' de ' . $manufacturer_name : ' de ' . $manufacturer_name );
+		if ( $products_count > 0 ) {
+			$description .= ', ' . number_format( $products_count ) . ' productos disponibles';
+		}
+		$description .= '. Somos distribuidores en España.';
+	}
 
 	// --- Resolve numberOfItems for ItemList ---
 	$number_of_items = 0;
@@ -174,6 +225,9 @@ function aoe_get_catalog_seo_context( array $extra = [] ): array {
 		'og_image'          => $og_image,
 		'json_ld_graph'     => $json_ld_graph,
 		'manufacturer_name' => $manufacturer_name,
+		'current_page'      => $page_num,
+		'total_pages'       => $pagination_total,
+		'pagination_base'   => $pagination_base,
 	];
 }
 
@@ -441,7 +495,53 @@ function aoe_inject_dynamic_head( string $html, array $context ): string {
 		}
 	}
 
-	// 4. <meta name="robots"> — force follow, index (template may have noindex from RankMath)
+	// 4. <link rel="alternate" hreflang> — strip wrong ones from RankMath, inject with canonical URL
+	if ( $canonical_url ) {
+		// Remove any existing hreflang (likely with __gen-template URL from template cache generation)
+		$html = preg_replace(
+			'/<link\s+rel=["\']alternate["\'][^>]*\bhreflang\b[^>]*\/?>\s*\n?/i',
+			'',
+			$html
+		);
+		// Inject correct hreflang
+		$hreflang_es = "\n" . '<link rel="alternate" hreflang="es" href="' . esc_url( $canonical_url ) . '" />';
+		$hreflang_xd = "\n" . '<link rel="alternate" hreflang="x-default" href="' . esc_url( $canonical_url ) . '" />';
+		$html = preg_replace(
+			'/(<\/head>)/i',
+			$hreflang_es . $hreflang_xd . "\n" . '</head>',
+			$html, 1
+		);
+	}
+
+	// 5. <link rel="prev"> / <link rel="next">
+	$current_page = $context['current_page'] ?? 0;
+	$total_pages  = $context['total_pages'] ?? 0;
+	$base_slug    = $context['pagination_base'] ?? '';
+
+	if ( $total_pages > 1 && $base_slug ) {
+		$catalogo_url = home_url( '/catalogo/' );
+		$prev_tag = '';
+		$next_tag = '';
+
+		if ( $current_page > 1 ) {
+			$prev_slug = $current_page === 2 ? $base_slug : $base_slug . '-' . ( $current_page - 1 );
+			$prev_tag = "\n" . '<link rel="prev" href="' . esc_url( $catalogo_url . $prev_slug . '/' ) . '" />';
+		}
+		if ( $current_page < $total_pages ) {
+			$next_slug = $base_slug . '-' . ( $current_page + 1 );
+			$next_tag = "\n" . '<link rel="next" href="' . esc_url( $catalogo_url . $next_slug . '/' ) . '" />';
+		}
+
+		if ( $prev_tag || $next_tag ) {
+			$html = str_replace(
+				'</head>',
+				$prev_tag . $next_tag . "\n" . '</head>',
+				$html
+			);
+		}
+	}
+
+	// 6. <meta name="robots"> — force follow, index (template may have noindex from RankMath)
 	$html = preg_replace(
 		'/<meta\s+name=["\']robots["\'][^>]*\/?>\s*\n?/i',
 		'',
