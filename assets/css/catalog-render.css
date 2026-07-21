@@ -1185,10 +1185,15 @@
 	color: #333 !important;
 	background: none !important;
 	padding: 4px 16px 4px 8px;
-	white-space: nowrap;
+	white-space: normal;
 	font-size: 12px;
 	line-height: 1.4;
 	border: none;
+	width: 40%;
+}
+
+.aoe-caracteristicas-popup-table td {
+	width: 60%;
 }
 
 #aoe-catalog-container .aoe-caracteristicas-popup-table td {

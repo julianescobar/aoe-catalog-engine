@@ -48,7 +48,7 @@ class PublicManager {
 
 	public function register_rewrite_rules() {
 		// Root catalog page: /catalogo/
-		add_rewrite_rule( '^catalogo/?$', 'index.php?aoe_catalog=root', 'top' );
+		//add_rewrite_rule( '^catalogo/?$', 'index.php?aoe_catalog=root', 'top' );
 
 		// Test preview
 		add_rewrite_rule( '^catalogo/(test-[^/]+)/([^/]+)-([0-9]+)/?', 'index.php?aoe_catalog_preview=$matches[1]&aoe_catalog_category=$matches[2]&aoe_catalog_page=$matches[3]', 'top' );
@@ -316,7 +316,7 @@ class PublicManager {
 		$page_type = $type ?: 'tree';
 		if ( 'grouped' === $page_type ) {
 			$pagination_base = $manufacturer_slug . '/productos';
-		} elseif ( 'category' === $page_type && $category_slug ) {
+		} elseif ( $category_slug ) {
 			$pagination_base = $manufacturer_slug . '/' . $category_slug;
 		} else {
 			$pagination_base = $manufacturer_slug;

@@ -133,7 +133,7 @@ function aoe_get_catalog_seo_context( array $extra = [] ): array {
 	// --- Resolve total pages for prev/next & page suffix ---
 	if ( 'grouped' === $page_type ) {
 		$pagination_base = $manufacturer_slug . '/productos';
-	} elseif ( 'category' === $page_type && $category_slug ) {
+	} elseif ( $category_slug ) {
 		$pagination_base = $manufacturer_slug . '/' . $category_slug;
 	} else {
 		$pagination_base = $manufacturer_slug;
@@ -202,6 +202,18 @@ function aoe_get_catalog_seo_context( array $extra = [] ): array {
 			$itemlist_slug
 		) );
 	}
+
+	// --- Build canonical URL ---
+	$canonical_slug = $manufacturer_slug;
+	if ( $category_slug ) {
+		$canonical_slug .= '/' . $category_slug;
+	} elseif ( 'grouped' === $page_type ) {
+		$canonical_slug .= '/productos';
+	}
+	if ( $page_num > 1 ) {
+		$canonical_slug .= '-' . $page_num;
+	}
+	$canonical_url = home_url( '/catalogo/' . $canonical_slug . '/' );
 
 	// --- Build JSON-LD @graph ---
 	$json_ld_graph = aoe_build_jsonld_graph( [

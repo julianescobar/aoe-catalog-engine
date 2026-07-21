@@ -613,6 +613,13 @@ class AdminManager {
 
 			$serie_path   = $cat_slug . '/' . $sub_slug . '/' . $ser_slug;
 			$parent_serie = isset( $serie_map[ $serie_path ] ) ? $serie_map[ $serie_path ] : null;
+			if ( ! $parent_serie && ! empty( $sub_slug ) ) {
+				$subcat_path = $cat_slug . '/' . $sub_slug;
+				$parent_serie = isset( $subcat_map[ $subcat_path ] ) ? $subcat_map[ $subcat_path ] : null;
+			}
+			if ( ! $parent_serie && isset( $cat_map[ $cat_slug ] ) ) {
+				$parent_serie = $cat_map[ $cat_slug ];
+			}
 
 			$existing = $wpdb->get_var( $wpdb->prepare(
 				"SELECT id FROM $table_c WHERE manufacturer_id = %d AND slug = %s",

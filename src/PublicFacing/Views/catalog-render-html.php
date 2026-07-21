@@ -199,6 +199,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 	$family_image = aoe_catalog_get_first_value( $first_images );
 	$family_pdf   = $first_pdf;
 	$category_display_name = $category;
+	$show_features_col = in_array( $manufacturer_slug, [ 'samtec', 'edac' ], true );
 
 	ob_start();
 	?>
@@ -299,12 +300,12 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 				?>
 				<div class="aoe-catalog-group-section">
 					<h3 class="aoe-cat-breadcrumb"><?php echo esc_html( implode( ' > ', $path_parts ) ); ?></h3>
-					<table class="aoe-catalog-table<?php echo $manufacturer_slug === 'samtec' ? ' aoe-catalog-table-samtec' : ''; ?>" itemscope itemtype="https://schema.org/ItemList">
+					<table class="aoe-catalog-table<?php echo $show_features_col ? ' aoe-catalog-table-samtec' : ''; ?>" itemscope itemtype="https://schema.org/ItemList">
 						<thead>
 							<tr>
 								<th>Codigo</th>
 								<th class="aoe-catalog-underlined">Nombre</th>
-								<?php if ( $manufacturer_slug === 'samtec' ) : ?>
+								<?php if ( $show_features_col ) : ?>
 								<th>Características</th>
 								<?php endif; ?>
 								<th class="aoe-catalog-underlined">Fabricante</th>
@@ -349,10 +350,10 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 									<?php endif; ?>
 									data-specs-json="<?php echo $specs_json; ?>">
 									<td>
-										<span class="aoe-catalog-sku">
-											<span itemprop="sku"><?php echo esc_html( $sku ); ?></span>
-											<svg class="aoe-catalog-sku-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-										</span>
+									<span class="aoe-catalog-sku">
+										<span itemprop="sku"><?php echo esc_html( $sku ); ?></span>
+										<svg class="aoe-catalog-sku-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+									</span>
 									</td>
 									<td>
 										<span itemprop="name"><?php echo esc_html( $name ); ?></span>
@@ -364,7 +365,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 											<link itemprop="availability" href="https://schema.org/InStock">
 										</div>
 									</td>
-									<?php if ( $manufacturer_slug === 'samtec' ) : ?>
+									<?php if ( $show_features_col ) : ?>
 									<td class="aoe-catalog-caracteristicas">
 										<span class="aoe-catalog-caracteristicas-texto"><?php echo esc_html( $specs_flat ); ?></span>
 										<?php if ( $has_specs ) : ?>
@@ -443,12 +444,12 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 		</div>
 		<?php endif; ?>
 		<?php endif; ?>
-			<table class="aoe-catalog-table<?php echo $manufacturer_slug === 'samtec' ? ' aoe-catalog-table-samtec' : ''; ?>" itemscope itemtype="https://schema.org/ItemList">
+			<table class="aoe-catalog-table<?php echo $show_features_col ? ' aoe-catalog-table-samtec' : ''; ?>" itemscope itemtype="https://schema.org/ItemList">
 			<thead>
 				<tr>
 					<th>Codigo</th>
 					<th class="aoe-catalog-underlined">Nombre</th>
-					<?php if ( $manufacturer_slug === 'samtec' ) : ?>
+					<?php if ( $show_features_col ) : ?>
 					<th>Características</th>
 					<?php endif; ?>
 					<th class="aoe-catalog-underlined">Fabricante</th>
@@ -508,7 +509,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 								<link itemprop="availability" href="https://schema.org/InStock">
 							</div>
 						</td>
-						<?php if ( $manufacturer_slug === 'samtec' ) : ?>
+						<?php if ( $show_features_col ) : ?>
 						<td class="aoe-catalog-caracteristicas">
 							<span class="aoe-catalog-caracteristicas-texto"><?php echo esc_html( $specs_flat ); ?></span>
 							<?php if ( $has_specs ) : ?>

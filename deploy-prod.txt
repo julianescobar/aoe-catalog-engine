@@ -3,18 +3,21 @@ Pasos deploy producción — Samtec
 1. Poblar sku_map
    php tools/import-mapeo-csv.php samtec tools/mapeo.csv
 
-2. Subir catalogo.csv desde admin
+2. Importar estructura de categorías desde catalogo.csv (CLI, evita errors de conexión en admin)
+   php tools/import-samtec-estructura.php samtec tools/catalogo.csv
 
-3. Ejecutar apply-sku-map-sql
+3. Subir catalogo.csv desde admin (solo productos, categorías ya importadas en paso 2)
+
+4. Ejecutar apply-sku-map-sql
    php tools/apply-sku-map-sql.php samtec
 
-4. Crear "Sin clasificar" nivel 3 (si no existe)
+5. Crear "Sin clasificar" nivel 3 (si no existe)
    INSERT INTO tc_aoe_catalog_categories
    (manufacturer_id, parent_id, name, slug, type, description, image, level, products_count, metadata_json)
    VALUES (1, NULL, 'Sin clasificar', 'sin-clasificar', 'category',
            'Categorías nivel 4 sin clasificación específica', '', 3, 0, '[]');
 
-5. Reasignar nivel 4 del level 1 al level 3
+6. Reasignar nivel 4 del level 1 al level 3
    UPDATE tc_aoe_catalog_categories c4
    JOIN tc_aoe_catalog_categories sc_old
      ON sc_old.slug = 'sin-clasificar' AND sc_old.manufacturer_id = 1 AND sc_old.level = 1
