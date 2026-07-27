@@ -747,7 +747,6 @@ class AdminManager {
 			wp_send_json_error( 'Slug no proporcionado' );
 		}
 
-		// Ensure clean output buffer
 		while ( ob_get_level() ) { ob_end_clean(); }
 
 		try {
@@ -767,7 +766,6 @@ class AdminManager {
 			$batch->pack_catalog( (int) $manufacturer->id, $slug, $processor );
 			$this->update_last_modified( $slug );
 
-			// Clean again in case pack_catalog output something
 			while ( ob_get_level() ) { ob_end_clean(); }
 
 			wp_send_json_success( [ 'message' => 'Páginas regeneradas para ' . $slug ] );

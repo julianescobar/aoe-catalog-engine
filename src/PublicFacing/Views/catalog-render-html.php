@@ -551,7 +551,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 									<p id="modal-nombre-subtitulo"></p>
 									<p class="aoe-catalog-manufacturer"><strong>Fabricante:</strong> <?php echo esc_html( ucfirst( $manufacturer_name ) ); ?></p>
 									<div class="aoe-catalog-contact-wrap">
-										<a id="btn-contacto-modal" class="fusion-button button-flat fusion-button-default-size button-default fusion-button-default btn-catalogo-generico aoe-catalog-contact-button" title="" href="#" data-sku-link="">
+										<a id="btn-contacto-modal" class="fusion-button button-flat fusion-button-default-size button-default fusion-button-default btn-catalogo-generico aoe-catalog-contact-button" title="" href="javascript:void(0)" data-sku-link="">
 											<span id="btn-texto-dinamico" class="fusion-button-text">Quiero más información</span>
 										</a>
 									</div>

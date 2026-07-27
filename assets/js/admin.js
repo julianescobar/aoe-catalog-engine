@@ -552,7 +552,7 @@ jQuery(document).ready(function ($) {
 		$.ajax({
 			url: aoe_catalog.ajax_url,
 			method: 'POST',
-			timeout: 30000,
+			timeout: 120000,
 			data: { action: 'aoe_regenerate_pages', slug: slug },
 			success: function (resp) {
 				if (resp.success) {
