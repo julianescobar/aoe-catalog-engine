@@ -8,6 +8,10 @@ class CamdenBossProcessor extends BaseProcessor {
 		return 'camdenboss';
 	}
 
+	public function get_page_threshold(): int {
+		return 0;
+	}
+
 	protected function get_technical_spec_columns(): array {
 		return [
 			'External length (mm)',

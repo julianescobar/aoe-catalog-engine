@@ -24,6 +24,9 @@ class Plugin {
 	}
 
 	public function run() {
+		// Remove WordPress shortlink from <head>
+		remove_action( 'wp_head', 'wp_shortlink_wp_head' );
+
 		$this->register_wpo_hooks();
 	}
 

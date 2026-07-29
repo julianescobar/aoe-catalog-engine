@@ -237,6 +237,7 @@ function aoe_get_catalog_seo_context( array $extra = [] ): array {
 		'og_image'          => $og_image,
 		'json_ld_graph'     => $json_ld_graph,
 		'manufacturer_name' => $manufacturer_name,
+		'category_name'     => $category_name,
 		'current_page'      => $page_num,
 		'total_pages'       => $pagination_total,
 		'pagination_base'   => $pagination_base,
@@ -506,6 +507,17 @@ function aoe_inject_dynamic_head( string $html, array $context ): string {
 			);
 		}
 	}
+
+	// 4.5. <h1> dinámico — "[categoría] de [fabricante]" o solo "[fabricante]" en página principal
+	$category_name  = $context['category_name'] ?? '';
+	$manufacturer_name = $context['manufacturer_name'] ?? '';
+	if ( ! empty( $category_name ) ) {
+		$h1_text = esc_html( $category_name ) . ' de ' . esc_html( $manufacturer_name );
+	} else {
+		$h1_text = esc_html( $manufacturer_name );
+	}
+	$new_h1 = '<h1 style="margin:0;font-size:1em;"><strong>' . $h1_text . '</strong></h1>';
+	$html = preg_replace( '/<h1[^>]*>.*?<\/h1>/is', $new_h1, $html, 1 );
 
 	// 4. <link rel="alternate" hreflang> — strip wrong ones from RankMath, inject with canonical URL
 	if ( $canonical_url ) {
