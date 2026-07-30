@@ -47,7 +47,7 @@ $large = []; $small = [];
 foreach ($cats as $c) {
 	$m2 = !empty($c->metadata_json) && $c->metadata_json !== '[]' ? json_decode($c->metadata_json, true) : [];
 	$hc = !empty($c->description) || !empty($c->image) || (is_array($m2) && (!empty($m2['features'])||!empty($m2['highlights'])||!empty($m2['image_url'])));
-	if ((int)$c->products_count >= 190 || $hc || $slug === 'camdenboss') $large[] = $c; else $small[] = $c;
+	if ((int)$c->products_count >= 190 || $hc || $slug === 'camdenboss' || $slug === 'bulgin' || $slug === 'panduit') $large[] = $c; else $small[] = $c;
 }
 echo "   Large: " . count($large) . ", Small: " . count($small) . "\n";
 

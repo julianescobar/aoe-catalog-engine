@@ -15,7 +15,7 @@ class EdacProcessor extends BaseProcessor {
 	}
 
 	public function get_page_threshold(): int {
-		return 0;
+		return 190;
 	}
 
 	public function get_supported_columns(): array {

@@ -313,7 +313,7 @@ class BatchProcessor {
 				}
 			}
 			$has_content = ! empty( $cat->description ) || ! empty( $cat->image ) || $meta_has_content;
-			if ( (int) $cat->products_count >= $threshold || $has_content ) {
+			if ( (int) $cat->products_count >= $threshold || $has_content || $manufacturer_slug === 'panduit' ) {
 				$large[] = $cat;
 			} else {
 				$small[] = $cat;
@@ -378,11 +378,25 @@ class BatchProcessor {
 				$cat_by_id[ (int) $cat->id ] = $cat;
 			}
 
-			// Separate level-4 items for tree pagination
+			// Separate leaf items for tree pagination
 			$level4_items = [];
 			foreach ( $all_names as $cat ) {
 				if ( (int) $cat->level === 4 ) {
 					$level4_items[] = $cat;
+				}
+			}
+			// Fallback: if no level-4 items, use items without children (true leaves)
+			if ( empty( $level4_items ) ) {
+				$ids_with_children = [];
+				foreach ( $all_names as $cat ) {
+					if ( (int) $cat->parent_id > 0 ) {
+						$ids_with_children[ (int) $cat->parent_id ] = true;
+					}
+				}
+				foreach ( $all_names as $cat ) {
+					if ( ! isset( $ids_with_children[ (int) $cat->id ] ) ) {
+						$level4_items[] = $cat;
+					}
 				}
 			}
 

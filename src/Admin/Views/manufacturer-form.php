@@ -71,6 +71,7 @@ $catalogs = get_posts( [
 						<option value="normal" <?php selected( $tree_layout, 'normal' ); ?>>Normal (tabla jerárquica)</option>
 						<option value="columns" <?php selected( $tree_layout, 'columns' ); ?>>Columnas (grilla plana)</option>
 						<option value="table_desc" <?php selected( $tree_layout, 'table_desc' ); ?>>Tabla con descripción</option>
+						<option value="auto" <?php selected( $tree_layout, 'auto' ); ?>>Auto (detecta hojas como tabla)</option>
 					</select>
 					<p class="description">"Tabla con descripción" agrega una columna extra con la descripción al final del árbol. Ideal para series/familias de productos.</p>
 				</div>

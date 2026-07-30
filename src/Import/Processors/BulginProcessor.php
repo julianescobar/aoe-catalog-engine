@@ -8,6 +8,10 @@ class BulginProcessor extends BaseProcessor {
 		return 'bulgin';
 	}
 
+	public function get_page_threshold(): int {
+		return 0;
+	}
+
 	public function get_supported_columns(): array {
 		return [
 			'sku', 'product_display_title', 'product_family', 'product_series',

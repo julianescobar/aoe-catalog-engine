@@ -199,7 +199,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 	$family_image = aoe_catalog_get_first_value( $first_images );
 	$family_pdf   = $first_pdf;
 	$category_display_name = $category;
-	$show_features_col = in_array( $manufacturer_slug, [ 'samtec', 'edac' ], true );
+	$show_features_col = in_array( $manufacturer_slug, [ 'samtec', 'edac', 'camdenboss', 'bivar', 'panduit', 'bulgin' ], true );
 
 	ob_start();
 	?>
@@ -330,7 +330,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 									$specs     = $additional['specs'] ?? [];
 								}
 					$has_specs = ! empty( $specs );
-					$specs_flat = $has_specs ? implode( ', ', array_values( $specs ) ) : '';
+					$specs_flat = $has_specs ? implode( ', ', array_slice( array_values( $specs ), 0, 10 ) ) : '';
 					$images = array_map( function( $img ) use ( $manufacturer_slug, $media_source ) {
 									return aoe_catalog_resolve_media_url( $img, $manufacturer_slug, 'images', $media_source );
 								}, $images );
@@ -474,7 +474,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 						$specs     = $additional['specs'] ?? [];
 					}
 					$has_specs = ! empty( $specs );
-					$specs_flat = $has_specs ? implode( ', ', array_values( $specs ) ) : '';
+					$specs_flat = $has_specs ? implode( ', ', array_slice( array_values( $specs ), 0, 10 ) ) : '';
 					$images = array_map( function( $img ) use ( $manufacturer_slug, $media_source ) {
 						return aoe_catalog_resolve_media_url( $img, $manufacturer_slug, 'images', $media_source );
 					}, $images );

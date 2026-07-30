@@ -8,6 +8,10 @@ class PanduitProcessor extends BaseProcessor {
 		return 'panduit';
 	}
 
+	public function get_page_threshold(): int {
+		return 999999;
+	}
+
 	public function get_supported_columns(): array {
 		return [
 			'sku', 'name', 'breadcrumb', 'description', 'image_url', 'documents',

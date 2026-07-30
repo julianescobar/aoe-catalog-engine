@@ -220,7 +220,7 @@ class AdminManager {
 				$config = [];
 			}
 			unset( $config['seo_title_template'], $config['seo_description_template'] );
-			$config['tree_layout'] = in_array( $_POST['tree_layout'] ?? '', [ 'normal', 'columns', 'table_desc' ] ) ? $_POST['tree_layout'] : 'normal';
+			$config['tree_layout'] = in_array( $_POST['tree_layout'] ?? '', [ 'normal', 'columns', 'table_desc', 'auto' ] ) ? $_POST['tree_layout'] : 'normal';
 			$config['tree_columns'] = min( 8, max( 2, intval( $_POST['tree_columns'] ?? 4 ) ) );
 			$config['media_source'] = in_array( $_POST['media_source'] ?? '', [ 'remote', 'local' ] ) ? $_POST['media_source'] : 'local';
 
