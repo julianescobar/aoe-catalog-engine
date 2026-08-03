@@ -1129,12 +1129,37 @@
 	font-weight: 100;
 }
 
-.aoe-catalog-table-samtec>thead>tr>th:first-child,
-.aoe-catalog-table-samtec>thead>tr>th:nth-child(2),
-.aoe-catalog-table-samtec>tbody>tr>td:first-child,
-.aoe-catalog-table-samtec>tbody>tr>td:nth-child(2) {
+.aoe-catalog-table>thead>tr>th:first-child,
+.aoe-catalog-table>thead>tr>th:nth-child(2),
+.aoe-catalog-table>tbody>tr>td:first-child,
+.aoe-catalog-table>tbody>tr>td:nth-child(2) {
 	width: 1%;
 	white-space: nowrap;
+}
+
+/* Todas las tablas: últimas dos columnas (marca + acciones) al mínimo */
+.aoe-catalog-table>thead>tr>th:last-child,
+.aoe-catalog-table>thead>tr>th:nth-last-child(2),
+.aoe-catalog-table>tbody>tr>td:last-child,
+.aoe-catalog-table>tbody>tr>td:nth-last-child(2) .aoe-catalog-render>.aoe-catalog-table-scroll>table.aoe-catalog-table td:last-child,
+.aoe-catalog-render>.aoe-catalog-table-scroll>table.aoe-catalog-table td:nth-last-child(2) {
+	width: 1%;
+	white-space: nowrap;
+}
+
+/* Nombre → ocupa lo que pueda */
+
+/*.aoe-catalog-table>tbody>tr>td:nth-child(2) {
+	background: red;
+	max-width: 500px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis
+}*/
+
+/* Características → con tope para no desbordar */
+.aoe-catalog-table-with-features .aoe-catalog-caracteristicas {
+	max-width: 260px;
 }
 
 .aoe-catalog-caracteristicas {
@@ -1239,13 +1264,22 @@
 	margin-left: 15px;
 }
 
-.aoe-catalog-table td:nth-child(2) {
+/*.aoe-catalog-table td:nth-child(2) {
 	max-width: 530px;
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
-}
+}*/
 
 .aoe-tree-layout-auto .aoe-cat-level-0>.aoe-cat-level-1 {
 	margin-top: 1em;
 }
+
+/*
+.aoe-catalog-table-with-features>tbody>tr>td:nth-child(2) {
+	max-width: 350px;
+	width: 1%;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}*/

@@ -19,12 +19,19 @@ if ( PHP_SAPI !== 'cli' ) {
 	die( "CLI only.\n" );
 }
 
+// Write to the log immediately even when stdout is redirected (nohup/file).
+ob_implicit_flush( true );
+while ( ob_get_level() > 0 ) {
+	ob_end_flush();
+}
+
 // Parse args
 $longopts = [
 	'manufacturer:',
 	'csv:',
 	'mode::',
 	'limit::',
+	'sep::',
 ];
 $args = getopt( '', $longopts );
 
@@ -32,9 +39,10 @@ $manufacturer_slug = $args['manufacturer'] ?? '';
 $csv_path          = $args['csv'] ?? '';
 $mode              = $args['mode'] ?? 'replace';
 $limit             = intval( $args['limit'] ?? 0 );
+$sep               = $args['sep'] ?? '';
 
 if ( empty( $manufacturer_slug ) || empty( $csv_path ) ) {
-	echo "Uso: php tools/full-import.php --manufacturer=slug --csv=/ruta/archivo.csv [--mode=replace|incremental] [--limit=N]\n";
+	echo "Uso: php tools/full-import.php --manufacturer=slug --csv=/ruta/archivo.csv [--mode=replace|incremental] [--limit=N] [--sep=,|;|\\t]\n";
 	exit( 1 );
 }
 
@@ -50,15 +58,17 @@ if ( ! file_exists( $wp_load ) ) {
 if ( ! file_exists( $wp_load ) ) {
 	die( "wp-load.php no encontrado. Ajustá la ruta.\n" );
 }
-require_once $wp_load;
-
-global $wpdb;
 
 echo "=== Full Import CLI ===\n";
 echo "Fabricante: {$manufacturer_slug}\n";
 echo "CSV:        {$csv_path}\n";
 echo "Modo:       {$mode}\n";
-echo "Límite:     " . ( $limit ?: 'sin límite' ) . "\n\n";
+echo "Límite:     " . ( $limit ?: 'sin límite' ) . "\n";
+echo "Cargando WordPress...\n\n";
+
+require_once $wp_load;
+
+global $wpdb;
 
 // --- Leer CSV ---
 $handle = fopen( $csv_path, 'r' );
@@ -66,26 +76,24 @@ if ( ! $handle ) {
 	die( "No se pudo abrir el CSV.\n" );
 }
 
-$headers = fgetcsv( $handle );
+// Detect separator from the first line (default: auto, as admin.js does)
+if ( '' === $sep ) {
+	$first_line = fgets( $handle );
+	rewind( $handle );
+	$counts = [
+		';'  => substr_count( $first_line, ';' ),
+		','  => substr_count( $first_line, ',' ),
+		"\t" => substr_count( $first_line, "\t" ),
+	];
+	arsort( $counts );
+	$sep = (int) max( $counts ) > 0 ? key( $counts ) : ',';
+}
+echo "Delimitador: " . var_export( $sep, true ) . "\n";
+
+$headers = fgetcsv( $handle, 0, $sep );
 if ( empty( $headers ) ) {
 	die( "CSV vacío o sin cabeceras.\n" );
 }
-
-$rows = [];
-$line = 0;
-while ( ( $cols = fgetcsv( $handle ) ) !== false ) {
-	$line++;
-	if ( $limit && count( $rows ) >= $limit ) break;
-
-	$row = [];
-	foreach ( $headers as $i => $h ) {
-		$row[ $h ] = $cols[ $i ] ?? '';
-	}
-	$rows[] = $row;
-}
-fclose( $handle );
-
-echo "Filas leídas: " . count( $rows ) . "\n\n";
 
 // --- Cargar procesador ---
 $manager   = new \AOE\CatalogEngine\Import\ProcessorManager();
@@ -109,12 +117,28 @@ if ( 'replace' === $mode ) {
 	\AOE\CatalogEngine\Database\CategoryRepository::clear_by_manufacturer( $manufacturer->id );
 }
 
-// --- Procesar filas ---
+// --- Procesar filas (streaming: una fila a la vez, sin acumular en memoria) ---
+@ini_set( 'memory_limit', '1G' );
+
 $processed = 0;
+$rows_read = 0;
+$skipped   = 0;
 $start     = microtime( true );
-foreach ( $rows as $row ) {
+
+while ( ( $cols = fgetcsv( $handle, 0, $sep ) ) !== false ) {
+	$rows_read++;
+	if ( $limit && $rows_read > $limit ) break;
+
+	$row = [];
+	foreach ( $headers as $i => $h ) {
+		$row[ $h ] = $cols[ $i ] ?? '';
+	}
+
 	$normalized = $processor->process_row( $row );
-	if ( empty( $normalized['sku'] ) ) continue;
+	if ( empty( $normalized['sku'] ) ) {
+		$skipped++;
+		continue;
+	}
 
 	$category_path = $normalized['category_path'] ?? [];
 	if ( ! empty( $category_path ) ) {
@@ -141,12 +165,18 @@ foreach ( $rows as $row ) {
 
 	if ( $processed % 500 === 0 ) {
 		$elapsed = round( microtime( true ) - $start, 1 );
-		echo "  {$processed} productos procesados... ({$elapsed}s)\n";
+		echo sprintf( "  %s | %s | %s\n",
+			str_pad( "Procesados: {$processed}", 20 ),
+			str_pad( "Filas: {$rows_read}", 16 ),
+			"Tiempo: {$elapsed}s"
+		);
+		flush();
 	}
 }
+fclose( $handle );
 
 $elapsed = round( microtime( true ) - $start, 1 );
-echo "\nProductos procesados: {$processed} en {$elapsed}s\n";
+echo "\nFilas leídas: {$rows_read} | Procesados: {$processed} | Sin SKU: {$skipped} | Tiempo: {$elapsed}s\n";
 
 // --- pack_catalog ---
 echo "\nEjecutando pack_catalog...\n";

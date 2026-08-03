@@ -14,8 +14,43 @@ function aoeCatalogFixParentWidth() {
 	}
 }
 
+function aoeCatalogBalanceColumns() {
+	var t = document.querySelector('.aoe-catalog-table:not(.aoe-caracteristicas-popup-table)');
+	if (!t || t.scrollWidth <= t.parentElement.clientWidth) return;
+
+	var cells = t.querySelector('tbody tr').querySelectorAll('td');
+	var avail = t.parentElement.clientWidth;
+	var fixed = cells[0].scrollWidth + cells[cells.length - 2].scrollWidth + cells[cells.length - 1].scrollWidth;
+	var remain = avail - fixed - 40;
+
+	var hasFeatures = t.classList.contains('aoe-catalog-table-with-features');
+	var nameMax = hasFeatures ? Math.floor(remain * 0.6) : remain;
+
+	var nameHeader = t.querySelector('thead tr > th:nth-child(2)');
+	if (nameHeader) {
+		nameHeader.style.width = nameMax + 'px';
+		nameHeader.style.display = 'flex';
+	}
+
+	t.querySelectorAll('thead tr > th:not(:nth-child(2))').forEach(function (th) {
+		th.style.whiteSpace = 'normal';
+	});
+
+	t.querySelectorAll('tbody tr > td:nth-child(2)').forEach(function (td) {
+		td.style.maxWidth = nameMax + 'px';
+		td.style.whiteSpace = 'normal';
+	});
+
+	if (hasFeatures) {
+		t.querySelectorAll('tbody tr > td:nth-child(3)').forEach(function (td) {
+			td.style.maxWidth = Math.floor(remain * 0.4) + 'px';
+		});
+	}
+}
+
 jQuery(document).ready(function ($) {
 	aoeCatalogFixParentWidth();
+	aoeCatalogBalanceColumns();
 	$(window).on('resize', aoeCatalogFixParentWidth);
 
 	// Inject CSS rule to neutralize stacking context on .fusion-builder-row when modal is open

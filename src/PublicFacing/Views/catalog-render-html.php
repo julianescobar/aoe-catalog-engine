@@ -200,6 +200,17 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 	$family_pdf   = $first_pdf;
 	$category_display_name = $category;
 	$show_features_col = in_array( $manufacturer_slug, [ 'samtec', 'edac', 'camdenboss', 'bivar', 'panduit', 'bulgin' ], true );
+	if ( $show_features_col && ! $is_preview ) {
+		$has_any_specs = false;
+		foreach ( $page_products as $pp ) {
+			$additional = is_array( $pp->additional_data ?? '' ) ? $pp->additional_data : ( json_decode( $pp->additional_data ?? '{}', true ) ?: [] );
+			if ( ! empty( $additional['specs'] ) ) {
+				$has_any_specs = true;
+				break;
+			}
+		}
+		if ( ! $has_any_specs ) $show_features_col = false;
+	}
 
 	ob_start();
 	?>
@@ -300,7 +311,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 				?>
 				<div class="aoe-catalog-group-section">
 					<h3 class="aoe-cat-breadcrumb"><?php echo esc_html( implode( ' > ', $path_parts ) ); ?></h3>
-					<table class="aoe-catalog-table<?php echo $show_features_col ? ' aoe-catalog-table-samtec' : ''; ?>" itemscope itemtype="https://schema.org/ItemList">
+					<table class="aoe-catalog-table<?php echo $show_features_col ? ' aoe-catalog-table-with-features' : ''; ?> aoe-catalog-table-<?php echo esc_attr( $manufacturer_slug ); ?>" itemscope itemtype="https://schema.org/ItemList">
 						<thead>
 							<tr>
 								<th>Codigo</th>
@@ -444,7 +455,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 		</div>
 		<?php endif; ?>
 		<?php endif; ?>
-			<table class="aoe-catalog-table<?php echo $show_features_col ? ' aoe-catalog-table-samtec' : ''; ?>" itemscope itemtype="https://schema.org/ItemList">
+			<table class="aoe-catalog-table<?php echo $show_features_col ? ' aoe-catalog-table-with-features' : ''; ?> aoe-catalog-table-<?php echo esc_attr( $manufacturer_slug ); ?>" itemscope itemtype="https://schema.org/ItemList">
 			<thead>
 				<tr>
 					<th>Codigo</th>
