@@ -207,6 +207,7 @@ class TemplateCache {
 
 		if ( $ok ) {
 			update_option( 'aoe_last_template_regen', time() );
+			delete_option( 'aoe_needs_regen' );
 		}
 
 		// Clean up old 3-file format if it exists
