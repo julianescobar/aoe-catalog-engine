@@ -68,6 +68,11 @@ class PanduitProcessor extends BaseProcessor {
 
 		$data['description'] = isset( $row['description'] ) ? $this->normalize_text( (string) $row['description'] ) : '';
 
+		$subtitle = isset( $row['subtitle'] ) ? $this->normalize_text( (string) $row['subtitle'] ) : '';
+		if ( '' !== $subtitle ) {
+			$data['additional_data']['subtitle'] = $subtitle;
+		}
+
 		$specs = $this->extract_technical_specs( $row );
 		if ( ! empty( $specs ) ) {
 			$data['additional_data']['specs'] = $specs;
@@ -105,16 +110,14 @@ class PanduitProcessor extends BaseProcessor {
 				continue;
 			}
 
-			if ( ! str_ends_with( strtolower( $url ), '.pdf' ) ) {
-				continue;
-			}
-
-			$type = trim( $parts[0] ?? '' );
-			$name = trim( $parts[1] ?? '' );
-			$label = 'datasheet';
-
+			$type       = trim( $parts[0] ?? '' );
+			$name       = trim( $parts[1] ?? '' );
+			$label      = 'document';
 			$type_lower = strtolower( $type );
-			if ( str_contains( $type_lower, 'specification' ) || str_contains( $type_lower, 'datasheet' ) ) {
+
+			if ( str_contains( $type_lower, 'drawing' ) ) {
+				$label = 'drawing';
+			} elseif ( str_contains( $type_lower, 'specification' ) || str_contains( $type_lower, 'datasheet' ) ) {
 				$label = 'datasheet';
 			} elseif ( str_contains( $type_lower, 'installation' ) ) {
 				$label = 'manual';
@@ -122,11 +125,14 @@ class PanduitProcessor extends BaseProcessor {
 				$label = 'application_guide';
 			} elseif ( str_contains( $type_lower, 'brochure' ) || str_contains( $type_lower, 'catalog' ) ) {
 				$label = 'brochure';
-			} else {
-				$label = 'document';
 			}
 
-			$pdfs[ $label ][] = [ 'url' => $url, 'name' => ! empty( $name ) ? $name : $label ];
+			$display_name = ! empty( $name ) ? $name : $label;
+			if ( 'drawing' === $label && ! empty( $name ) ) {
+				$display_name = $type . ' ' . $name;
+			}
+
+			$pdfs[ $label ][] = [ 'url' => $url, 'name' => $display_name ];
 		}
 
 		return $pdfs;

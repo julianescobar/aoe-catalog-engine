@@ -200,6 +200,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 	$family_pdf   = $first_pdf;
 	$category_display_name = $category;
 	$show_features_col = in_array( $manufacturer_slug, [ 'samtec', 'edac', 'camdenboss', 'bivar', 'panduit', 'bulgin' ], true );
+	$show_subtitle_desc = in_array( $manufacturer_slug, [ 'panduit' ], true );
 	if ( $show_features_col && ! $is_preview ) {
 		$has_any_specs = false;
 		foreach ( $page_products as $pp ) {
@@ -332,14 +333,19 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 									$images    = is_array( $product['images'] ?? null ) ? $product['images'] : [];
 									$pdf       = is_array( $product['pdf'] ?? null ) ? $product['pdf'] : [];
 									$specs     = [];
+									$additional = is_array( $product['additional_data'] ?? null ) ? $product['additional_data'] : ( json_decode( (string) ( $product['additional_data'] ?? '{}' ), true ) ?: [] );
+									$subtitle   = $additional['subtitle'] ?? '';
+									$desc_line  = (string) ( $product['description'] ?? '' );
 								} else {
 									$sku       = (string) ( $product->sku ?? '' );
 									$name      = (string) ( $product->name ?? '' );
 									$images    = (array) ( json_decode( $product->urls_images ?? '[]', true ) ?: [] );
 									$pdf       = (array) ( json_decode( $product->url_pdf ?? '[]', true ) ?: [] );
-									$additional = (array) ( json_decode( $product->additional_data ?? '{}', true ) ?: [] );
-									$specs     = $additional['specs'] ?? [];
-								}
+								$additional = (array) ( json_decode( $product->additional_data ?? '{}', true ) ?: [] );
+								$specs     = $additional['specs'] ?? [];
+								$subtitle   = $additional['subtitle'] ?? '';
+								$desc_line  = (string) ( $product->description ?? '' );
+							}
 					$has_specs = ! empty( $specs );
 					$specs_flat = $has_specs ? implode( ', ', array_slice( array_values( $specs ), 0, 10 ) ) : '';
 					$images = array_map( function( $img ) use ( $manufacturer_slug, $media_source ) {
@@ -355,6 +361,15 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 								<tr class="fila-producto no-lazyload" itemprop="itemListElement" itemscope itemtype="https://schema.org/Product"
 									data-sku="<?php echo esc_attr( $sku ); ?>"
 									data-nombre="<?php echo esc_attr( $name ); ?>"
+									<?php if ( $show_subtitle_desc && '' !== $subtitle ) : ?>
+									data-subtitulo="<?php echo esc_attr( $subtitle ); ?>"
+									<?php endif; ?>
+									<?php if ( $show_subtitle_desc && '' !== $desc_line ) : ?>
+									data-descripcion="<?php echo esc_attr( $desc_line ); ?>"
+									<?php endif; ?>
+									<?php if ( $show_subtitle_desc ) : ?>
+									data-doc-names="1"
+									<?php endif; ?>
 									data-img="<?php echo esc_url( $image_url ); ?>"
 									<?php if ( $has_pdf ) : ?>
 									data-pdf-json="<?php echo $pdf_json; ?>"
@@ -367,7 +382,13 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 									</span>
 									</td>
 									<td>
-										<span itemprop="name"><?php echo esc_html( $name ); ?></span>
+										<span class="aoe-catalog-product-name" itemprop="name"><?php echo esc_html( $name ); ?></span>
+								<?php if ( $show_subtitle_desc && '' !== $subtitle ) : ?>
+									<span class="aoe-catalog-product-subtitle"><?php echo esc_html( $subtitle ); ?></span>
+								<?php endif; ?>
+								<?php if ( $show_subtitle_desc && '' !== $desc_line ) : ?>
+									<span class="aoe-catalog-product-desc"><?php echo esc_html( $desc_line ); ?></span>
+								<?php endif; ?>
 										<?php if ( ! empty( $image_url ) ) : ?>
 											<meta itemprop="image" content="<?php echo esc_url( $image_url ); ?>" class="no-lazyload">
 										<?php endif; ?>
@@ -476,6 +497,9 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 						$images    = is_array( $product['images'] ?? null ) ? $product['images'] : [];
 						$pdf       = is_array( $product['pdf'] ?? null ) ? $product['pdf'] : [];
 						$specs     = [];
+						$additional = is_array( $product['additional_data'] ?? null ) ? $product['additional_data'] : ( json_decode( (string) ( $product['additional_data'] ?? '{}' ), true ) ?: [] );
+						$subtitle   = $additional['subtitle'] ?? '';
+						$desc_line  = (string) ( $product['description'] ?? '' );
 					} else {
 						$sku       = (string) ( $product->sku ?? '' );
 						$name      = (string) ( $product->name ?? '' );
@@ -483,6 +507,8 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 						$pdf       = (array) ( json_decode( $product->url_pdf ?? '[]', true ) ?: [] );
 						$additional = (array) ( json_decode( $product->additional_data ?? '{}', true ) ?: [] );
 						$specs     = $additional['specs'] ?? [];
+						$subtitle   = $additional['subtitle'] ?? '';
+						$desc_line  = (string) ( $product->description ?? '' );
 					}
 					$has_specs = ! empty( $specs );
 					$specs_flat = $has_specs ? implode( ', ', array_slice( array_values( $specs ), 0, 10 ) ) : '';
@@ -499,6 +525,15 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 					<tr class="fila-producto no-lazyload" itemprop="itemListElement" itemscope itemtype="https://schema.org/Product"
 						data-sku="<?php echo esc_attr( $sku ); ?>"
 						data-nombre="<?php echo esc_attr( $name ); ?>"
+						<?php if ( $show_subtitle_desc && '' !== $subtitle ) : ?>
+						data-subtitulo="<?php echo esc_attr( $subtitle ); ?>"
+						<?php endif; ?>
+						<?php if ( $show_subtitle_desc && '' !== $desc_line ) : ?>
+						data-descripcion="<?php echo esc_attr( $desc_line ); ?>"
+						<?php endif; ?>
+						<?php if ( $show_subtitle_desc ) : ?>
+						data-doc-names="1"
+						<?php endif; ?>
 						data-img="<?php echo esc_url( $image_url ); ?>"
 						<?php if ( $has_pdf ) : ?>
 						data-pdf-json="<?php echo $pdf_json; ?>"
@@ -511,7 +546,13 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 							</span>
 						</td>
 						<td>
-							<span itemprop="name"><?php echo esc_html( $name ); ?></span>
+							<span class="aoe-catalog-product-name" itemprop="name"><?php echo esc_html( $name ); ?></span>
+								<?php if ( $show_subtitle_desc && '' !== $subtitle ) : ?>
+									<span class="aoe-catalog-product-subtitle"><?php echo esc_html( $subtitle ); ?></span>
+								<?php endif; ?>
+								<?php if ( $show_subtitle_desc && '' !== $desc_line ) : ?>
+									<span class="aoe-catalog-product-desc"><?php echo esc_html( $desc_line ); ?></span>
+								<?php endif; ?>
 							<?php if ( ! empty( $image_url ) ) : ?>
 								<meta itemprop="image" content="<?php echo esc_url( $image_url ); ?>" class="no-lazyload">
 							<?php endif; ?>
@@ -560,6 +601,8 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 								<div class="aoe-catalog-product-info">
 									<h2 id="modal-sku-titulo"></h2>
 									<p id="modal-nombre-subtitulo"></p>
+									<p id="modal-subtitulo" class="aoe-catalog-modal-subtitle"></p>
+									<p id="modal-descripcion" class="aoe-catalog-modal-desc"></p>
 									<p class="aoe-catalog-manufacturer"><strong>Fabricante:</strong> <?php echo esc_html( ucfirst( $manufacturer_name ) ); ?></p>
 									<div class="aoe-catalog-contact-wrap">
 										<a id="btn-contacto-modal" class="fusion-button button-flat fusion-button-default-size button-default fusion-button-default btn-catalogo-generico aoe-catalog-contact-button" title="" href="javascript:void(0)" data-sku-link="">

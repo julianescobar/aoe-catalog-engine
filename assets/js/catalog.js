@@ -98,6 +98,12 @@ jQuery(document).ready(function ($) {
 		var $modal = $('#aoe-catalog-modal');
 		$modal.find('#modal-sku-titulo').text(sku);
 		$modal.find('#modal-nombre-subtitulo').text(nombre);
+		var subtitulo = $btn.attr('data-subtitulo') || '';
+		var descripcion = $btn.attr('data-descripcion') || '';
+		var $modalSub = $modal.find('#modal-subtitulo');
+		var $modalDesc = $modal.find('#modal-descripcion');
+		if (subtitulo) { $modalSub.text(subtitulo).show(); } else { $modalSub.text('').hide(); }
+		if (descripcion) { $modalDesc.text(descripcion).show(); } else { $modalDesc.text('').hide(); }
 		$modal.find('#modal-img-producto').attr('src', imagen || '').attr('alt', altText).show();
 		$modal.find('#modal-img-producto').closest('.aoe-catalog-product-image-wrap').show();
 		$modal.find('#modal-heading-1').text(sku);
@@ -109,10 +115,18 @@ jQuery(document).ready(function ($) {
 			'print': 'Print',
 			'footprint': 'Footprint',
 			'catalog_page': 'Catalog Page',
-			'spec_sheet': 'Spec Sheet'
+			'spec_sheet': 'Spec Sheet',
+			'drawing': 'Part Drawing'
 		};
 		var pdfData = {};
 		try { pdfData = JSON.parse($btn.attr('data-pdf-json') || '{}'); } catch (e) { }
+		var totalDocs = 0;
+		$.each(pdfData, function (key, val) {
+			if (!val) return;
+			var entries = Array.isArray(val) ? val : [val];
+			totalDocs += entries.length;
+		});
+		var isList = totalDocs > 4;
 		var pdfHtml = '';
 		$.each(pdfData, function (key, val) {
 			if (!val) return;
@@ -123,20 +137,37 @@ jQuery(document).ready(function ($) {
 				if (!url) return;
 				var name = typeof entry === 'object' ? entry.name : '';
 				var label = pdfLabels[key] || key.replace(/_/g, ' ').replace(/\b\w/g, function (c) { return c.toUpperCase(); });
-				var pdfName = (key === 'datasheet' || !name) ? label : name;
-				pdfHtml += '<a class="aoe-catalog-doc-card" href="#"'
-					+ ' data-doc="' + url + '"'
-					+ ' data-target=".fusion-modal.descargar"'
-					+ ' title="' + label + '"'
-					+ ' aria-label="' + label + '">'
-					+ '<i class="fas fa-file-pdf"></i>'
-					+ '<span><strong>' + pdfName + '</strong><em>Oficial ' + manufacturerName + ' Document</em></span>'
-					+ '</a>';
+				var isDrawing = (key === 'drawing');
+				var showDocNames = $btn.attr('data-doc-names') === '1';
+				var pdfName = (showDocNames || key !== 'datasheet') ? (name || label) : label;
+				var iconHtml = isDrawing ? '<i class="fas fa-drafting-compass aoe-drawing-icon"></i>' : '<i class="fas fa-file-pdf"></i>';
+				if (isList) {
+					pdfHtml += '<a class="aoe-catalog-doc-item' + (isDrawing ? ' aoe-catalog-doc-item-drawing' : '') + '" href="#"'
+						+ ' data-doc="' + url + '"'
+						+ ' data-target=".fusion-modal.descargar"'
+						+ ' title="' + label + '"'
+						+ ' aria-label="' + label + '">'
+						+ iconHtml
+						+ '<span class="aoe-catalog-doc-item-name">' + pdfName + '</span>'
+						+ '</a>';
+				} else {
+					pdfHtml += '<a class="aoe-catalog-doc-card' + (isDrawing ? ' aoe-catalog-doc-card-drawing' : '') + '" href="#"'
+						+ ' data-doc="' + url + '"'
+						+ ' data-target=".fusion-modal.descargar"'
+						+ ' title="' + label + '"'
+						+ ' aria-label="' + label + '">'
+						+ iconHtml
+						+ '<span><strong>' + pdfName + '</strong><em>Oficial ' + manufacturerName + ' Document</em></span>'
+						+ '</a>';
+				}
 			});
 		});
 		$modal.find('#titulo-documentacion').text('Descarga de catálogos de ' + sku);
 		var $docs = $modal.find('#lista-pdfs-dinamica');
-		if ($docs.length) $docs.html(pdfHtml);
+		if ($docs.length) {
+			$docs.html(pdfHtml);
+			$docs.toggleClass('aoe-catalog-docs-list', isList);
+		}
 		$modal.find('#contenedor-documentacion-bloque').toggle(!!pdfHtml);
 
 		var specsData = {};
@@ -232,7 +263,7 @@ jQuery(document).ready(function ($) {
 	$(function () { aoeRefreshFormNonce(); });
 
 	// Download modal
-	$(document).on('click', '.aoe-catalog-doc-card', function (e) {
+	$(document).on('click', '.aoe-catalog-doc-card, .aoe-catalog-doc-item', function (e) {
 		e.preventDefault();
 		e.stopPropagation();
 		aoeDownloadUrl = $(this).attr('data-doc') || '';

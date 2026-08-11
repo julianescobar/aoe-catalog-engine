@@ -289,6 +289,39 @@
 	grid-template-columns: 1fr 1fr;
 }
 
+.aoe-catalog-docs-grid.aoe-catalog-docs-list {
+	display: block;
+}
+
+.aoe-catalog-doc-item {
+	display: flex;
+	align-items: center;
+	text-decoration: none;
+	padding: 7px 2px;
+	border-bottom: 1px solid #eee;
+}
+
+.aoe-catalog-doc-item:last-child {
+	border-bottom: none;
+}
+
+.aoe-catalog-doc-item i {
+	color: #20acdb;
+	font-size: 18px;
+	margin-right: 12px;
+	width: 20px;
+	text-align: center;
+}
+
+.aoe-catalog-doc-item i.aoe-drawing-icon {
+	color: #e3001b;
+}
+
+.aoe-catalog-doc-item-name {
+	color: #333;
+	font-size: 15px;
+}
+
 .aoe-catalog-doc-card {
 	cursor: pointer;
 	display: flex;
@@ -323,6 +356,16 @@
 	font-size: 18px;
 	color: #888;
 	font-style: normal;
+}
+
+.aoe-catalog-modal-subtitle {
+	font-weight: 400;
+	margin-bottom: 4px;
+}
+
+.aoe-catalog-modal-desc {
+	font-size: 15px;
+	color: #555;
 }
 
 /* Modal */
@@ -868,6 +911,26 @@
 	font-weight: bold;
 }
 
+.fila-producto td .aoe-catalog-product-name {
+	display: block;
+	font-weight: 700;
+}
+
+.fila-producto td .aoe-catalog-product-subtitle {
+	display: block;
+	font-weight: 400;
+}
+
+.fila-producto td .aoe-catalog-product-desc {
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+	font-size: 15px;
+	font-weight: 300;
+	color: #666;
+	line-height: 1.35;
+}
+
 #aoe-catalog-container .aoe-category-chain h4 {
 	font-size: var(--h4_typography-font-size) !important;
 }
@@ -930,6 +993,15 @@
 
 .aoe-catalog-specs-icon i {
 	color: #20acdb;
+}
+
+.aoe-catalog-doc-card i.aoe-drawing-icon {
+	color: #e3001b;
+}
+
+.aoe-catalog-doc-card-drawing {
+	border-color: #e3001b;
+	box-shadow: 0 0 0 1px #e3001b;
 }
 
 /* Series metadata (EDAC) */
