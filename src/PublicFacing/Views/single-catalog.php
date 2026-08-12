@@ -815,11 +815,52 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 
 			if ( $tree_layout === 'table_desc' ) {
 				$real_level = ! empty( $items ) ? (int) $items[0]->level : $level;
-				if ( $real_level >= $max_level ) {
+				$all_leaves = true;
+				foreach ( $items as $it ) {
+					if ( ! empty( $tree_by_parent[ (int) $it->category_id ] ?? [] ) ) { $all_leaves = false; }
+				}
+				if ( $real_level >= $max_level || ( $manufacturer_slug === 'bulgin' && $all_leaves ) ) {
+					$bulgin_heading_slugs = array_flip( [ 'be-enclosure-accessories' ] );
 					echo '<div class="aoe-cat-table-level-4"><table class="aoe-cat-tree-table">';
 					foreach ( $items as $item ) {
 						$count = (int) ( $segments_by_id[ $item->category_id ]->products_to ?? 0 );
 						if ( $count === 0 ) continue;
+
+						if ( $manufacturer_slug === 'bulgin' && isset( $bulgin_heading_slugs[ $item->category_slug ?? '' ] ) ) {
+							$meta = ! empty( $item->metadata_json ) ? json_decode( $item->metadata_json, true ) : [];
+							$wp_post_id = ! empty( $meta['wp_post_id'] ) ? intval( $meta['wp_post_id'] ) : 0;
+							$is_leaf = empty( $tree_by_parent[ (int) $item->category_id ] ?? [] );
+							if ( $is_leaf && $wp_post_id ) {
+								$cat_url = get_permalink( $wp_post_id );
+							} elseif ( $is_leaf && isset( $cat_page_map[ $item->category_id ] ) ) {
+								$cat_url = home_url( '/catalogo/' . $cat_page_map[ $item->category_id ] . '/' );
+							} else {
+								$cat_url = '#';
+							}
+							$desc = ! empty( $item->category_description ) ? trim( str_replace( '\n', "\n", $item->category_description ) ) : '';
+							if ( ! empty( $desc ) ) {
+								if ( preg_match( '/<p[^>]*>.*?<\/p>/s', $desc, $m ) ) {
+									$desc = $m[0];
+								} elseif ( ! preg_match( '/<[a-z][\s>]/', $desc ) ) {
+									$desc = '<p>' . esc_html( $desc ) . '</p>';
+								}
+							}
+							echo '<div class="aoe-cat-level-' . (int) $item->level . '"><h4 class="aoe-cat-heading">';
+							if ( $cat_url !== '#' ) {
+								echo '<a href="' . esc_url( $cat_url ) . '">' . esc_html( $item->category_name ) . '</a>';
+							} else {
+								echo esc_html( $item->category_name );
+							}
+							if ( $count > 0 ) {
+								echo ' <span class="count">(' . esc_html( $count ) . ')</span>';
+							}
+							echo '</h4>';
+							if ( ! empty( $desc ) ) {
+								echo str_replace( '<p', '<p class="aoe-cat-desc"', wp_kses_post( $desc ) );
+							}
+							echo '</div>';
+							continue;
+						}
 
 						$meta = ! empty( $item->metadata_json ) ? json_decode( $item->metadata_json, true ) : [];
 						$wp_post_id = ! empty( $meta['wp_post_id'] ) ? intval( $meta['wp_post_id'] ) : 0;
@@ -916,6 +957,9 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 					echo '<a href="' . esc_url( $cat_url ) . '">' . esc_html( $item->category_name ) . '</a>';
 				} else {
 					echo esc_html( $item->category_name );
+				}
+				if ( $manufacturer_slug === 'bulgin' && $is_leaf && $cat_url !== '#' && $count > 0 ) {
+					echo ' <span class="count">(' . esc_html( $count ) . ')</span>';
 				}
 				echo '</' . $heading . '>';
 

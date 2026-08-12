@@ -465,7 +465,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 		<?php endif; ?>
 		<?php if ( ! in_array( $manufacturer_slug, [ 'samtec', 'bivar' ], true ) ) : ?>
 		<?php if ( ! empty( $category_metadata['description'] ) ) : ?>
-		<div class="aoe-series-description"><?php echo wp_kses_post( $category_metadata['description'] ); ?></div>
+		<div class="aoe-series-description"><?php echo wp_kses_post( wpautop( str_replace( '\n', "\n", $category_metadata['description'] ) ) ); ?></div>
 		<?php endif; ?>
 		<?php if ( ! empty( $category_metadata['highlights'] ) ) : ?>
 		<div class="aoe-series-highlights"><?php echo wp_kses_post( nl2br( str_replace( '\n', "\n", $category_metadata['highlights'] ) ) ); ?></div>

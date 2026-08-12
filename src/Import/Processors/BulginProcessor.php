@@ -14,62 +14,40 @@ class BulginProcessor extends BaseProcessor {
 
 	public function get_supported_columns(): array {
 		return [
-			'sku', 'product_display_title', 'product_family', 'product_series',
-			'short_description', 'description', 'product_datasheet', 'image',
+			'sku', 'name', 'url', 'image_url', 'pdf_url', 'short_description', 'series_slug',
 		];
 	}
 
-	protected function extract_technical_specs( array $row ): array {
-		$specs    = [];
-		$capture  = false;
-		$skip_map = array_flip( [
-			'sku', 'category', 'name', 'product_display_title',
-			'product_display_subtitle', 'product_family', 'product_series',
-			'image_label', 'small_image_label', 'cad_links', 'created_at',
-			'grouped_cad', 'updated_at', 'certificate_links',
-			'product_datasheet', 'pdf_links', 'pdfbuilder_enabled',
-			'change_notes', 'downloads', 'country_of_manufacture',
-			'short_description', 'description', 'max_insertion_loss',
-			'avg_insertion_loss', 'product_technical_image', 'is_vitalis',
-			'custom_layout_update_file', 'custom_layout', 'angle',
-			'design', 'package_id', 'poa', 'poa_text', 'image',
-			'additional_images', 'meta_title', 'meta_keyword',
-			'meta_description',
-		] );
+	protected function get_technical_spec_columns(): array {
+		return []; // Override extract_technical_specs instead
+	}
 
+	protected function extract_technical_specs( array $row ): array {
+		$skip = array_flip( [
+			'sku', 'name', 'url', 'entity_id', 'category_ids',
+			'image_url', 'pdf_url', 'cad_url', 'cad_viewer_url',
+			'short_description', 'series_slug',
+		] );
+		$specs = [];
 		foreach ( $row as $key => $value ) {
 			$clean_key = ltrim( trim( $key ), "\xEF\xBB\xBF" );
 			if ( '' === $clean_key ) {
 				continue;
 			}
-
-			if ( 'actuator_colour' === strtolower( $clean_key ) ) {
-				$capture = true;
+			if ( isset( $skip[ strtolower( $clean_key ) ] ) ) {
+				continue;
 			}
-
-			if ( $capture ) {
-				$lower = strtolower( $clean_key );
-				if ( 'waterproof_housing' === $lower ) {
-					if ( '' !== trim( $value ) ) {
-						$specs[ $clean_key ] = $this->normalize_text( (string) $value );
-					}
-					break;
-				}
-				if ( isset( $skip_map[ $lower ] ) ) {
-					continue;
-				}
-				if ( '' !== trim( $value ) ) {
-					$specs[ $clean_key ] = $this->normalize_text( (string) $value );
-				}
+			if ( '' !== trim( $value ) ) {
+				$specs[ $clean_key ] = $this->normalize_text( (string) $value );
 			}
 		}
-
 		return $specs;
 	}
 
 	public function process_row( array $row ): array {
 		$data = $this->get_default_structure();
 
+		// Strip BOM from all keys
 		$row = array_combine(
 			array_map( function ( $key ) { return ltrim( $key, "\xEF\xBB\xBF" ); }, array_keys( $row ) ),
 			$row
@@ -78,21 +56,26 @@ class BulginProcessor extends BaseProcessor {
 		$data['sku']  = isset( $row['sku'] ) ? $this->normalize_text( (string) $row['sku'] ) : '';
 		$data['name'] = isset( $row['name'] ) ? $this->normalize_text( (string) $row['name'] ) : $data['sku'];
 
-		$path = $this->extract_category_path( $row );
-		$data['category_path'] = $path;
-		$data['category'] = ! empty( $path ) ? end( $path ) : 'Uncategorized';
+		// series_slug is the final curated slug (bulgin-cat-map.json). find_or_create
+		// turns it into the same slug, so the categories import can re-attribute by slug.
+		$slug = isset( $row['series_slug'] ) ? trim( (string) $row['series_slug'] ) : '';
+		if ( '' !== $slug ) {
+			$data['category'] = $slug;
+		}
 
-		$image_url = isset( $row['image'] ) ? $this->normalize_text( (string) $row['image'] ) : '';
-		$data['images'] = ! empty( $image_url ) ? [ $image_url ] : [];
+		$image_url = isset( $row['image_url'] ) ? trim( (string) $row['image_url'] ) : '';
+		$data['images'] = ! empty( $image_url ) ? [ $this->strip_image_cache( $image_url ) ] : [];
 
-		$datasheet = isset( $row['product_datasheet'] ) ? $this->normalize_text( (string) $row['product_datasheet'] ) : '';
+		$datasheet = isset( $row['pdf_url'] ) ? $this->normalize_text( (string) $row['pdf_url'] ) : '';
 		$data['pdf'] = [
 			'datasheet' => $datasheet,
 		];
 
 		$data['description'] = isset( $row['short_description'] ) ? $this->normalize_text( (string) $row['short_description'] ) : '';
-		if ( empty( $data['description'] ) && isset( $row['description'] ) ) {
-			$data['description'] = $this->normalize_text( (string) $row['description'] );
+
+		$product_url = isset( $row['url'] ) ? $this->normalize_text( (string) $row['url'] ) : '';
+		if ( '' !== $product_url ) {
+			$data['additional_data']['url'] = $product_url;
 		}
 
 		$specs = $this->extract_technical_specs( $row );
@@ -103,17 +86,7 @@ class BulginProcessor extends BaseProcessor {
 		return $data;
 	}
 
-	private function extract_category_path( array $row ): array {
-		$path = [];
-
-		if ( isset( $row['product_family'] ) && '' !== trim( $row['product_family'] ) ) {
-			$path[] = $this->normalize_text( (string) $row['product_family'] );
-		}
-
-		if ( isset( $row['product_series'] ) && '' !== trim( $row['product_series'] ) ) {
-			$path[] = $this->normalize_text( (string) $row['product_series'] );
-		}
-
-		return $path;
+	private function strip_image_cache( string $url ): string {
+		return preg_replace( '#/media/catalog/product/cache/[0-9a-f]+/#i', '/media/catalog/product/', $url ) ?? $url;
 	}
 }

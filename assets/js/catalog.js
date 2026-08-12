@@ -48,10 +48,61 @@ function aoeCatalogBalanceColumns() {
 	}
 }
 
+function aoeCapBulginSkuColumn() {
+	document.querySelectorAll('.aoe-catalog-table-bulgin').forEach(function (t) {
+		var cap = false;
+		t.querySelectorAll('tbody td:first-child [itemprop="sku"]').forEach(function (el) {
+			if (cap) return;
+			var probe = el.cloneNode(true);
+			probe.style.position = 'absolute';
+			probe.style.visibility = 'hidden';
+			probe.style.whiteSpace = 'nowrap';
+			probe.style.width = 'auto';
+			probe.style.maxWidth = 'none';
+			probe.style.display = 'inline-block';
+			document.body.appendChild(probe);
+			var w = probe.scrollWidth;
+			document.body.removeChild(probe);
+			if (w > 260) cap = true;
+		});
+
+		var header = t.querySelector('thead tr > th:first-child');
+		if (cap) {
+			if (header) {
+				header.style.width = '260px';
+			}
+			t.querySelectorAll('tbody tr > td:first-child').forEach(function (td) {
+				td.style.width = '260px';
+				td.style.maxWidth = '260px';
+				td.style.whiteSpace = 'normal';
+				td.style.overflowWrap = 'anywhere';
+			});
+		} else {
+			if (header) {
+				header.style.width = '';
+			}
+			t.querySelectorAll('tbody tr > td:first-child').forEach(function (td) {
+				td.style.width = '';
+				td.style.maxWidth = '';
+				td.style.whiteSpace = '';
+				td.style.overflowWrap = '';
+			});
+		}
+	});
+}
+
 jQuery(document).ready(function ($) {
 	aoeCatalogFixParentWidth();
 	aoeCatalogBalanceColumns();
+	aoeCapBulginSkuColumn();
 	$(window).on('resize', aoeCatalogFixParentWidth);
+	$(window).on('resize', (function () {
+		var timer = null;
+		return function () {
+			clearTimeout(timer);
+			timer = setTimeout(aoeCapBulginSkuColumn, 150);
+		};
+	})());
 
 	// Inject CSS rule to neutralize stacking context on .fusion-builder-row when modal is open
 	$('<style>').prop('type', 'text/css')

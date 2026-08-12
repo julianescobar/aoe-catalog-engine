@@ -1,0 +1,140 @@
+BULGIN - Mapa de slugs de categorías (generado antes del re-import)
+Base URL: /catalogo/bulgin/
+
+=== A) CATEGORÍAS QUE SE MANTIENEN (79) ===
+  439   Circular Power Connectors                  -> /catalogo/bulgin/circular-power-connectors
+  440   EXPlora Series Buccaneer                   -> /catalogo/bulgin/explora
+  441   Mini Series Buccaneer                      -> /catalogo/bulgin/mini-buccaneer
+  442   6000 Series Buccaneer                      -> /catalogo/bulgin/6000-series-buccaneer
+  443   7000 Series Buccaneer                      -> /catalogo/bulgin/7000-series-buccaneer
+  444   Circular Data Connectors                   -> /catalogo/bulgin/circular-data-connectors
+  445   6000 Series USB                            -> /catalogo/bulgin/6000-series-usb-buccaneer
+  446   6000 Series Ethernet                       -> /catalogo/bulgin/6000-series-ethernet
+  447   900 Series Buccaneer                       -> /catalogo/bulgin/900-series-buccaneer
+  450   Standard Series Buccaneer                  -> /catalogo/bulgin/standard-buccaneer
+  451   Standard Series Ethernet                   -> /catalogo/bulgin/standard-buccaneer-ethernet
+  452   Standard Series USB                        -> /catalogo/bulgin/standard-buccaneer-usb
+  453   400 Series Buccaneer                       -> /catalogo/bulgin/400-series-buccaneer
+  454   400 Series SMB                             -> /catalogo/bulgin/400-series-smb-buccaneer
+  455   400 Series Mini USB                        -> /catalogo/bulgin/400-series-mini-usb-buccaneer
+  456   Accessories                                -> /catalogo/bulgin/be-enclosure-accessories
+  457   Switch Range                               -> /catalogo/bulgin/switch-range
+  458   Push Button Switches                       -> /catalogo/bulgin/push-button
+  459   Voltage Selector                           -> /catalogo/bulgin/voltage-selector
+  461   Battery Holders                            -> /catalogo/bulgin/battery-holders
+  462   IEC Connectors                             -> /catalogo/bulgin/iec-connectors
+  464   IEC Power Distribution Units               -> /catalogo/bulgin/iec-distribution-units
+  465   Power Entry Modules                        -> /catalogo/bulgin/power-entry-modules
+  466   EMI Mains Filters                          -> /catalogo/bulgin/mains-filters
+  468   Indicators                                 -> /catalogo/bulgin/indicators
+  543   Enclosures                                 -> /catalogo/bulgin/be-enclosures
+  572   4000 Series Buccaneer                      -> /catalogo/bulgin/4000-series-buccaneer
+  573   4000 Series Micro USB                      -> /catalogo/bulgin/4000-series-micro-usb-buccaneer
+  600   Rocker Switches                            -> /catalogo/bulgin/rocker-switches
+  602   Toggle Switches                            -> /catalogo/bulgin/toggle-switches [NUEVA slug]
+  603   Slide Switches                             -> /catalogo/bulgin/slide-switches [NUEVA slug]
+  604   Refrigerator Switches                      -> /catalogo/bulgin/refrigerator-switches
+  652   Circular Automation Connectors             -> /catalogo/bulgin/circular-automation-connectors
+  658   M-Series Distribution Units                -> /catalogo/bulgin/m-series-distribution-units
+  660   M5 Series                                  -> /catalogo/bulgin/m5-series
+  661   M8 Series                                  -> /catalogo/bulgin/m8-series
+  662   M12 Series                                 -> /catalogo/bulgin/m12-series
+  663   M16 Series                                 -> /catalogo/bulgin/m16-series
+  664   M23 Series                                 -> /catalogo/bulgin/m23-series
+  718   Touch Switches                             -> /catalogo/bulgin/touch-switches [NUEVA slug]
+  724   Fuse Holders                               -> /catalogo/bulgin/fuseholders
+  840   4000 Series C-Type                         -> /catalogo/bulgin/4000-series-c-type-usb-buccaneer
+  841   Sensor Range                               -> /catalogo/bulgin/sensors
+  842   Photoelectric Sensors                      -> /catalogo/bulgin/photoelectric-sensors
+  848   Circular Fiber Connectors                  -> /catalogo/bulgin/circular-fiber-connectors
+  849   4000 Series Simplex LC Fiber               -> /catalogo/bulgin/4000-series-simplex-lc-fiber-buccaneer
+  852   6000 Series Duplex LC Fiber                -> /catalogo/bulgin/6000-series-duplex-lc-fiber-buccaneer
+  853   Rectangular Connectors                     -> /catalogo/bulgin/rectangular-connectors
+  854   Standard Rectangular Connectors            -> /catalogo/bulgin/standard-rectangular-connectors
+  862   9000 Series Buccaneer                      -> /catalogo/bulgin/9000-series-high-power-buccaneer
+  863   Radio Frequency Connectors                 -> /catalogo/bulgin/radio-frequency-connectors
+  864   1.85mm Series                              -> /catalogo/bulgin/1-85mm-series
+  865   2.40mm Series                              -> /catalogo/bulgin/2-40mm-series
+  866   2.92mm Series                              -> /catalogo/bulgin/2-92mm-series
+  867   N Type Series                              -> /catalogo/bulgin/n-type-series
+  868   SMA Series                                 -> /catalogo/bulgin/sma-series
+  869   SSMA Series                                -> /catalogo/bulgin/ssma-series
+  870   TNCA Series                                -> /catalogo/bulgin/tnca-series
+  871   RF Adapter Series                          -> /catalogo/bulgin/rf-adapter-series
+  872   RF Termination Series                      -> /catalogo/bulgin/rf-termination-series
+  873   Push-Pull Connector X Series               -> /catalogo/bulgin/push-pull-connectors-x-series
+  874   Push-Pull Connector Y Series               -> /catalogo/bulgin/push-pull-connectors-y-series
+  875   5000 Series Expanded Beam                  -> /catalogo/bulgin/5000-series-expanded-beam
+  904   Miniature Rectangular Connectors           -> /catalogo/bulgin/miniature-rectangular-connectors
+  905   Power Rectangular Connectors               -> /catalogo/bulgin/power-rectangular-connectors
+  906   Automotive Rectangular Connectors          -> /catalogo/bulgin/automotive-rectangular-connectors
+  908   600 Series Ethernet                        -> /catalogo/bulgin/600-series-ethernet-buccaneer-connectors
+  909   7-8 Series                                 -> /catalogo/bulgin/7-8-series
+  910   Standard Series HDMI                       -> /catalogo/bulgin/standard-buccaneer-hdmi
+  913   4000 Series Single Pair Ethernet           -> /catalogo/bulgin/4000-series-spe
+  914   20 Series Waterproof USB                   -> /catalogo/bulgin/20-series-usb
+  915   30 series Waterproof HDMI                  -> /catalogo/bulgin/30-series-hdmi
+  920   AO Series Active Optical USB               -> /catalogo/bulgin/ao-series-usb
+  921   Vandal Resistant Switches                  -> /catalogo/bulgin/vandal-resistant-switches
+  922   6000 Series HDMI                           -> /catalogo/bulgin/6000-series-hdmi-buccaneer
+  923   AO Series Active Optical HDMI              -> /catalogo/bulgin/ao-series-active-optical-hdmi
+  1116  Standard Vitalis Buccaneer                 -> /catalogo/bulgin/standard-vitalis-buccaneer
+  1117  400 Series C-Type USB                      -> /catalogo/bulgin/400-series-c-type-usb [NUEVA slug]
+  1136  Power Interface Components                 -> /catalogo/bulgin/power-interface-components [NUEVA slug]
+
+=== B) SLUGS VIEJOS QUE YA NO EXISTEN -> 410 Gone (18) ===
+  iec60320-main-inlets-and-outlets                     [IEC60320 Main Inlets and Outlets]
+  400-series-wireless-buccaneer                        [400 Series - Wireless Buccaneer]
+  capacitive-switch                                    [Capacitive Switch]
+  miniature-stainless-steel-vandal-resistant           [Miniature Stainless Steel Vandal Resistant]
+  piezo-switch                                         [Piezo Switch]
+  m12-x-coding-series                                  [M12 X Coding Series]
+  base-mounting-pc1                                    [Base Mounting, PC1]
+  in-line-pc1-and-in-line-sealed-to-ip66-pc1           [In-Line PC1 and In-Line Sealed to IP66, PC1]
+  panel-mounting-pc1                                   [Panel Mounting, PC1]
+  panel-mounting-touchproof-sealed-to-ip66-pc1         [Panel Mounting Touchproof, Sealed to IP66, PC1]
+  panel-mounting-touchproof-sealed-to-ip68-pc2         [Panel Mounting Touchproof, Sealed to IP68, PC2]
+  panel-pc-mounting-captive-carriers-touchproof-pc3    [Panel/PC Mounting Captive Carriers Touchproof, PC3]
+  pc-mounting-pc1-pc2-and-pc3                          [PC Mounting PC1, PC2 and PC3]
+  front-panel-sealed-to-ip67                           [Front Panel Sealed to IP67]
+  panel-mounting                                       [Panel Mounting]
+  pcb-base-mounting                                    [PCB/Base Mounting]
+  iec60320-main-inlets-and-outlets-2                   (paginación de categoría gone)
+  iec60320-main-inlets-and-outlets-3                   (paginación de categoría gone)
+
+=== C) SLUGS VIEJOS FUSIONADOS -> 301 (18) ===
+  vandal-resistant                                     -> /catalogo/bulgin/vandal-resistant-switches  [Vandal Resistant]
+  6000-series-ethernet-buccaneer                       -> /catalogo/bulgin/6000-series-ethernet  [6000 Series - Ethernet Buccaneer]
+  4mm-led-indicators                                   -> /catalogo/bulgin/indicators  [4mm LED Indicators]
+  5mm-led-indicators                                   -> /catalogo/bulgin/indicators  [5mm LED Indicators]
+  6mm-vandal-resistant-indicator-dx-range              -> /catalogo/bulgin/indicators  [6mm Vandal Resistant Indicator DX Range]
+  8mm-vandal-resistant-indicator-dx-range              -> /catalogo/bulgin/indicators  [8mm Vandal Resistant Indicator DX Range]
+  indicator-lights                                     -> /catalogo/bulgin/indicators  [Indicator Lights]
+  low-voltage-lampholder                               -> /catalogo/bulgin/indicators  [Low Voltage Lampholder]
+  low-voltage-lampholders                              -> /catalogo/bulgin/indicators  [Low Voltage Lampholders]
+  vandal-resistant-led-indicators                      -> /catalogo/bulgin/indicators  [Vandal Resistant LED Indicators]
+  automotive-rectangular-connectors-contact-bandoliers -> /catalogo/bulgin/automotive-rectangular-connectors  [Automotive Rectangular Connectors- Contact - Bandoliers]
+  automotive-rectangular-connectors-seal               -> /catalogo/bulgin/automotive-rectangular-connectors  [Automotive Rectangular Connectors- Seal]
+  miniature-rectangular-connectors-wedgelocks          -> /catalogo/bulgin/miniature-rectangular-connectors  [Miniature Rectangular Connectors- Wedgelocks]
+  minituare-rectangular-connectors-contact-bandoliers  -> /catalogo/bulgin/miniature-rectangular-connectors  [Minituare Rectangular Connectors- Contact - Bandoliers]
+  power-rectangular-connectors-contact-bandoliers      -> /catalogo/bulgin/power-rectangular-connectors  [Power Rectangular Connectors- Contact - Bandoliers]
+  power-rectangular-connectors-wedgelocks              -> /catalogo/bulgin/power-rectangular-connectors  [Power Rectangular Connectors- Wedgelocks]
+  standard-rectangular-connectors-contacts             -> /catalogo/bulgin/standard-rectangular-connectors  [Standard Rectangular Connectors- Contacts]
+  rocker-switches-8448                                 -> /catalogo/bulgin/rocker-switches  (artefacto de colisión)
+
+=== D) SLUGS EN MAPA SIN URL ACTUAL (no generan reglas) ===
+  circular-power-connector                             -> /catalogo/bulgin/circular-power-connectors  (nunca fue URL real)
+  data-connectors                                      -> /catalogo/bulgin/circular-data-connectors  (nunca fue URL real)
+  switches                                             -> /catalogo/bulgin/switch-range  (nunca fue URL real)
+
+=== D) SLUGS BASURA (product-name) ===
+  Las 52 categorías basura NUNCA tuvieron URL real (verificado contra bulginurlsold.csv): sin reglas .htaccess.
+  Totales: 52 slugs basura en BD vieja.
+
+=== E) FALLBACK (se mantienen, NO 410) ===
+  uncategorized
+  sin-clasificar
+
+=== F) VERIFICACIÓN vs URLs actuales (bulginurlsold.csv) ===
+  Total URLs actuales (sin root): 175
+  NO mapeadas: 0

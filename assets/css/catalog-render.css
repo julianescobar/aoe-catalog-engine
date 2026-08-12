@@ -913,7 +913,6 @@
 
 .fila-producto td .aoe-catalog-product-name {
 	display: block;
-	font-weight: 700;
 }
 
 .fila-producto td .aoe-catalog-product-subtitle {
@@ -1347,6 +1346,13 @@
 	margin-top: 1em;
 }
 
+/* Bulgin: mostrar el nombre completo de la categoría (ancho según contenido),
+   con tope para nombres extremadamente largos */
+#aoe-catalog-container.aoe-tree-bulgin .aoe-cat-name {
+	width: max-content;
+	max-width: 420px;
+}
+
 /*
 .aoe-catalog-table-with-features>tbody>tr>td:nth-child(2) {
 	max-width: 350px;
@@ -1355,3 +1361,6 @@
 	overflow: hidden;
 	text-overflow: ellipsis;
 }*/
+#main .aoe-tree-layout-table_desc a {
+	color: #000 !important;
+}
