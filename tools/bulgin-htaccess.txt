@@ -19,6 +19,22 @@ RedirectMatch 301 "~^/catalogo/bulgin/standard\-rectangular\-connectors\-contact
 # collision artifact (pack-catalog -id suffix), rocker-switches-8448 no se regenera
 RedirectMatch 301 "~^/catalogo/bulgin/rocker\-switches\-8448(/.*)?$~" "/catalogo/bulgin/rocker-switches/"
 
+# === Bulgin: pagination URLs (slug-N) -> 301 a primera página ===
+RedirectMatch 301 "~^/catalogo/bulgin/400\-series\-buccaneer\-\d+(/.*)?$~" "/catalogo/bulgin/400-series-buccaneer/"
+RedirectMatch 301 "~^/catalogo/bulgin/4000\-series\-buccaneer\-\d+(/.*)?$~" "/catalogo/bulgin/4000-series-buccaneer/"
+RedirectMatch 301 "~^/catalogo/bulgin/5000\-series\-expanded\-beam\-\d+(/.*)?$~" "/catalogo/bulgin/5000-series-expanded-beam/"
+RedirectMatch 301 "~^/catalogo/bulgin/6000\-series\-buccaneer\-\d+(/.*)?$~" "/catalogo/bulgin/6000-series-buccaneer/"
+RedirectMatch 301 "~^/catalogo/bulgin/7000\-series\-buccaneer\-\d+(/.*)?$~" "/catalogo/bulgin/7000-series-buccaneer/"
+RedirectMatch 301 "~^/catalogo/bulgin/900\-series\-buccaneer\-\d+(/.*)?$~" "/catalogo/bulgin/900-series-buccaneer/"
+RedirectMatch 301 "~^/catalogo/bulgin/explora\-\d+(/.*)?$~" "/catalogo/bulgin/explora/"
+RedirectMatch 301 "~^/catalogo/bulgin/m12\-series\-\d+(/.*)?$~" "/catalogo/bulgin/m12-series/"
+RedirectMatch 301 "~^/catalogo/bulgin/m8\-series\-\d+(/.*)?$~" "/catalogo/bulgin/m8-series/"
+RedirectMatch 301 "~^/catalogo/bulgin/power\-entry\-modules\-\d+(/.*)?$~" "/catalogo/bulgin/power-entry-modules/"
+RedirectMatch 301 "~^/catalogo/bulgin/push\-button\-\d+(/.*)?$~" "/catalogo/bulgin/push-button/"
+RedirectMatch 301 "~^/catalogo/bulgin/standard\-buccaneer\-\d+(/.*)?$~" "/catalogo/bulgin/standard-buccaneer/"
+RedirectMatch 301 "~^/catalogo/bulgin/standard\-vitalis\-buccaneer\-\d+(/.*)?$~" "/catalogo/bulgin/standard-vitalis-buccaneer/"
+RedirectMatch 301 "~^/catalogo/bulgin/vandal\-resistant\-switches\-\d+(/.*)?$~" "/catalogo/bulgin/vandal-resistant-switches/"
+
 # === Bulgin: disappeared categories -> 410 Gone ===
 RedirectMatch 410 "~^/catalogo/bulgin/iec60320\-main\-inlets\-and\-outlets(/.*)?$~"
 RedirectMatch 410 "~^/catalogo/bulgin/400\-series\-wireless\-buccaneer(/.*)?$~"

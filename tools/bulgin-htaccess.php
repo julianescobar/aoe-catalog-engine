@@ -152,6 +152,30 @@ foreach ($collision301 as $old => $new) {
 	$lines[] = sprintf('RedirectMatch 301 "~^%s%s(/.*)?$~" "%s%s/"', $base, esc_regex($old), $base, $new);
 }
 
+// pagination URLs (slug-N) whose base still exists -> 301 to first page
+$pagination301 = [];
+foreach ($current as $s) {
+	if (!preg_match('/^(.*)-(\d+)$/', $s, $m)) continue;
+	$base2 = $m[1];
+	if ((int)$m[2] > 100) continue; // collision artifact (pack-catalog -id), covered above
+	if (isset($goneSet[$base2]))        continue; // already covered by 410 (goneExtra)
+	if (isset($renameSet[$base2])) {
+		$nid = $renameMap[$base2];
+		if (isset($slugMap[$nid])) $pagination301[$base2] = $slugMap[$nid];
+	} elseif (isset($redirectSet[$base2])) {
+		$pagination301[$base2] = $redirectMap[$base2];
+	} elseif (isset($fallbackSet[$base2])) {
+		$pagination301[$base2] = $base2;
+	}
+}
+ksort($pagination301);
+
+$lines[] = '';
+$lines[] = '# === Bulgin: pagination URLs (slug-N) -> 301 a primera página ===';
+foreach ($pagination301 as $old => $new) {
+	$lines[] = sprintf('RedirectMatch 301 "~^%s%s\-\d+(/.*)?$~" "%s%s/"', $base, esc_regex($old), $base, $new);
+}
+
 $lines[] = '';
 $lines[] = '# === Bulgin: disappeared categories -> 410 Gone ===';
 foreach ($goneLive as $slug) {
@@ -198,6 +222,12 @@ foreach ($collision301 as $old => $new) {
 }
 
 $doc[] = '';
+$doc[] = '=== C2) PAGINACIÓN VIEJA (slug-N) -> 301 a primera página (' . count($pagination301) . ' bases) ===';
+foreach ($pagination301 as $old => $new) {
+	$doc[] = sprintf("  %-40s-N -> %s%s  [%s]", $old, $base, $new, $oldName[$old] ?? '');
+}
+
+$doc[] = '';
 $doc[] = '=== D) SLUGS EN MAPA SIN URL ACTUAL (no generan reglas) ===';
 $dead = array_diff_key($redirectMap, $currentSet);
 foreach ($dead as $old => $new) {
@@ -223,7 +253,7 @@ foreach ($unmapped as $u) $doc[] = "    $u";
 
 file_put_contents($docFile, implode("\n", $doc) . "\n");
 
-echo "301 redirects: " . (count($redirectLive) + count($collision301)) . "  (" . count($redirectLive) . " fusiones vivas + " . count($collision301) . " colisiones)\n";
+echo "301 redirects: " . (count($redirectLive) + count($collision301) + count($pagination301)) . "  (" . count($redirectLive) . " fusiones vivas + " . count($collision301) . " colisiones + " . count($pagination301) . " paginación)\n";
 echo "410 gone: " . (count($goneLive) + count($goneExtra)) . "  (" . count($goneLive) . " + " . count($goneExtra) . " paginaciones)\n";
 echo "Muertas (sin regla): " . count($dead) . "\n";
 echo "Basura sin URL (sin reglas): " . count($garbageGone) . "\n";

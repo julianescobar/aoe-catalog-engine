@@ -122,6 +122,22 @@ Base URL: /catalogo/bulgin/
   standard-rectangular-connectors-contacts             -> /catalogo/bulgin/standard-rectangular-connectors  [Standard Rectangular Connectors- Contacts]
   rocker-switches-8448                                 -> /catalogo/bulgin/rocker-switches  (artefacto de colisión)
 
+=== C2) PAGINACIÓN VIEJA (slug-N) -> 301 a primera página (14 bases) ===
+  400-series-buccaneer                    -N -> /catalogo/bulgin/400-series-buccaneer  [400 Series Buccaneer]
+  4000-series-buccaneer                   -N -> /catalogo/bulgin/4000-series-buccaneer  [4000 Series Buccaneer]
+  5000-series-expanded-beam               -N -> /catalogo/bulgin/5000-series-expanded-beam  [5000 Series Expanded Beam]
+  6000-series-buccaneer                   -N -> /catalogo/bulgin/6000-series-buccaneer  [6000 Series Buccaneer]
+  7000-series-buccaneer                   -N -> /catalogo/bulgin/7000-series-buccaneer  [7000 Series Buccaneer]
+  900-series-buccaneer                    -N -> /catalogo/bulgin/900-series-buccaneer  [900 Series Buccaneer]
+  explora                                 -N -> /catalogo/bulgin/explora  [EXPlora]
+  m12-series                              -N -> /catalogo/bulgin/m12-series  [M12 Series]
+  m8-series                               -N -> /catalogo/bulgin/m8-series  [M8 Series]
+  power-entry-modules                     -N -> /catalogo/bulgin/power-entry-modules  [Power Entry Modules]
+  push-button                             -N -> /catalogo/bulgin/push-button  [Push Button]
+  standard-buccaneer                      -N -> /catalogo/bulgin/standard-buccaneer  [Standard Buccaneer]
+  standard-vitalis-buccaneer              -N -> /catalogo/bulgin/standard-vitalis-buccaneer  [Standard Vitalis Buccaneer]
+  vandal-resistant-switches               -N -> /catalogo/bulgin/vandal-resistant-switches  [Vandal Resistant Switches]
+
 === D) SLUGS EN MAPA SIN URL ACTUAL (no generan reglas) ===
   circular-power-connector                             -> /catalogo/bulgin/circular-power-connectors  (nunca fue URL real)
   data-connectors                                      -> /catalogo/bulgin/circular-data-connectors  (nunca fue URL real)
