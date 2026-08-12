@@ -677,6 +677,10 @@
 	background: rgb(223 223 223);
 }
 
+.aoe-catalog-table td[itemprop="brand"] {
+	white-space: nowrap;
+}
+
 .aoe-catalog-table td[itemprop="brand"] a {
 	text-decoration: none;
 }
