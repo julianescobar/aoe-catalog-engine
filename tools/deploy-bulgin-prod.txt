@@ -1,0 +1,44 @@
+DEPLOY BULGIN A PRODUCCIÓN
+==========================
+
+1) SUBIR A tools/ EN PRODUCCIÓN
+   - productosbulginv2-serie.csv   (el de series_slug, NO productosbulginv2.csv)
+   - categoriasbulginv2.csv
+   - bulgin-cat-map.json
+   - bulgin-htaccess.txt
+   - (los tools .php del plugin ya deben estar desplegados: full-import.php,
+      import-bulgin-categories.php, pack-catalog.php, etc.)
+
+2) IMPORTAR PRODUCTOS (no se pierde si se cierra la sesión)
+   cd /RUTA_DEL_SITIO/wp-content/plugins/aoe-catalog-engine
+   nohup php tools/full-import.php --manufacturer=bulgin --csv=tools/productosbulginv2-serie.csv --mode=replace > import-bulgin.log 2>&1 &
+
+   Monitorear: tail -f import-bulgin.log
+   Debe terminar con "Importación finalizada" y "pack_catalog completado".
+
+3) RECONSTRUIR CATEGORÍAS (las 79 curadas + uncategorized, re-adjunta productos)
+   php tools/import-bulgin-categories.php
+
+4) REGENERAR PÁGINAS (el paso 3 lo corre solo, no sobra)
+   php tools/pack-catalog.php bulgin
+
+5) HTACCESS (301/410)
+   Agregar el contenido de tools/bulgin-htaccess.txt al .htaccess del sitio:
+   - 17 x 301 fusiones
+   - 1  x 301 colisión (rocker-switches-8448)
+   - 14 x 301 paginación slug-N -> primera página
+   - 16 x 410 + 2 x 410 categorías desaparecidas
+
+6) VERIFICAR
+   - /catalogo/bulgin/ carga OK y las familias con hijos-hojas renderizan en tabla
+   - Accessories aparece como heading con (1)
+   - Uncategorized con (n)
+   - Descripción de serie sin \n (párrafos <p>)
+   - Imágenes de producto sin /cache/<hash>/ en la URL
+   - Probar una URL vieja paginada (ej. /catalogo/bulgin/standard-buccaneer-2/) -> 301
+   - Probar una categoría desaparecida (ej. /catalogo/bulgin/piezo-switch/) -> 410
+
+NOTAS
+   - AOE_DB_HOST=127.0.0.1:10006 es solo para local (bypass del socket de Local).
+   - El orden importa: full-import --mode=replace BORRA todas las categorías Bulgin,
+     por eso las categorías se reimportan después en el paso 3.

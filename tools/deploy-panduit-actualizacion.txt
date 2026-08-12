@@ -1,0 +1,33 @@
+DEPLOY PANDUIT - ACTUALIZACIÓN DE INFORMACIÓN
+=============================================
+
+Contexto: actualización de información (docs/formatos/subtítulos, filas de
+nombre a 3 líneas, dibujos en rojo en modal, etc. - commit fa63a62).
+NO borra productos ni categorías.
+
+1) SUBIR A tools/ EN PRODUCCIÓN
+   - panduit-catalogo.csv   (CSV grande ~133 MB)
+
+2) IMPORTAR EN MODO INCREMENTAL (actualiza por SKU, sin borrar)
+   cd /RUTA_DEL_SITIO/wp-content/plugins/aoe-catalog-engine
+   nohup php tools/full-import.php --manufacturer=panduit --csv=tools/panduit-catalogo.csv --mode=incremental > import-panduit.log 2>&1 &
+
+   Monitorear: tail -f import-panduit.log
+   Debe terminar con "Importación finalizada" y "pack_catalog completado".
+
+3) REGENERAR PÁGINAS (el import lo corre solo, no sobra)
+   php tools/pack-catalog.php panduit
+
+4) VERIFICAR
+   - Productos con todos los formatos de documento/subtítulo guardados
+   - Filas de nombre a 3 líneas
+   - Dibujos en rojo en el modal
+   - Vista de lista cuando hay mas de 4 docs
+   - Nombres de datasheet visibles
+
+NOTAS
+   - --mode=incremental = actualiza información existente por SKU.
+   - --mode=replace = borra productos y categorías de Panduit y reimporta todo
+     (usar solo si se quiere reemplazo total).
+   - scan-db-doc-formats.php y scan-drawing-formats.php son SOLO diagnóstico,
+     no son pasos de deploy.
