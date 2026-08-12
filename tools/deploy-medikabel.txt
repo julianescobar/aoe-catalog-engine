@@ -1,0 +1,72 @@
+DEPLOY MEDI KABEL A PRODUCCIÓN
+==============================
+
+1) CREAR EL FABRICANTE EN EL ADMIN (antes de importar)
+   - Admin > Fabricantes > Añadir nuevo
+   - Nombre: "Medi Kabel"
+   - Slug: "medikabel"
+   - Guardar plantilla asociada (post con [catalogo]) igual que los demás fabricantes.
+
+2) SUBIR A tools/ EN PRODUCCIÓN
+   - categoriasmedikabel.csv
+   - productosmedikabel.csv
+   (los tools .php del plugin ya deben estar desplegados:
+    full-import.php, import-medikabel-structure.php, pack-catalog.php, etc.)
+
+3) IMPORTAR PRODUCTOS (REMPLAZA todo Medi Kabel: borra categorías y reimporta productos)
+   cd /RUTA_DEL_SITIO/wp-content/plugins/aoe-catalog-engine
+   nohup php tools/full-import.php --manufacturer=medikabel --csv=tools/productosmedikabel.csv --mode=replace > import-medikabel.log 2>&1 &
+
+   Monitorear: tail -f import-medikabel.log
+   Debe terminar con "Importación finalizada" y "pack_catalog completado".
+   (En este punto todos los productos quedan en Uncategorized porque las
+    categorías no existen todavía; se arregla en el paso 4.)
+
+4) RECONSTRUIR CATEGORÍAS + SERIES + RE-ADJUNTAR PRODUCTOS + PODAR VACÍAS
+   php tools/import-medikabel-structure.php
+
+   Esto hace:
+     - L1 familias (9) con imagen + metadata
+     - L2 subcategorías (25)
+     - L3 series (162) desde series_name de los productos, con metadata series_id
+     - Uncategorized fallback
+     - Re-adjunta los productos por SKU (series_id -> subcategory_id -> category_id)
+     - Poda las categorías sin productos ni hijas con data (bottom-up, preserva Uncategorized)
+     - Actualiza products_count
+     - Regenera las páginas (pack_catalog)
+
+   Salida esperada (aprox):
+     L1 familias: 9 | L2 subcategorias: 25 | L3 series: 162
+     Products re-attribute: 455 | to uncategorized: 10
+     Pruned empty categories: ~127
+     total antes: 197 | despues prune: ~70
+
+5) CONFIGURAR tree_layout (opcional, recomendado para que salga como Edac/Bulgin)
+   En el admin, editar el fabricante "Medi Kabel" y poner tree_layout = "table_desc"
+   (o por BD: UPDATE wp_aoe_catalog_manufacturers SET config_json =
+    JSON_SET(config_json, '$.tree_layout', 'table_desc') WHERE slug='medikabel')
+   Luego regenerar páginas: php tools/pack-catalog.php medikabel
+
+6) VERIFICAR
+   - /catalogo/medikabel/ carga OK y renderiza con table_desc
+     (familias -> subcategorías -> series, con conteos (n))
+   - Las series hoja con link muestran (n) en el heading
+   - Nombres de categorías con la primera letra en mayúscula
+   - No aparecen categorías vacías (se podan automáticamente)
+   - Una página de serie (ej. /catalogo/medikabel/coaxial-cables/) muestra
+     productos con la columna de especificaciones técnicas (specs) y badges
+   - Slugs que contienen dígitos (ej. /catalogo/medikabel/ul-style-1213-silver-plated/
+     o /catalogo/medikabel/yv-based-on-vde-0812/) cargan (NO dan 404)
+   - Uncategorized muestra (n)
+
+NOTAS
+   - El orden importa: full-import --mode=replace BORRA todas las categorías Medi Kabel,
+     por eso el paso 4 reconstruye las categorías después.
+   - full-import --mode=replace deja todos los productos en Uncategorized; el paso 4
+     los re-adjunta a sus series/subcategorías correctas.
+   - AOE_DB_HOST=127.0.0.1:10006 es solo para local (bypass del socket de Local).
+   - 211 productos (71 series) no tienen subcategory_id en el CSV; esas series se
+     cuelgan directamente de su familia L1 (es OK, el árbol lo maneja).
+   - 10 productos sin category_id van a Uncategorized (esperado).
+   - Las 3 categorías virtuales del CSV (perivox, spiral, special) sin category_id
+     se ignoran (ningún producto las referencia).

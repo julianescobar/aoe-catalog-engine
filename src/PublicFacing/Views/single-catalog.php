@@ -235,6 +235,36 @@ if ( ! $page ) {
 	}
 }
 
+if ( ! $page && ! empty( $category_slug ) && 'grouped' !== $catalog_type ) {
+	// The rewrite rule ([^/]+)/([^-]+)-([0-9]+) is unanchored and wrongly splits
+	// category slugs that contain "-<digits>" anywhere (e.g. "ul-style-1213-silver-plated"
+	// -> category="ul-style", page="1213", dropping "-silver-plated"; or
+	// "yv-based-on-vde-0812" -> category="yv-based-on-vde", page="812").
+	// Recover the full original segment from REQUEST_URI and look it up verbatim.
+	$req_uri = isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '';
+	$path   = wp_parse_url( $req_uri, PHP_URL_PATH );
+	$full   = '';
+	if ( $path && preg_match( '#^/?catalogo/([^/]+)/(.+?)/?$#', $path, $rm ) ) {
+		$full = trim( $rm[2], '/' );
+	}
+	if ( '' !== $full ) {
+		$full_slug = $manufacturer_slug . '/' . $full;
+		$full_page = $wpdb->get_row( $wpdb->prepare(
+			"SELECT p.*, m.name AS manufacturer_name, m.wp_post_id AS template_post_id, m.config_json
+			 FROM $table_pages p
+			 JOIN $table_m m ON p.manufacturer_id = m.id
+			 WHERE p.slug = %s",
+			$full_slug
+		) );
+		if ( $full_page ) {
+			$page          = $full_page;
+			$category_slug = $full;
+			$page_num      = 1;
+			$page_slug     = $full_slug;
+		}
+	}
+}
+
 if ( ! $page ) {
 	global $wp_query;
 	$wp_query->set_404();
@@ -958,7 +988,7 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 				} else {
 					echo esc_html( $item->category_name );
 				}
-				if ( $manufacturer_slug === 'bulgin' && $is_leaf && $cat_url !== '#' && $count > 0 ) {
+				if ( $is_leaf && $cat_url !== '#' && $count > 0 ) {
 					echo ' <span class="count">(' . esc_html( $count ) . ')</span>';
 				}
 				echo '</' . $heading . '>';
