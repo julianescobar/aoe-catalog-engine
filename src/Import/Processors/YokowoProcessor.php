@@ -13,7 +13,7 @@ class YokowoProcessor extends BaseProcessor {
 	}
 
 	public function get_page_threshold(): int {
-		return 190;
+		return 1;
 	}
 
 	public function get_supported_columns(): array {
