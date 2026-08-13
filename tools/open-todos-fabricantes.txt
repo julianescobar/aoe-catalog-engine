@@ -1,0 +1,20 @@
+// Abrir todas las páginas de catálogo de fabricantes en pestañas
+// PEGAR EN LA CONSOLA DEL NAVEGADOR (F12) estando en tc-componentes.local
+
+const slugs = [
+  'samtec',
+  'camdenboss',
+  'edac',
+  'bulgin',
+  'panduit',
+  'bivar',
+  'medikabel',
+  'yokowo',
+  'ampenolanytek',
+  'amphenolltw',
+  'amphenolrf',
+];
+
+slugs.forEach(slug => {
+  window.open('http://tc-componentes.local/catalogo/' + slug + '/', '_blank');
+});

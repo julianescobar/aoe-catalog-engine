@@ -620,6 +620,36 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 			}
 		}
 
+		if ( ! function_exists( 'aoe_catalog_bullets_to_html' ) ) {
+			function aoe_catalog_bullets_to_html( string $desc ): string {
+				if ( '' === $desc ) {
+					return '';
+				}
+				if ( false !== strpos( $desc, "\xE2\x80\xA2" ) ) {
+					$items = preg_split( '/\s*\x{2022}\s*/u', $desc );
+					$items = array_values( array_filter( array_map( 'trim', $items ), static function ( $i ) { return '' !== $i; } ) );
+					if ( count( $items ) >= 2 ) {
+						$html = '';
+						$first = $items[0];
+						if ( preg_match( '/[.!]\s*$/', $first ) && mb_strlen( $first ) > 60 ) {
+							$html .= '<p>' . esc_html( $first ) . '</p>';
+							array_shift( $items );
+						}
+						$html .= '<ul class="aoe-cat-bullets">';
+						foreach ( $items as $item ) {
+							$html .= '<li>' . esc_html( $item ) . '</li>';
+						}
+						$html .= '</ul>';
+						return $html;
+					}
+				}
+				if ( preg_match( '/<[a-z][\s>]/', $desc ) ) {
+					return $desc;
+				}
+				return '<p>' . esc_html( $desc ) . '</p>';
+			}
+		}
+
 		function aoe_has_visible_descendants( int $cat_id, array $tree_by_parent, array $segments_by_id ): bool {
 			$children = $tree_by_parent[ $cat_id ] ?? [];
 			foreach ( $children as $child ) {
@@ -867,14 +897,16 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 							} else {
 								$cat_url = '#';
 							}
-							$desc = ! empty( $item->category_description ) ? trim( str_replace( '\n', "\n", $item->category_description ) ) : '';
-							if ( ! empty( $desc ) ) {
-								if ( preg_match( '/<p[^>]*>.*?<\/p>/s', $desc, $m ) ) {
-									$desc = $m[0];
-								} elseif ( ! preg_match( '/<[a-z][\s>]/', $desc ) ) {
-									$desc = '<p>' . esc_html( $desc ) . '</p>';
-								}
-							}
+				$desc = ! empty( $item->category_description ) ? trim( str_replace( '\n', "\n", $item->category_description ) ) : '';
+					if ( $manufacturer_slug === 'amphenolltw' ) {
+						$desc = aoe_catalog_bullets_to_html( $desc );
+					} elseif ( ! empty( $desc ) ) {
+						if ( preg_match( '/<p[^>]*>.*?<\/p>/s', $desc, $m ) ) {
+							$desc = $m[0];
+						} elseif ( ! preg_match( '/<[a-z][\s>]/', $desc ) ) {
+							$desc = '<p>' . esc_html( $desc ) . '</p>';
+						}
+					}
 							echo '<div class="aoe-cat-level-' . (int) $item->level . '"><h4 class="aoe-cat-heading">';
 							if ( $cat_url !== '#' ) {
 								echo '<a href="' . esc_url( $cat_url ) . '">' . esc_html( $item->category_name ) . '</a>';
@@ -910,7 +942,9 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 						$leaf_idx++;
 
 						$desc = ! empty( $item->category_description ) ? trim( str_replace( '\n', "\n", $item->category_description ) ) : '';
-						if ( ! empty( $desc ) ) {
+						if ( $manufacturer_slug === 'amphenolltw' ) {
+							$desc = aoe_catalog_bullets_to_html( $desc );
+						} elseif ( ! empty( $desc ) ) {
 							if ( preg_match( '/<p[^>]*>.*?<\/p>/s', $desc, $m ) ) {
 								$desc = $m[0];
 							} elseif ( ! preg_match( '/<[a-z][\s>]/', $desc ) ) {
@@ -948,7 +982,9 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 				if ( (int) $item->level < $max_level && ! isset( $cats_with_descendants[ (int) $item->category_id ] ) && $count === 0 ) continue;
 
 				$desc = ! empty( $item->category_description ) ? trim( str_replace( '\n', "\n", $item->category_description ) ) : '';
-					if ( ! empty( $desc ) ) {
+					if ( $manufacturer_slug === 'amphenolltw' ) {
+						$desc = aoe_catalog_bullets_to_html( $desc );
+					} elseif ( ! empty( $desc ) ) {
 						if ( preg_match( '/<p[^>]*>.*?<\/p>/s', $desc, $m ) ) {
 							$desc = $m[0];
 						} elseif ( ! preg_match( '/<[a-z][\s>]/', $desc ) ) {
@@ -1040,7 +1076,9 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 
 				$desc = ! empty( $item->category_description ) ? trim( str_replace( '\n', "\n", $item->category_description ) ) : '';
 
-				if ( $manufacturer_slug === 'samtec' && ! empty( $desc ) ) {
+				if ( $manufacturer_slug === 'amphenolltw' ) {
+					$desc = aoe_catalog_bullets_to_html( $desc );
+				} elseif ( $manufacturer_slug === 'samtec' && ! empty( $desc ) ) {
 					if ( preg_match( '/<p[^>]*>.*?<\/p>/s', $desc, $m ) ) {
 						$desc = $m[0];
 					} elseif ( ! preg_match( '/<[a-z][\s>]/', $desc ) ) {

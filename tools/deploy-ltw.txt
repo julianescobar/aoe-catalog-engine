@@ -1,0 +1,105 @@
+DEPLOY AMPHENOL LTW A PRODUCCIÓN
+===============================
+
+PREREQUISITO (lo hace el usuario por Avada, NO es parte de estos pasos)
+   - Fabricante "Amphenol LTW" (slug: "amphenolltw") ya creado en el admin
+     con su plantilla (post con [catalogo]) asociada, igual que los demás.
+   - tree_layout recomendado: "table_desc" (para que el árbol salga como Edac/Bulgin).
+   - post del fabricante: wp_post_id 10492.
+
+1) SUBIR ARCHIVOS A tools/ EN PRODUCCIÓN
+   - categoriasamphenolltw.csv
+   - productosamphenolltw.csv
+   (los tools .php del plugin ya deben estar desplegados:
+    full-import.php, import-ltw-structure.php, pack-catalog.php, etc.)
+    - Código fuente del plugin ya desplegado con estos cambios (los .php no se
+      copian en tools/):
+        * src/Import/Processors/AmphenolLtwProcessor.php (nuevo; threshold 1, así
+          toda categoría con productos tiene URL propia)
+        * src/Import/ProcessorManager.php (registro del procesador amphenolltw)
+        * src/PublicFacing/Views/catalog-render-html.php (amphenolltw en show_features_col
+          + helper aoe_catalog_bullets_to_html: convierte descripciones con bullets "•"
+          en <ul class="aoe-cat-bullets">; L1 con intro lo deja en <p> y los items en lista)
+        * src/PublicFacing/Views/single-catalog.php (mismo helper + aplicado en los
+          4 puntos del árbol para amphenolltw: tabla leaf, tabla principal, headings y
+          recursivo; sin bullets devuelve <p> normal)
+
+2) IMPORTAR PRODUCTOS (REMPLAZA todo LTW: borra categorías y reimporta productos)
+   cd /RUTA_DEL_SITIO/wp-content/plugins/aoe-catalog-engine
+   nohup php tools/full-import.php --manufacturer=amphenolltw --csv=tools/productosamphenolltw.csv --mode=replace > import-ltw.log 2>&1 &
+
+   Monitorear: tail -f import-ltw.log
+   Debe terminar con "Importación finalizada" y "pack_catalog completado".
+   (En este punto todos los productos quedan en Uncategorized porque las
+    categorías no existen todavía; se arregla en el paso 3.)
+   Ojo: tarda ~4 min en local por 28.127 filas; en prod puede ser similar.
+
+3) RECONSTRUIR CATEGORÍAS + RE-ADJUNTAR PRODUCTOS + PODAR VACÍAS
+   php tools/import-ltw-structure.php
+
+   Esto hace:
+     - L1 familias + L2 subcategorías con metadata ltw_id + url, descripción e imagen
+     - Salta las filas "category-*" (secciones genéricas "Amphenol Technology ALTW"
+       sin productos)
+     - SLUGS JERÁRQUICOS: las L2 heredan el slug del L1 (p.ej. x-lok-large-size,
+       ceres-standard-size) para que los nombres repetidos (Accessory, Large Size,
+       Middle Size, etc.) no colisionen entre familias
+     - Uncategorized fallback
+     - Re-adjunta los productos por SKU -> category_l2 (del CSV de productos;
+       IDs de categoría son LTW IDs, no numéricos)
+     - Poda las categorías sin productos ni hijas con data (bottom-up, preserva Uncategorized)
+     - Actualiza products_count
+     - Regenera las páginas (pack_catalog)
+
+   Salida esperada (aprox, local):
+     Categorias CSV (tras filtrar junk category-*): 191
+     SKUs en CSV de productos: 28125
+     Productos en DB: 28125
+     Insertadas: L1=31 L2=160 | fallback: uncategorized
+     Products re-attribute: 28125 | to uncategorized: 0
+     Pruned empty categories: 9
+     === Resumen ===
+     Insertadas L1=31 L2=160 | fallback: uncategorized | despues prune: 183
+     Regenerando paginas...
+     Paginas regeneradas.
+
+4) VERIFICAR
+   a) Árbol /catalogo/amphenolltw/
+      - Cada L1 como heading con su descripción (párrafo) e imagen
+      - Las L2 debajo como TABLA (filas con nombre + (n) + descripción) con link
+        a su página
+      - URLs jerárquicas únicas: /catalogo/amphenolltw/x-lok-large-size/,
+        /catalogo/amphenolltw/ceres-standard-size/, etc.
+      - Descripciones con bullets "•": L1 con intro largo queda <p> intro + <ul>
+        con los items; L2 (solo bullets) queda <ul> directo. Verificar que las
+        descripciones L1 con bullets se vean como lista y las sin bullets sigan
+        en <p>.
+
+   b) Páginas de categoría: toda L2 con productos tiene URL propia y paginación
+      (p.ej. /catalogo/amphenolltw/ceres-standard-size/ con 13 páginas,
+      /catalogo/amphenolltw/x-lok-middle-size/, /catalogo/amphenolltw/ceres-mini-size/)
+
+   c) Página de producto (clic en una fila de Ceres Standard Size)
+      - Fila-producto con imagen
+      - Columna de especificaciones técnicas (specs) con badge "Características"
+      - PDFs con labels descargables: Datasheet, 3D CAD
+      - Link "Ver en amphenolltw.com" si está disponible (product_url)
+
+   d) NO debe existir /catalogo/amphenolltw/productos/ (página grouped vacía).
+      Con threshold 1 no se generan grouped (todas las categorías con productos
+      son "large"); si quedara un grouped con 0 productos, borrarlo.
+
+   e) LIMPIAR CACHÉ del catálogo en prod para ver el render nuevo:
+      borrar wp-content/uploads/aoe-cache-catalog/amphenolltw/
+
+NOTAS
+   - El orden importa: full-import --mode=replace BORRA todas las categorías LTW,
+     por eso el paso 3 reconstruye las categorías después.
+   - 28125 productos en DB (el CSV tiene 28127 filas, 2 SKUs duplicados que se
+     actualizan en vez de insertarse); 28125 con imagen, 28045 con PDF, 28125 con specs.
+   - 183 categorías finales: 28 L1 + 155 L2, todas con productos o descendencia
+     (Uncategorized se preserva aunque quede vacío).
+   - Páginas generadas: 1 tree + 296 category (las grandes paginadas de a 200).
+   - Top familias: Metric Circular Connector (~8900), X-Lok (~6793), Ceres (~6160),
+     RBL (~2644).
+   - AOE_DB_HOST=127.0.0.1:10006 es solo para local (bypass del socket de Local).

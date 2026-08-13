@@ -1368,3 +1368,14 @@
 #main .aoe-tree-layout-table_desc a {
 	color: #000 !important;
 }
+
+ul.aoe-cat-bullets {
+	color: #666;
+	font-size: 16px;
+	line-height: var(--body_typography-line-height);
+	font-weight: var(--body_typography-font-weight);
+}
+
+.aoe-cat-level-1>ul.aoe-cat-bullets {
+	display: none;
+}
