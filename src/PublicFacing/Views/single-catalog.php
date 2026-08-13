@@ -963,6 +963,8 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 						$cat_url = get_permalink( $wp_post_id );
 					} elseif ( $is_leaf && isset( $cat_page_map[ $item->category_id ] ) ) {
 						$cat_url = home_url( '/catalogo/' . $cat_page_map[ $item->category_id ] . '/' );
+					} elseif ( $manufacturer_slug === 'yokowo' && $count > 0 && isset( $cat_page_map[ $item->category_id ] ) ) {
+						$cat_url = home_url( '/catalogo/' . $cat_page_map[ $item->category_id ] . '/' );
 					} else {
 						$cat_url = '#';
 					}
@@ -988,7 +990,7 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 				} else {
 					echo esc_html( $item->category_name );
 				}
-				if ( $is_leaf && $cat_url !== '#' && $count > 0 ) {
+				if ( $count > 0 && $cat_url !== '#' && ( $is_leaf || $manufacturer_slug === 'yokowo' ) ) {
 					echo ' <span class="count">(' . esc_html( $count ) . ')</span>';
 				}
 				echo '</' . $heading . '>';

@@ -199,7 +199,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 	$family_image = aoe_catalog_get_first_value( $first_images );
 	$family_pdf   = $first_pdf;
 	$category_display_name = $category;
-	$show_features_col = in_array( $manufacturer_slug, [ 'samtec', 'edac', 'camdenboss', 'bivar', 'panduit', 'bulgin', 'medikabel' ], true );
+	$show_features_col = in_array( $manufacturer_slug, [ 'samtec', 'edac', 'camdenboss', 'bivar', 'panduit', 'bulgin', 'medikabel', 'yokowo' ], true );
 	$show_subtitle_desc = in_array( $manufacturer_slug, [ 'panduit' ], true );
 	if ( $show_features_col && ! $is_preview ) {
 		$has_any_specs = false;

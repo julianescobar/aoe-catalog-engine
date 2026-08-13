@@ -1,0 +1,84 @@
+DEPLOY YOKOWO A PRODUCCIÓN
+==========================
+
+PREREQUISITO (lo hace el usuario por Avada, NO es parte de estos pasos)
+   - Fabricante "Yokowo" (slug: "yokowo") ya creado en el admin con su plantilla
+     (post con [catalogo]) asociada, igual que los demás fabricantes.
+   - tree_layout recomendado: "table_desc" (para que el árbol salga como Edac/Bulgin).
+
+1) SUBIR ARCHIVOS A tools/ EN PRODUCCIÓN
+   - categoriasyokowo.csv
+   - productosyokowo.csv
+   (los tools .php del plugin ya deben estar desplegados:
+    full-import.php, import-yokowo-structure.php, pack-catalog.php, etc.)
+   - Código fuente del plugin ya desplegado con estos cambios (los .php no se
+     copian en tools/):
+       * src/Import/Processors/YokowoProcessor.php (nuevo)
+       * src/Import/ProcessorManager.php (registro del procesador yokowo)
+       * src/PublicFacing/Views/catalog-render-html.php (yokowo en show_features_col)
+       * src/PublicFacing/Views/single-catalog.php (L1 yokowo con productos directos
+         muestra (n) y enlaza a su página)
+
+2) IMPORTAR PRODUCTOS (REMPLAZA todo Yokowo: borra categorías y reimporta productos)
+   cd /RUTA_DEL_SITIO/wp-content/plugins/aoe-catalog-engine
+   nohup php tools/full-import.php --manufacturer=yokowo --csv=tools/productosyokowo.csv --mode=replace > import-yokowo.log 2>&1 &
+
+   Monitorear: tail -f import-yokowo.log
+   Debe terminar con "Importación finalizada" y "pack_catalog completado".
+   (En este punto todos los productos quedan en Uncategorized porque las
+    categorías no existen todavía; se arregla en el paso 3.)
+
+3) RECONSTRUIR CATEGORÍAS + RE-ADJUNTAR PRODUCTOS + PODAR VACÍAS
+   php tools/import-yokowo-structure.php
+
+   Esto hace:
+     - L1 familias (3): mating-pad, spring-connector-pogo-pins, two-piece-connector
+       con sus descripciones (del CSV de categorías)
+     - L2 subcategorías (3) bajo pogo-pins: through-hole-connector,
+       floating-connector, right-angle-connector
+     - Uncategorized fallback
+     - Re-adjunta los productos por SKU (category_id/subcategory_id directos del CSV;
+       IDs de categoría son SLUGS, no numéricos)
+     - Poda las categorías sin productos ni hijas con data (bottom-up, preserva Uncategorized)
+     - Actualiza products_count
+     - Regenera las páginas (pack_catalog)
+
+   Salida esperada (aprox):
+     L1: 3 | L2: 3 | Uncategorized: 1
+     Products re-attribute: 490 | to uncategorized: 0
+     Pruned empty categories: 0
+     total: 7 categorías
+
+4) VERIFICAR
+   a) Árbol /catalogo/yokowo/
+      - Heading L1 "SPRING CONNECTOR / Pogo Pins (381)" con LINK a
+        /catalogo/yokowo/spring-connector-pogo-pins/  (los 381 productos directos)
+      - Debajo, las 3 L2 con sus conteos: Through Hole (29), Floating (22),
+        Right Angle (14)
+      - "Mating Pad (30)" y "Two Piece Connector (14)" como headings con link
+      - Descripciones de las L1 en párrafos
+
+   b) Página L1 (los 381 directos): /catalogo/yokowo/spring-connector-pogo-pins/
+      - Carga la 1ª tanda de productos y paginación a
+        /catalogo/yokowo/spring-connector-pogo-pins-2/ (2ª tanda)
+
+   c) Página de producto (ej. clic en J-1907PU-1-00-0000)
+      - Fila-producto con imagen
+      - Columna de especificaciones técnicas (specs) con badge "Características"
+      - PDFs con los 4 labels descargables: Datasheet, Drawing 2D, Drawing, 3D CAD
+
+   d) Slugs que contienen dígitos cargan (NO dan 404):
+      ej. los que lleven sufijos numéricos en yokowo (mismo fix de routing global)
+
+   e) LIMPIAR CACHÉ del catálogo en prod para ver el render nuevo:
+      borrar wp-content/uploads/aoe-cache-catalog/yokowo/
+
+NOTAS
+   - El orden importa: full-import --mode=replace BORRA todas las categorías Yokowo,
+     por eso el paso 3 reconstruye las categorías después.
+   - 425 de 490 productos cuelgan directo del L1 (sin subcategoría): 381 en
+     pogo-pins, 30 en mating-pad, 14 en two-piece; los otros 65 están en las L2.
+     Ese es el motivo del cambio en single-catalog.php: el heading L1 con productos
+     directos ahora muestra (n) y enlaza (solo aplica a yokowo, el resto no cambia).
+   - Los IDs de categoría del CSV Yokowo son slugs (pogo-pin, through-hole, etc.).
+   - AOE_DB_HOST=127.0.0.1:10006 es solo para local (bypass del socket de Local).
