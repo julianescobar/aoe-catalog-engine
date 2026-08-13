@@ -849,7 +849,7 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 				foreach ( $items as $it ) {
 					if ( ! empty( $tree_by_parent[ (int) $it->category_id ] ?? [] ) ) { $all_leaves = false; }
 				}
-				if ( $real_level >= $max_level || ( $manufacturer_slug === 'bulgin' && $all_leaves ) ) {
+				if ( $real_level >= $max_level || $all_leaves ) {
 					$bulgin_heading_slugs = array_flip( [ 'be-enclosure-accessories' ] );
 					echo '<div class="aoe-cat-table-level-4"><table class="aoe-cat-tree-table">';
 					foreach ( $items as $item ) {

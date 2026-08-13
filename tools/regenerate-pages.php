@@ -22,6 +22,12 @@ if ( empty( $slug ) ) {
 }
 
 $wp_load = dirname( __DIR__, 4 ) . '/wp-load.php' ?: dirname( __DIR__, 5 ) . '/wp-load.php';
+
+// Optional local override: AOE_DB_HOST=127.0.0.1:10006 to bypass Local's socket-only host.
+if ( getenv( 'AOE_DB_HOST' ) && ! defined( 'DB_HOST' ) ) {
+	define( 'DB_HOST', getenv( 'AOE_DB_HOST' ) );
+}
+
 require_once $wp_load;
 
 global $wpdb;

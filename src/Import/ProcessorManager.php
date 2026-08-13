@@ -22,6 +22,7 @@ class ProcessorManager {
 		$this->register_processor( new Processors\BivarProcessor() );
 		$this->register_processor( new Processors\MediKabelProcessor() );
 		$this->register_processor( new Processors\YokowoProcessor() );
+		$this->register_processor( new Processors\AmphenolAnytekProcessor() );
 
 		// Allow other plugins/themes to register their own processors
 		do_action( 'aoe_catalog_register_processors', $this );
