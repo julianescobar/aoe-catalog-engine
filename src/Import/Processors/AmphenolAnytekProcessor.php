@@ -5,7 +5,7 @@ namespace AOE\CatalogEngine\Import\Processors;
 class AmphenolAnytekProcessor extends BaseProcessor {
 
 	public static function get_manufacturer_slug(): string {
-		return 'ampenolanytek';
+		return 'amphenolanytek';
 	}
 
 	public function has_separate_categories(): bool {

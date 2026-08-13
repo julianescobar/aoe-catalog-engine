@@ -10,7 +10,7 @@ const slugs = [
   'bivar',
   'medikabel',
   'yokowo',
-  'ampenolanytek',
+  'amphenolanytek',
   'amphenolltw',
   'amphenolrf',
 ];

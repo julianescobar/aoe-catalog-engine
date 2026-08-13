@@ -4,7 +4,7 @@
  *
  * Reads tools/categoriassamphenoanytek.csv (L1 group/listing -> L2 -> L3 hierarchy,
  * with anytek category ids/urls) and tools/productosamphenoanytek.csv (products)
- * and rebuilds the aoe_catalog_categories rows for ampenolanytek:
+ * and rebuilds the aoe_catalog_categories rows for amphenolanytek:
  *   - L1 (level 1), L2 (level 2), L3 (level 3) with metadata anytek_id + url
  *   - numeric-name "series" rows (kind=series && name==category_id) are skipped:
  *     they are junk rows whose ids collide with real structural categories
@@ -14,7 +14,7 @@
  *   - regenerates pages via pack_catalog
  *
  * IMPORTANT ORDER (like Yokowo):
- *   1) php tools/full-import.php --manufacturer=ampenolanytek --csv=tools/productosamphenoanytek.csv --mode=replace
+ *   1) php tools/full-import.php --manufacturer=amphenolanytek --csv=tools/productosamphenoanytek.csv --mode=replace
  *   2) php tools/import-anytek-structure.php
  *
  * Usage:
@@ -39,7 +39,7 @@ require_once $wp_load;
 
 global $wpdb;
 
-$manufacturer_slug = 'ampenolanytek';
+$manufacturer_slug = 'amphenolanytek';
 $cats_file         = __DIR__ . '/categoriassamphenoanytek.csv';
 $prods_file        = __DIR__ . '/productosamphenoanytek.csv';
 
