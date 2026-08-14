@@ -771,6 +771,9 @@ class BatchProcessor {
 					continue;
 				}
 				$count = (int) $cat->products_count;
+				if ( $count === 0 ) {
+					continue;
+				}
 				if ( $group_accum + $count > $per_page && $group_accum > 0 ) {
 					// Finalize current grouped page
 					$page_slug = $manufacturer_slug . '/productos' . ( $group_page > 1 ? '-' . $group_page : '' );

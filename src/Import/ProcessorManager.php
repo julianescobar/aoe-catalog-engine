@@ -24,6 +24,7 @@ class ProcessorManager {
 		$this->register_processor( new Processors\YokowoProcessor() );
 		$this->register_processor( new Processors\AmphenolAnytekProcessor() );
 		$this->register_processor( new Processors\AmphenolLtwProcessor() );
+		$this->register_processor( new Processors\AmphenolRfProcessor() );
 
 		// Allow other plugins/themes to register their own processors
 		do_action( 'aoe_catalog_register_processors', $this );

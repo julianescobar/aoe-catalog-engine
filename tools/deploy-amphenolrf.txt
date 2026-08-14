@@ -1,0 +1,106 @@
+DEPLOY AMPHENOL RF A PRODUCCIÓN
+==============================
+
+PREREQUISITO (lo hace el usuario por Avada, NO es parte de estos pasos)
+   - Fabricante "Amphenol RF" (slug: "amphenolrf") ya creado en el admin
+     con su plantilla (post con [catalogo]) asociada, igual que los demás.
+   - tree_layout recomendado: "table_desc" (para que el árbol salga como Edac/Bulgin).
+   - post del fabricante: wp_post_id 10492.
+
+1) SUBIR ARCHIVOS A tools/ EN PRODUCCIÓN
+   - categoriasamphenolrf.csv
+   - productosamphenolrf.csv
+   (los tools .php del plugin ya deben estar desplegados:
+    full-import.php, import-rf-structure.php, pack-catalog.php, etc.)
+   - Código fuente del plugin ya desplegado con estos cambios (los .php no se
+     copian en tools/):
+       * src/Import/Processors/AmphenolRfProcessor.php (nuevo; threshold 1, así
+         toda categoría con productos tiene URL propia; specs mapeadas a labels
+         legibles + Operating Temperature (°C) combinada; product_url del fabricante)
+       * src/Import/ProcessorManager.php (registro del procesador amphenolrf)
+       * src/PublicFacing/Views/catalog-render-html.php (amphenolrf en show_features_col)
+       * src/Import/BatchProcessor.php (fix: saltar categorías con products_count=0
+         en el agrupado, evita páginas grouped vacías)
+
+2) IMPORTAR PRODUCTOS (REMPLAZA todo RF: borra categorías y reimporta productos)
+   cd /RUTA_DEL_SITIO/wp-content/plugins/aoe-catalog-engine
+   nohup php tools/full-import.php --manufacturer=amphenolrf --csv=tools/productosamphenolrf.csv --mode=replace > import-rf.log 2>&1 &
+
+   Monitorear: tail -f import-rf.log
+   Debe terminar con "Importación finalizada" y "pack_catalog completado".
+   (En este punto todos los productos quedan en Uncategorized porque las
+    categorías no existen todavía; se arregla en el paso 3.)
+   Ojo: en local tardó ~119s por 11.616 filas; en prod puede ser similar.
+
+3) RECONSTRUIR CATEGORÍAS + RE-ADJUNTAR PRODUCTOS + PODAR VACÍAS
+   php tools/import-rf-structure.php
+
+   Esto hace:
+     - L1 familias + L2 subcategorías con metadata rf_id + url, descripción
+       (el CSV de RF trae descripción solo en las L2; las L1 no traen)
+     - Uncategorized fallback
+     - Re-adjunta los productos por SKU -> category_l2 (del CSV de productos;
+       IDs de categoría son RF IDs, no numéricos)
+     - Poda las categorías sin productos ni hijas con data (bottom-up, preserva Uncategorized)
+     - Actualiza products_count
+     - Regenera las páginas (pack_catalog con el fix del BatchProcessor:
+       no se generan grouped vacíos)
+
+   Salida esperada (aprox, local):
+     Categorias CSV: 174
+     SKUs en CSV de productos: 11616
+     Productos en DB: 11616
+     Insertadas: L1=7 L2=167 | fallback: uncategorized
+     Products re-attribute: 11616 | to uncategorized: 0
+     Pruned empty categories: 7
+     === Resumen ===
+     Insertadas L1=7 L2=167 | fallback: uncategorized | despues prune: 168
+     Regenerando paginas...
+     Paginas regeneradas.
+
+4) VERIFICAR
+   a) Árbol /catalogo/amphenolrf/
+      - Cada L1 como heading (sin descripción propia; el CSV no trae texto
+        para las familias) con sus L2 debajo como TABLA con link a su página.
+      - Los conteos (n) en las L2 y links a cada página de categoría.
+
+   b) Páginas de categoría: toda L2 con productos tiene URL propia y paginación
+      (las grandes paginadas de a 200, p.ej. /catalogo/amphenolrf/bnc-cable-assemblies/).
+      Las L1 quedan como headings en el árbol, sin página propia (no tienen
+      productos directos).
+
+   c) Página de producto (clic en una fila)
+      - Fila-producto con imagen
+      - Columna de especificaciones técnicas (specs) con badge "Características"
+      - NO hay botón de documentos/PDFs: RF se despliega sin PDFs/CAD en esta
+        fase (ver nota-jefe-amphenolrf-docs.txt). Cada producto mantiene el link
+        "Ver en amphenolrf.com" (product_url) donde el cliente descarga los docs.
+
+   d) Imágenes: se sirven desde la URL remota (S3) del fabricante. El render
+      con media_source=local intenta el archivo local y, si no existe, cae a la
+      URL remota original. NO hay que descargar imágenes para RF.
+      - 1.745 productos usan el placeholder genérico search-parts.svg del sitio;
+        el procesador los filtra y esos productos renderizan SIN imagen (a propósito).
+      - Los nombres de imagen con entidades HTML (&#x2B; = +) se decodifican
+        en el procesador para que la URL remota sea válida.
+
+   e) NO debe existir /catalogo/amphenolrf/productos/ (página grouped vacía).
+      Con threshold 1 y el fix del BatchProcessor no se generan grouped;
+      si quedara un grouped con 0 productos, borrarlo.
+
+   f) LIMPIAR CACHÉ del catálogo en prod para ver el render nuevo:
+      borrar wp-content/uploads/aoe-cache-catalog/amphenolrf/
+
+NOTAS
+   - El orden importa: full-import --mode=replace BORRA todas las categorías RF,
+     por eso el paso 3 reconstruye las categorías después.
+   - 11.616 productos en DB; 11.528 con specs, 9.871 con imagen (1.745 sin foto),
+     11.616 con product_url.
+   - 168 categorías finales: 7 L1 + 161 L2 (de las 167 del CSV, 7 quedan sin
+     productos y se podan).
+   - Páginas generadas: 1 tree + 191 category (las grandes paginadas de a 200).
+   - Top subcategorías L2: bnc-cable-assemblies (~1002), bnc-rf-connectors-* (~843),
+     sma-rf-connectors-* (~737), etc.
+   - PDFs/CAD: ver nota-jefe-amphenolrf-docs.txt (por qué no se migran y la
+     alternativa a futuro si el jefe los requiere).
+   - AOE_DB_HOST=127.0.0.1:10006 es solo para local (bypass del socket de Local).

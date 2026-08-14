@@ -6,6 +6,10 @@ set_time_limit(0);
 
 if (PHP_SAPI !== 'cli' && PHP_SAPI !== 'cgi-fcgi') die('CLI only');
 
+if (getenv('AOE_DB_HOST') && !defined('DB_HOST')) {
+	define('DB_HOST', getenv('AOE_DB_HOST'));
+}
+
 $slug = $argv[1] ?? '';
 if (!$slug) die("Usage: php tools/pack-catalog.php <slug>\n");
 

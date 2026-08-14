@@ -1,0 +1,50 @@
+NOTA PARA JEFE: DOCUMENTACIÓN DE PRODUCTOS AMPHENOL RF
+======================================================
+
+Fecha: 13/08/2026
+De: Desarrollo
+Para: Jefe
+Asunto: Migración de PDFs / modelos 3D de Amphenol RF al catálogo
+
+ESTADO
+------
+La integración de Amphenol RF al catálogo cubre por ahora:
+  - 11.616 productos (con imagen, especificaciones técnicas y link al
+    fabricante)
+  - 174 categorías (7 familias + 167 subcategorías)
+  - Páginas propias por categoría y paginación
+
+Los DOCUMENTOS (PDFs / drawings / modelos 3D STP-IGS) NO se migran en esta
+fase. Cada producto mantiene el enlace directo a su página en amphenolrf.com
+donde el cliente puede descargarlos.
+
+POR QUÉ
+-------
+1) El CSV que nos entregó Amphenol RF NO trae las URLs de descarga de los
+   documentos. Trae, por cada documento, solo el NOMBRE del archivo y su
+   extensión (pdf / stp / igs), pero no el enlace.
+
+2) En el sitio de Amphenol RF los archivos se sirven mediante un ID interno
+   (ruta /en-us/assets/file/{id}/) que no aparece en el CSV.
+
+3) Para conseguir esos enlaces habría que consultar página por página cada
+   uno de los ~11.600 productos (scraping), lo que es:
+     - Lento (varias horas / un proceso largo)
+     - Frágil (si cambian el sitio o el formato, se rompe)
+     - Difícil de mantener en futuras actualizaciones de catálogo
+
+ALTERNATIVA RECOMENDADA (a futuro, si se requiere)
+--------------------------------------------------
+- Pedirle a Amphenol RF un CSV exportado con la columna de URLs directas de
+  documentos (formato real, no el actual con nombres de archivo).
+- O bien revisar si su portal/API de partners permite exportar esos enlaces
+  directamente.
+
+Así podríamos migrar Datasheet + 3D CAD como hicimos con Amphenol LTW sin
+tener que scrapear el sitio.
+
+DECISIÓN
+--------
+- Por el momento: productos con imagen, specs y link al fabricante.
+- PDFs/CAD: se omiten; el botón de documentos no se muestra para este
+  fabricante.
