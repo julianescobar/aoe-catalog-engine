@@ -1380,6 +1380,7 @@ ul.aoe-cat-bullets {
 	display: none;
 }
 
-.aoe-tree-amphenolindustrial ul.aoe-cat-bullets {
+.aoe-tree-amphenolindustrial ul.aoe-cat-bullets,
+.aoe-tree-amphenolconec ul.aoe-cat-bullets {
 	display: none;
 }

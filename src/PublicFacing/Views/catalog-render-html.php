@@ -229,7 +229,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 	$family_image = aoe_catalog_get_first_value( $first_images );
 	$family_pdf   = $first_pdf;
 	$category_display_name = $category;
-	$show_features_col = in_array( $manufacturer_slug, [ 'samtec', 'edac', 'camdenboss', 'bivar', 'panduit', 'bulgin', 'medikabel', 'yokowo', 'amphenolanytek', 'amphenolltw', 'amphenolrf', 'amphenollutze', 'amphenolindustrial' ], true );
+	$show_features_col = in_array( $manufacturer_slug, [ 'samtec', 'edac', 'camdenboss', 'bivar', 'panduit', 'bulgin', 'medikabel', 'yokowo', 'amphenolanytek', 'amphenolltw', 'amphenolrf', 'amphenollutze', 'amphenolindustrial', 'amphenolconec' ], true );
 	$show_subtitle_desc = in_array( $manufacturer_slug, [ 'panduit' ], true );
 	if ( $show_features_col && ! $is_preview ) {
 		$has_any_specs = false;
@@ -495,7 +495,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 		<?php endif; ?>
 		<?php if ( ! in_array( $manufacturer_slug, [ 'samtec', 'bivar' ], true ) ) : ?>
 		<?php if ( ! empty( $category_metadata['description'] ) ) : ?>
-		<div class="aoe-series-description"><?php echo wp_kses_post( in_array( $manufacturer_slug, [ 'amphenolltw', 'amphenolindustrial' ], true ) ? aoe_catalog_bullets_to_html( str_replace( '\n', "\n", $category_metadata['description'] ) ) : wpautop( str_replace( '\n', "\n", $category_metadata['description'] ) ) ); ?></div>
+		<div class="aoe-series-description"><?php echo wp_kses_post( in_array( $manufacturer_slug, [ 'amphenolltw', 'amphenolindustrial', 'amphenolconec' ], true ) ? aoe_catalog_bullets_to_html( str_replace( '\n', "\n", $category_metadata['description'] ) ) : wpautop( str_replace( '\n', "\n", $category_metadata['description'] ) ) ); ?></div>
 		<?php endif; ?>
 		<?php if ( ! empty( $category_metadata['highlights'] ) ) : ?>
 		<div class="aoe-series-highlights"><?php echo wp_kses_post( nl2br( str_replace( '\n', "\n", $category_metadata['highlights'] ) ) ); ?></div>
