@@ -898,7 +898,7 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 								$cat_url = '#';
 							}
 				$desc = ! empty( $item->category_description ) ? trim( str_replace( '\n', "\n", $item->category_description ) ) : '';
-					if ( $manufacturer_slug === 'amphenolltw' ) {
+					if ( false !== strpos( $desc, "\xE2\x80\xA2" ) ) {
 						$desc = aoe_catalog_bullets_to_html( $desc );
 					} elseif ( ! empty( $desc ) ) {
 						if ( preg_match( '/<p[^>]*>.*?<\/p>/s', $desc, $m ) ) {
@@ -942,7 +942,7 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 						$leaf_idx++;
 
 						$desc = ! empty( $item->category_description ) ? trim( str_replace( '\n', "\n", $item->category_description ) ) : '';
-						if ( $manufacturer_slug === 'amphenolltw' ) {
+						if ( false !== strpos( $desc, "\xE2\x80\xA2" ) ) {
 							$desc = aoe_catalog_bullets_to_html( $desc );
 						} elseif ( ! empty( $desc ) ) {
 							if ( preg_match( '/<p[^>]*>.*?<\/p>/s', $desc, $m ) ) {
@@ -982,7 +982,7 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 				if ( (int) $item->level < $max_level && ! isset( $cats_with_descendants[ (int) $item->category_id ] ) && $count === 0 ) continue;
 
 				$desc = ! empty( $item->category_description ) ? trim( str_replace( '\n', "\n", $item->category_description ) ) : '';
-					if ( $manufacturer_slug === 'amphenolltw' ) {
+					if ( false !== strpos( $desc, "\xE2\x80\xA2" ) ) {
 						$desc = aoe_catalog_bullets_to_html( $desc );
 					} elseif ( ! empty( $desc ) ) {
 						if ( preg_match( '/<p[^>]*>.*?<\/p>/s', $desc, $m ) ) {
@@ -1076,7 +1076,7 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 
 				$desc = ! empty( $item->category_description ) ? trim( str_replace( '\n', "\n", $item->category_description ) ) : '';
 
-				if ( $manufacturer_slug === 'amphenolltw' ) {
+				if ( false !== strpos( $desc, "\xE2\x80\xA2" ) ) {
 					$desc = aoe_catalog_bullets_to_html( $desc );
 				} elseif ( $manufacturer_slug === 'samtec' && ! empty( $desc ) ) {
 					if ( preg_match( '/<p[^>]*>.*?<\/p>/s', $desc, $m ) ) {

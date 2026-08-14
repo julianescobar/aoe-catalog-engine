@@ -26,6 +26,7 @@ class ProcessorManager {
 		$this->register_processor( new Processors\AmphenolLtwProcessor() );
 		$this->register_processor( new Processors\AmphenolRfProcessor() );
 		$this->register_processor( new Processors\AmphenolLutzeProcessor() );
+		$this->register_processor( new Processors\AmphenolIndustrialProcessor() );
 
 		// Allow other plugins/themes to register their own processors
 		do_action( 'aoe_catalog_register_processors', $this );
