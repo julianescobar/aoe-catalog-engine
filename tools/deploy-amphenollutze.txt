@@ -1,0 +1,115 @@
+DEPLOY AMPHENOL LUTZE A PRODUCCIÓN
+=================================
+
+PREREQUISITO (lo hace el usuario por Avada, NO es parte de estos pasos)
+   - Fabricante "Amphenol Lutze" (slug: "amphenollutze") ya creado en el admin
+     con su plantilla (post con [catalogo]) asociada, igual que los demás.
+   - tree_layout recomendado: "table_desc" (mismo criterio que Edac/Bulgin/RF).
+   - post del fabricante: wp_post_id 10492, config_json con media_source local.
+
+1) SUBIR ARCHIVOS A tools/ EN PRODUCCIÓN
+   - lutze_categorias.csv
+   - lutze_productos.csv
+   (los tools .php del plugin ya deben estar desplegados:
+    full-import.php, import-lutze-structure.php, pack-catalog.php, etc.)
+   - Código fuente del plugin ya desplegado con estos cambios (los .php no se
+     copian en tools/):
+       * src/Import/Processors/AmphenolLutzeProcessor.php (nuevo; threshold 1;
+         categorías separadas 3 niveles; matching por lutze_id en metadata_json
+         con fallback de niveles; imágenes remotas; docs datasheet + pdf_extra +
+         3D CAD; specs filtradas en español, labels ignorados: de fas, n o art,
+         estado del producto, foto del producto, fecha de expiracion,
+         descripcion, u e)
+       * src/Import/ProcessorManager.php (registro del procesador amphenollutze)
+       * src/PublicFacing/Views/catalog-render-html.php (amphenollutze en
+         show_features_col para mostrar la columna "Características" con la
+         ficha técnica)
+
+2) IMPORTAR PRODUCTOS (REMPLAZA todo Lutze: borra categorías y reimporta productos)
+   cd /RUTA_DEL_SITIO/wp-content/plugins/aoe-catalog-engine
+   nohup php tools/full-import.php --manufacturer=amphenollutze --csv=tools/lutze_productos.csv --mode=replace > import-lutze.log 2>&1 &
+
+   Monitorear: tail -f import-lutze.log
+   Debe terminar con "Importación finalizada" y "pack_catalog completado".
+   (En este punto todos los productos quedan en Uncategorized porque las
+    categorías no existen todavía; se arregla en el paso 3.)
+   Ojo: en local tardó ~54s por 4.771 filas; en prod puede ser similar.
+
+3) RECONSTRUIR CATEGORÍAS + RE-ADJUNTAR PRODUCTOS + PODAR VACÍAS
+   php tools/import-lutze-structure.php
+
+   Esto hace:
+     - L1/L2/L3 con slugs jerárquicos (61 únicos, sin colisiones) y metadata
+       lutze_id + url, descripción por nivel
+     - Uncategorized fallback
+     - Re-adjunta los productos por SKU -> category_l1|l2|l3 (del CSV de
+       productos) con fallback de nivel si el L3 no existe
+     - Poda las categorías sin productos ni hijas con data (bottom-up, preserva Uncategorized)
+     - Actualiza products_count
+     - Regenera las páginas (pack_catalog)
+
+   Salida esperada (aprox, local):
+     Categorias CSV: 61
+     SKUs en CSV de productos: 4771
+     Productos en DB: 4771
+     Insertadas: L1=3 L2=27 L3=31 | fallback: uncategorized
+     Products re-attribute: 4771 | to uncategorized: 0
+     Pruned empty categories: 4
+     === Resumen ===
+     Insertadas L1=3 L2=27 L3=31 | fallback: uncategorized | despues prune: 58
+     Regenerando paginas...
+     Paginas regeneradas.
+
+4) VERIFICAR
+   a) Árbol /catalogo/amphenollutze/
+      - 3 familias L1 (Cable & Connectivity, Cabinet, Control) como headings con
+        descripción, con sus L2/L3 debajo como tabla con links y conteos.
+      - 5 L2 intermedias sin productos directos (sus productos están en L3)
+        salen como headings con descripción en el árbol; p.ej.
+        amphenollutze/cabinet-accesorios (Accesorios).
+
+   b) Páginas de categoría: toda L3 con productos tiene URL propia y paginación
+      (las grandes paginadas de a 200, p.ej.
+      /catalogo/amphenollutze/cable-connectivity-cables-de-control/ con 1.047 ->
+      6 páginas).
+      Top categorías (link_count total):
+        cables-de-control (1047), prensaestopas (437),
+        confecciones-para-servoactuadores (452), airstream-modular (555)...
+
+   c) Página de producto (clic en una fila o iconos)
+      - Fila-producto con imagen (se sirve remota desde mediabridge/pimport-cdn;
+        el render con media_source=local cae a la URL remota si no hay archivo local)
+      - Columna de especificaciones técnicas (specs) con badge "Características"
+        (labels en español tal cual del CSV, sin ucwords)
+      - Iconos de acción: imagen, documentos (PDF) y ficha técnica.
+      - PDFs: botón "Datasheet" + "Documento N" (pdf_extra). Se sirven remotos
+        (dld:external / pimport-cdn file_*.pdf) porque no tienen extensión para
+        descargar localmente.
+      - 3D CAD: los productos con cad_url los muestran en el modal de documentos
+        bajo la key "3D CAD".
+
+   d) NO debe existir /catalogo/amphenollutze/productos/ (página grouped vacía).
+      Con threshold 1 no se generan grouped; si quedara un grouped con 0
+      productos, borrarlo.
+
+   e) LIMPIAR CACHÉ del catálogo en prod para ver el render nuevo:
+      borrar wp-content/uploads/aoe-cache-catalog/amphenollutze/
+
+   f) Si en prod solo cambia el renderizador (p.ej. show_features_col) sin
+      reimportar, regenerar las páginas con:
+      php tools/repack-catalog.php amphenollutze
+
+NOTAS
+   - El orden importa: full-import --mode=replace BORRA todas las categorías Lutze,
+     por eso el paso 3 reconstruye las categorías después.
+   - 4.771 productos en DB; 0 duplicados; status todo "Serie".
+   - 61 categorías en CSV: 3 L1 + 27 L2 + 31 L3; tras prune quedan 58
+     (3 L1 + 25 L2 + 29 L3 + 1 uncategorized como L1).
+   - 15 productos con L3 "junk" (códigos A2012...) caen a su L2 (verificado:
+     L3=2547, L2=2224, L1=0, uncat=0).
+   - attrs: 150.284 items, 9.235 de ruido "De fas..." filtrados; labels
+     ignorados: "de fas", "n o art", "estado del producto".
+   - 4.771 productos con imagen, 4.771 con pdf (datasheet 1..N, hasta 62 extras),
+     377 con 3D CAD (key "3D CAD" en el modal de documentos).
+   - Páginas generadas: 1 tree + 67 category (0 grouped, 0 slugs duplicados).
+   - AOE_DB_HOST=127.0.0.1:10006 es solo para local (bypass del socket de Local).
