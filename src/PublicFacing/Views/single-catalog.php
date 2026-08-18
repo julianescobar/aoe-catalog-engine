@@ -650,6 +650,12 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 			}
 		}
 
+		if ( ! function_exists( 'aoe_catalog_sku_icon' ) ) {
+			function aoe_catalog_sku_icon( string $extra_class = '' ): string {
+				return '<svg class="aoe-catalog-sku-icon' . ( $extra_class !== '' ? ' ' . $extra_class : '' ) . '" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
+			}
+		}
+
 		function aoe_has_visible_descendants( int $cat_id, array $tree_by_parent, array $segments_by_id ): bool {
 			$children = $tree_by_parent[ $cat_id ] ?? [];
 			foreach ( $children as $child ) {
@@ -907,14 +913,15 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 							$desc = '<p>' . esc_html( $desc ) . '</p>';
 						}
 					}
-							echo '<div class="aoe-cat-level-' . (int) $item->level . '"><h4 class="aoe-cat-heading">';
+							echo '<div class="aoe-cat-level-' . (int) $item->level . '"><h4 class="aoe-cat-heading' . ( $cat_url !== '#' ? ' aoe-link-cat' : '' ) . '">';
 							if ( $cat_url !== '#' ) {
-								echo '<a href="' . esc_url( $cat_url ) . '">' . esc_html( $item->category_name ) . '</a>';
+								echo '<a href="' . esc_url( $cat_url ) . '">' . esc_html( $item->category_name );
+								if ( $count > 0 ) {
+									echo ' <span class="count">(' . esc_html( $count ) . ')</span>';
+								}
+								echo aoe_catalog_sku_icon() . '</a>';
 							} else {
 								echo esc_html( $item->category_name );
-							}
-							if ( $count > 0 ) {
-								echo ' <span class="count">(' . esc_html( $count ) . ')</span>';
 							}
 							echo '</h4>';
 							if ( ! empty( $desc ) ) {
@@ -1020,14 +1027,15 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 				}
 
 				echo '<div class="aoe-cat-level-' . (int) $item->level . '"' . $sin_id . '>';
-				echo '<' . $heading . ' class="aoe-cat-heading">';
+				echo '<' . $heading . ' class="aoe-cat-heading' . ( $cat_url !== '#' ? ' aoe-link-cat' : '' ) . '">';
 				if ( $cat_url !== '#' ) {
-					echo '<a href="' . esc_url( $cat_url ) . '">' . esc_html( $item->category_name ) . '</a>';
+					echo '<a href="' . esc_url( $cat_url ) . '">' . esc_html( $item->category_name );
+					if ( $count > 0 && ( $is_leaf || $manufacturer_slug === 'yokowo' ) ) {
+						echo ' <span class="count">(' . esc_html( $count ) . ')</span>';
+					}
+					echo aoe_catalog_sku_icon() . '</a>';
 				} else {
 					echo esc_html( $item->category_name );
-				}
-				if ( $count > 0 && $cat_url !== '#' && ( $is_leaf || $manufacturer_slug === 'yokowo' ) ) {
-					echo ' <span class="count">(' . esc_html( $count ) . ')</span>';
 				}
 				echo '</' . $heading . '>';
 

@@ -377,7 +377,17 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 								$desc_line  = (string) ( $product->description ?? '' );
 							}
 					$has_specs = ! empty( $specs );
-					$specs_flat = $has_specs ? implode( ', ', array_slice( array_values( $specs ), 0, 10 ) ) : '';
+					$specs_flat = '';
+					if ( $has_specs ) {
+						$pairs = [];
+						foreach ( $specs as $skey => $sval ) {
+							$sval = trim( (string) $sval );
+							if ( '' === $sval ) continue;
+							$pairs[] = $skey . '=' . $sval;
+							if ( count( $pairs ) >= 10 ) break;
+						}
+						$specs_flat = implode( ', ', $pairs );
+					}
 					$images = array_map( function( $img ) use ( $manufacturer_slug, $media_source ) {
 									return aoe_catalog_resolve_media_url( $img, $manufacturer_slug, 'images', $media_source );
 								}, $images );
@@ -541,7 +551,17 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 						$desc_line  = (string) ( $product->description ?? '' );
 					}
 					$has_specs = ! empty( $specs );
-					$specs_flat = $has_specs ? implode( ', ', array_slice( array_values( $specs ), 0, 10 ) ) : '';
+					$specs_flat = '';
+					if ( $has_specs ) {
+						$pairs = [];
+						foreach ( $specs as $skey => $sval ) {
+							$sval = trim( (string) $sval );
+							if ( '' === $sval ) continue;
+							$pairs[] = $skey . '=' . $sval;
+							if ( count( $pairs ) >= 10 ) break;
+						}
+						$specs_flat = implode( ', ', $pairs );
+					}
 					$images = array_map( function( $img ) use ( $manufacturer_slug, $media_source ) {
 						return aoe_catalog_resolve_media_url( $img, $manufacturer_slug, 'images', $media_source );
 					}, $images );

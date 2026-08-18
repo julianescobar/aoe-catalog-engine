@@ -1384,3 +1384,11 @@ ul.aoe-cat-bullets {
 .aoe-tree-amphenolconec ul.aoe-cat-bullets {
 	display: none;
 }
+
+#main #aoe-catalog-container .aoe-link-cat a {
+	color: #47b5ff !important;
+}
+
+#main #aoe-catalog-container .aoe-link-cat a:hover {
+	color: #eb9900 !important;
+}
