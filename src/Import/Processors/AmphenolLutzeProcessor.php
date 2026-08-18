@@ -184,7 +184,7 @@ class AmphenolLutzeProcessor extends BaseProcessor {
 					continue 2;
 				}
 			}
-			$specs[ $label ] = $this->normalize_text( $value );
+			$specs[ $label ] = $this->normalize_text( str_replace( [ ' | ', ' • ' ], "\n", $value ) );
 		}
 
 		return $specs;
