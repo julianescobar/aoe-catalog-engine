@@ -1,0 +1,111 @@
+# Plan: Tabla de búsqueda de productos para chatbot (Nina)
+# Estado: PENDIENTE DE APROBACIÓN
+# Fecha: 2026-08-18
+
+## Problema
+Necesitamos que el chatbot (y potencialmente otras partes) pueda consultar rápidamente
+si tenemos un producto, con o sin fabricante, con código exacto o parcial.
+
+Consultas típicas del jefe:
+  - "marca Yamaichi: Y-CONTOOL-11, Y-CONTOOL-13, Y-CONTOOL-30"
+  - "H07RN-F 1x 300mm / 450/750V" (búsqueda descriptiva)
+  - "Bivar RHD-0700-2500..." (fabricante + parcial)
+
+## Esquema de la tabla
+
+```sql
+CREATE TABLE wp_aoe_catalog_search_products (
+  id                      BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  manufacturer_normalized VARCHAR(64)  NOT NULL,  -- 'YAMAICHIELECTRONIC'
+  manufacturer_name       VARCHAR(255) NOT NULL,  -- 'Yamaichi Electronic'
+  sku_normalized          VARCHAR(255) NOT NULL,  -- 'YCONTOOL11'
+  sku                     VARCHAR(255) NOT NULL,  -- 'Y-CONTOOL-11'
+  search_text             TEXT NOT NULL,           -- manufacturer + sku + name + description
+  payload_json            JSON NOT NULL,           -- ficha completa
+  updated_at              DATETIME NOT NULL,
+
+  UNIQUE KEY uq_mfr_sku (manufacturer_normalized, sku),
+  KEY k_sku (sku_normalized),
+  FULLTEXT KEY ft_search (search_text)
+) ENGINE=InnoDB;
+```
+
+### Ejemplo de datos reales (Panduit)
+
+| Campo | Valor |
+|---|---|
+| manufacturer_normalized | PANDUIT |
+| manufacturer_name | Panduit |
+| sku_normalized | C2CAC03ABWPAB1 |
+| sku | C2CAC03ABWPAB1 |
+| search_text | Panduit C2CAC03ABWPAB1 Net-Contain™ Blanking Panel Plug gaps in your data center's... |
+| payload_json | {"name":"Net-Contain™ Blanking Panel","description":"Plug gaps in...","category_path":"Data Center > Blanking Panels","image_url":["https://s7d9.scene7.com/..."],"pdfs":{"datasheet":[...],"drawing":[...]},"specs":{"Aisle Type":"Cold Aisle","Material":"Steel","Color":"Black"},"page_urls":["/catalogo/panduit/..."]} |
+| updated_at | 2026-08-18 10:30:00 |
+
+### Ejemplo de normalización
+
+| Fabricante | sku | sku_normalized |
+|---|---|---|
+| Yamaichi Electronic | Y-CONTOOL-11 | YCONTOOL11 |
+| Bivar | RHD-0700-2500-F9PZB67PR | RHD07002500F9PZB67PR |
+| Panduit | C2CAC03ABWPAB1 | C2CAC03ABWPAB1 |
+
+## Normalización (sku_normalized / manufacturer_normalized)
+1. strtoupper()
+2. Quitar acentos (iconv UTF-8//IGNORE)
+3. Quitar todo lo que no sea alfanumérico (preg_replace /[^A-Z0-9]/ '')
+
+## Consultas ejemplo
+
+```sql
+-- Con fabricante + referencias exactas
+SELECT sku, payload_json FROM wp_aoe_catalog_search_products
+WHERE manufacturer_normalized = 'YAMAICHIELECTRONIC'
+AND sku_normalized IN ('YCONTOOL11','YCONTOOL13','YCONTOOL30');
+
+-- Sin fabricante, código parcial
+SELECT sku, payload_json FROM wp_aoe_catalog_search_products
+WHERE sku_normalized LIKE 'RHD07002500%';
+
+-- Búsqueda descriptiva
+SELECT sku, payload_json FROM wp_aoe_catalog_search_products
+WHERE MATCH(search_text) AGAINST('+H07RN +300 +450/750V' IN BOOLEAN MODE);
+
+-- Fabricante + parcial
+SELECT sku, payload_json FROM wp_aoe_catalog_search_products
+WHERE manufacturer_normalized = 'BIVAR' AND sku_normalized LIKE 'RHD07002500%';
+```
+
+## Script de poblado: tools/build-search-index.php
+
+### Flujo
+1. Crear tabla si no existe (CREATE TABLE IF NOT EXISTS).
+2. Por cada fabricante (o --manufacturer=slug para uno solo):
+   a. DELETE por manufacturer_normalized (rebuild transaccional).
+   b. Cargar categorías en memoria (id → ruta de nombres).
+   c. Cargar páginas + segmentos (pregenerated_pages + page_segments)
+      para calcular URLs exactas donde aparece cada producto.
+   d. Recorrer productos en lotes de 1.000:
+      - Normalizar manufacturer y sku.
+      - Armar search_text = manufacturer_name + sku + name + description.
+      - Armar payload_json con toda la ficha + page_urls.
+      - INSERT por lotes (multi-values).
+   e. Actualizar updated_at.
+3. Resumen: por fabricante — productos indexados, con imagen, PDF, CAD, specs, tiempo.
+
+### Notas
+- page_segments da el rango (from/to) del producto → página exacta en paginación.
+- Productos en Uncategorized solo llevan URL de serie.
+- Estimado total: ~5-10 min para 1,3M filas en lotes por fabricante.
+
+## Integración
+- Se ejecuta DESPUÉS de cada importación (full-import + structure importer).
+- Puede ser manual o encadenado al final del deploy de cada catálogo.
+- Fabricantes actuales: 16 (samtec, edac, camdenboss, bivar, panduit, bulgin,
+  medikabel, yokowo, amphenolanytek, amphenolltw, amphenolrf, amphenollutze,
+  amphenolindustrial, amphenolconec, wieland, mhconnectors).
+- Total productos: ~1.313.505.
+
+## Mejorables a futuro
+- Tabla de alias de fabricante ("Yamaichi" → YAMAICHIELECTRONIC).
+- Endpoint REST si Nina no puede tocar la BD directamente.
