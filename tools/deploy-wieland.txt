@@ -1,0 +1,86 @@
+DEPLOY WIELAND A PRODUCCIÓN
+==========================
+
+PREREQUISITO (lo hace el usuario por Avada, NO es parte de estos pasos)
+   - Fabricante "Wieland" (slug: "wieland") ya creado en el admin con su
+     plantilla (post con [catalogo]) asociada, igual que los demás.
+   - tree_layout recomendado: "table_desc".
+   - En local es el id 15 de la tabla aoe_catalog_manufacturers.
+
+1) SUBIR ARCHIVOS A tools/ EN PRODUCCIÓN
+   - wieland_productos.csv
+   - import-wieland-structure.php
+   (los tools .php ya desplegados: full-import.php, repack-catalog.php, etc.)
+   - Código fuente del plugin ya desplegado con estos cambios:
+       * src/Import/Processors/WielandProcessor.php (nuevo; threshold 1;
+         categorías planas desde la columna "category" del CSV; docs vía
+         downloads_json estructurado; specs attrs en español con ignore list
+         de embalaje/códigos Etim/compliance/alemán)
+       * src/Import/ProcessorManager.php (registro wieland)
+       * src/PublicFacing/Views/catalog-render-html.php (wieland en
+         show_features_col para la columna "Características")
+
+2) IMPORTAR PRODUCTOS
+   cd /RUTA_DEL_SITIO/wp-content/plugins/aoe-catalog-engine
+   nohup php tools/full-import.php --manufacturer=wieland --csv=tools/wieland_productos.csv --mode=replace > import-wieland.log 2>&1 &
+
+   Monitorear: tail -f import-wieland.log
+   Debe terminar con "Importación finalizada" y "pack_catalog completado".
+   (En este punto todos los productos quedan en Uncategorized; se arregla en el paso 3.)
+   En local tardó ~87s por 23.966 filas.
+
+3) RECONSTRUIR CATEGORÍAS + RE-ADJUNTAR PRODUCTOS
+   php tools/import-wieland-structure.php
+
+   Esto hace:
+     - Lee las 13 categorías únicas de la columna "category" del CSV
+     - Crea categorías planas (sin jerarquía) con slug y products_count
+     - Uncategorized fallback
+     - Re-adjunta los productos por SKU → category name
+     - Actualiza products_count
+     - Regenera las páginas (pack_catalog)
+
+   Salida esperada:
+     SKUs: 23966
+     Categorias unicas: 13 (+ Uncategorized = 14)
+     Products re-attribute: 23966 | to uncategorized: 0
+
+4) VERIFICAR
+   a) Árbol /catalogo/wieland/
+      - 13 categorías como headings con links y conteos.
+
+   b) Páginas de categoría: toda categoría con productos tiene URL propia
+      y paginación (las grandes paginadas de a 200).
+      Ver categorías con:
+      SELECT slug, products_count FROM wp_aoe_catalog_categories
+      WHERE manufacturer_id = 15 AND type = 'category' ORDER BY products_count DESC;
+
+   c) Fila de producto:
+      - Imagen remota desde wieland-electric.com CDN
+      - Columna "Características": specs clave=valor (25+ items típicos)
+      - PDFs: botón "Datasheet" + "3D CAD" (vía downloads_json)
+      - product_url, ean, available, successor_url en additional_data
+
+   d) NO debe existir /catalogo/wieland/productos/ (página grouped vacía).
+
+   e) LIMPIAR CACHÉ en prod:
+      borrar wp-content/uploads/aoe-cache-catalog/wieland/
+
+   f) Si en prod solo cambia el render, regenerar con:
+      php tools/repack-catalog.php wieland
+
+NOTAS
+   - El orden importa: full-import --mode=replace BORRA todas las categorías,
+     por eso el paso 3 reconstruye después.
+   - 23.966 productos (SKUs únicos, sin duplicados).
+   - 13 categorías planas (sin jerarquía) + 1 Uncategorized vacía = 14 total.
+     0 productos a Uncategorized.
+   - Cobertura: 20.296 con imagen (85%), 23.924 con PDF (99.8%), 13.867 con
+     3D CAD (58%), 22.760 con specs (95%), todos con product_url y ean.
+   - Specs: 961 labels únicos en español; se filtran embalaje, códigos
+     Etim/Eclass, compliance (Reach/Rohs), etiquetas en alemán y ruido.
+   - Documents: downloads_json estructurado (url/filename/ext); fallback a
+     pipe-separated pdf_urls/cad_urls si downloads_json vacío.
+   - Columna "Características" muestra specs clave=valor (hasta 10 pares).
+   - Páginas generadas: 1 tree + 127 category.
+   - AOE_DB_HOST=127.0.0.1:10006 es solo para local.
