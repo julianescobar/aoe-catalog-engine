@@ -342,7 +342,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 				?>
 				<div class="aoe-catalog-group-section">
 					<h3 class="aoe-cat-breadcrumb"><?php echo esc_html( implode( ' > ', $path_parts ) ); ?></h3>
-					<table class="aoe-catalog-table<?php echo $show_features_col ? ' aoe-catalog-table-with-features' : ''; ?> aoe-catalog-table-<?php echo esc_attr( $manufacturer_slug ); ?>" itemscope itemtype="https://schema.org/ItemList">
+				<table class="aoe-catalog-table<?php echo $show_features_col ? ' aoe-catalog-table-with-features' : ''; ?> aoe-catalog-table-<?php echo esc_attr( $manufacturer_slug ); ?> cat-grouped" itemscope itemtype="https://schema.org/ItemList">
 						<thead>
 							<tr>
 								<th>Codigo</th>
@@ -516,7 +516,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 		</div>
 		<?php endif; ?>
 		<?php endif; ?>
-			<table class="aoe-catalog-table<?php echo $show_features_col ? ' aoe-catalog-table-with-features' : ''; ?> aoe-catalog-table-<?php echo esc_attr( $manufacturer_slug ); ?>" itemscope itemtype="https://schema.org/ItemList">
+			<table class="aoe-catalog-table<?php echo $show_features_col ? ' aoe-catalog-table-with-features' : ''; ?> aoe-catalog-table-<?php echo esc_attr( $manufacturer_slug ); ?><?php echo ! empty( $page_slug ) ? ' cat-' . esc_attr( sanitize_title( $page_slug ) ) : ''; ?>" itemscope itemtype="https://schema.org/ItemList">
 			<thead>
 				<tr>
 					<th>Codigo</th>
