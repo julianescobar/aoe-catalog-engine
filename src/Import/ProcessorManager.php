@@ -29,6 +29,7 @@ class ProcessorManager {
 		$this->register_processor( new Processors\AmphenolIndustrialProcessor() );
 		$this->register_processor( new Processors\AmphenolConecProcessor() );
 		$this->register_processor( new Processors\WielandProcessor() );
+		$this->register_processor( new Processors\MHConnectorsProcessor() );
 
 		// Allow other plugins/themes to register their own processors
 		do_action( 'aoe_catalog_register_processors', $this );

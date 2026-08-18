@@ -1,0 +1,42 @@
+DEPLOY MH CONNECTORS A PRODUCCIÓN
+=================================
+
+PREREQUISITO
+   - Fabricante "MH Connectors" (slug: "mhconnectors") creado en el admin
+     con plantilla [catalogo] asociada. tree_layout: "table_desc".
+   - En local es el id 16 de la tabla aoe_catalog_manufacturers.
+
+1) SUBIR ARCHIVOS A tools/ EN PRODUCCIÓN
+   - mh_productos.csv
+   - mh_catalog.csv
+   - import-mh-structure.php
+   - Código fuente del plugin:
+       * src/Import/Processors/MHConnectorsProcessor.php (nuevo; BOM handling;
+         specs from series via structure importer)
+       * src/Import/ProcessorManager.php (registro mhconnectors)
+       * src/PublicFacing/Views/catalog-render-html.php (mhconnectors en
+         show_features_col + bullets; fix \n en specs: tabla=espacio, modal=salto)
+       * assets/js/catalog.js (fix \n → <br> en modal de specs)
+
+2) IMPORTAR PRODUCTOS
+   nohup php tools/full-import.php --manufacturer=mhconnectors --csv=tools/mh_productos.csv --mode=replace > import-mh.log 2>&1 &
+   ~3s por 845 filas.
+
+3) RECONSTRUIR CATEGORÍAS + MERGE SPECS DE SERIES
+   php tools/import-mh-structure.php
+   - 7 categories + 17 subcategories + 76 series (3 niveles)
+   - Specs de series se mergean con attrs de productos
+   - 0 a uncategorized
+
+4) VERIFICAR
+   a) Árbol /catalogo/mhconnectors/: 7 L1 → 17 L2 → 76 series
+   b) Ficha técnica: specs con saltos de línea correctos (\n → <br>)
+   c) Tabla: specs con espacios (sin \n)
+   d) LIMPIAR CACHÉ: borrar wp-content/uploads/aoe-cache-catalog/mhconnectors/
+
+NOTAS
+   - 799 productos (845 en CSV, 46 deduplicados)
+   - 101 categorías (8 L1 + 17 L2 + 76 L3 + Uncategorized)
+   - 727 productos con specs mergeados de series
+   - Specs: 76 series con specifications (key:value newline-separated en CSV)
+   - Fix \n: reemplazado en specs_flat (tabla→espacio) y modal (JS→<br>)

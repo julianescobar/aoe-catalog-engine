@@ -226,7 +226,7 @@ jQuery(document).ready(function ($) {
 		var specsHtml = '';
 		$.each(specsData, function (key, value) {
 			if (!value) return;
-			specsHtml += '<tr><td class="aoe-spec-key">' + key + '</td><td class="aoe-spec-value">' + value + '</td></tr>';
+			specsHtml += '<tr><td class="aoe-spec-key">' + key + '</td><td class="aoe-spec-value">' + value.replace(/\\n/g, '<br>') + '</td></tr>';
 		});
 		var $specsList = $modal.find('#lista-specs-dinamica');
 		if ($specsList.length) $specsList.html(specsHtml);
