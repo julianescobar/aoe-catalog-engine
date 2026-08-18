@@ -98,7 +98,7 @@ class PanduitProcessor extends BaseProcessor {
 		}
 
 		$entries = explode( '||', (string) $row['documents'] );
-		$allowed_exts = [ 'pdf', 'stp', 'step' ];
+		$allowed_exts = [ 'pdf', 'stp', 'step', 'dwg', 'dxf' ];
 
 		foreach ( $entries as $entry ) {
 			$parts = explode( '|', trim( $entry ) );
@@ -122,9 +122,7 @@ class PanduitProcessor extends BaseProcessor {
 			$label      = 'document';
 			$type_lower = strtolower( $type );
 
-			if ( in_array( $ext, [ 'stp', 'step' ], true ) ) {
-				$label = '3D CAD';
-			} elseif ( str_contains( $type_lower, 'drawing' ) ) {
+			if ( in_array( $ext, [ 'dwg', 'dxf', 'stp', 'step' ], true ) ) {
 				$label = 'drawing';
 			} elseif ( str_contains( $type_lower, 'specification' ) || str_contains( $type_lower, 'datasheet' ) ) {
 				$label = 'datasheet';
