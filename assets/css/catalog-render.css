@@ -1274,7 +1274,19 @@
 	min-width: 300px;
 	max-height: 80vh;
 	overflow-y: auto;
+}
 
+/* Avada fix: la seccion del catalogo debe ganar la guerra de stacking contexts
+   contra las secciones hermanas (pattern/mask backgrounds, fusion-separator) */
+#aoe-catalog-container {
+	position: relative;
+	z-index: 20;
+}
+
+.catalogo_online-template-default .fusion-fullwidth:has(#aoe-catalog-container) {
+	overflow: visible !important;
+	position: relative !important;
+	z-index: 999 !important;
 }
 
 .aoe-catalog-caracteristicas:hover .aoe-caracteristicas-popup {
@@ -1420,4 +1432,9 @@ ul.aoe-cat-bullets {
 
 #aoe-catalog-container .aoe-catalog-table-panduit .aoe-catalog-product-name {
 	font-weight: bold;
+}
+
+.catalogo_online-template-default,
+.fusion-separator {
+	z-index: 10 !important;
 }
