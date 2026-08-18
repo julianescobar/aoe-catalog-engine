@@ -422,7 +422,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 									</span>
 									</td>
 									<td>
-										<span class="aoe-catalog-product-name" itemprop="name"><?php echo esc_html( $name ); ?></span>
+										<span class="aoe-catalog-product-name<?php echo ( $show_subtitle_desc && ( '' !== $subtitle || '' !== $desc_line ) ) ? ' aoe-bold' : ''; ?>" itemprop="name"><?php echo esc_html( $name ); ?></span>
 								<?php if ( $show_subtitle_desc && '' !== $subtitle ) : ?>
 									<span class="aoe-catalog-product-subtitle"><?php echo esc_html( $subtitle ); ?></span>
 								<?php endif; ?>
@@ -596,7 +596,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 							</span>
 						</td>
 						<td>
-							<span class="aoe-catalog-product-name" itemprop="name"><?php echo esc_html( $name ); ?></span>
+							<span class="aoe-catalog-product-name<?php echo ( $show_subtitle_desc && ( '' !== $subtitle || '' !== $desc_line ) ) ? ' aoe-bold' : ''; ?>" itemprop="name"><?php echo esc_html( $name ); ?></span>
 								<?php if ( $show_subtitle_desc && '' !== $subtitle ) : ?>
 									<span class="aoe-catalog-product-subtitle"><?php echo esc_html( $subtitle ); ?></span>
 								<?php endif; ?>

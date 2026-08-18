@@ -919,6 +919,10 @@
 	display: block;
 }
 
+.fila-producto td .aoe-catalog-product-name.aoe-bold {
+	font-weight: 700;
+}
+
 .fila-producto td .aoe-catalog-product-subtitle {
 	display: block;
 	font-weight: 400;
@@ -1154,6 +1158,11 @@
 
 #aoe-catalog-container.aoe-tree-layout-table_desc .aoe-cat-heading {
 	margin-bottom: 15px;
+}
+
+.aoe-tree-amphenolindustrial h3.aoe-cat-heading,
+.aoe-tree-amphenolindustrial .aoe-cat-name a {
+	text-transform: capitalize;
 }
 
 #aoe-catalog-container.aoe-tree-layout-table_desc .aoe-cat-level-1,
@@ -1407,6 +1416,6 @@ ul.aoe-cat-bullets {
 	max-width: 200px;
 }
 
-#aoe-catalog-container .aoe-catalog-product-name {
+#aoe-catalog-container .aoe-catalog-table-panduit .aoe-catalog-product-name {
 	font-weight: bold;
 }
