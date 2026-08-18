@@ -1410,7 +1410,9 @@ ul.aoe-cat-bullets {
 }
 
 .aoe-catalog-table-yokowo.cat-yokowo-spring-connector-pogo-pins td:nth-child(2),
-.aoe-catalog-table-yokowo.cat-yokowo-spring-connector-pogo-pins>thead>tr>th:nth-child(2) {
+.aoe-catalog-table-yokowo.cat-yokowo-spring-connector-pogo-pins>thead>tr>th:nth-child(2),
+.aoe-catalog-table-amphenollutze.cat-amphenollutze-cable-connectivity-confecciones-de-cable-confecciones-para-servoactuadores td:nth-child(2),
+.aoe-catalog-table-amphenollutze.cat-amphenollutze-cable-connectivity-confecciones-de-cable-confecciones-para-servoactuadores>thead>tr>th:nth-child(2) {
 	white-space: normal;
 	width: auto;
 	max-width: 200px;
