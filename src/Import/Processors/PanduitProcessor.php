@@ -98,6 +98,7 @@ class PanduitProcessor extends BaseProcessor {
 		}
 
 		$entries = explode( '||', (string) $row['documents'] );
+		$allowed_exts = [ 'pdf', 'stp', 'step' ];
 
 		foreach ( $entries as $entry ) {
 			$parts = explode( '|', trim( $entry ) );
@@ -110,12 +111,20 @@ class PanduitProcessor extends BaseProcessor {
 				continue;
 			}
 
+			// Filter by extension: only PDF and 3D CAD (.stp, .step).
+			$ext = strtolower( pathinfo( $url, PATHINFO_EXTENSION ) );
+			if ( ! in_array( $ext, $allowed_exts, true ) ) {
+				continue;
+			}
+
 			$type       = trim( $parts[0] ?? '' );
 			$name       = trim( $parts[1] ?? '' );
 			$label      = 'document';
 			$type_lower = strtolower( $type );
 
-			if ( str_contains( $type_lower, 'drawing' ) ) {
+			if ( in_array( $ext, [ 'stp', 'step' ], true ) ) {
+				$label = '3D CAD';
+			} elseif ( str_contains( $type_lower, 'drawing' ) ) {
 				$label = 'drawing';
 			} elseif ( str_contains( $type_lower, 'specification' ) || str_contains( $type_lower, 'datasheet' ) ) {
 				$label = 'datasheet';

@@ -1392,3 +1392,21 @@ ul.aoe-cat-bullets {
 #main #aoe-catalog-container .aoe-link-cat a:hover {
 	color: #eb9900 !important;
 }
+
+.aoe-catalog-table-yokowo.cat-yokowo-spring-connector-pogo-pins td:first-child,
+.aoe-catalog-table-yokowo.cat-yokowo-spring-connector-pogo-pins>thead>tr>th:first-child {
+	white-space: normal;
+	max-width: 204px;
+	width: auto;
+}
+
+.aoe-catalog-table-yokowo.cat-yokowo-spring-connector-pogo-pins td:nth-child(2),
+.aoe-catalog-table-yokowo.cat-yokowo-spring-connector-pogo-pins>thead>tr>th:nth-child(2) {
+	white-space: normal;
+	width: auto;
+	max-width: 200px;
+}
+
+#aoe-catalog-container .aoe-catalog-product-name {
+	font-weight: bold;
+}
