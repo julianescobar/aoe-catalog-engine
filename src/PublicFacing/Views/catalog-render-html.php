@@ -495,12 +495,13 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 										<div class="aoe-caracteristicas-popup">
 											<table class="aoe-caracteristicas-popup-table">
 												<tbody>
-												<?php foreach ( $specs as $skey => $sval ) : ?>
+											<?php foreach ( $specs as $skey => $sval ) : ?>
+												<?php if ( 'amphenol-lutze' === $manufacturer_slug && in_array( $skey, [ 'Caracteristicas', 'Area de aplicacion' ], true ) ) continue; ?>
 												<tr><th><?php echo esc_html( $skey ); ?></th><td><?php echo nl2br( esc_html( str_replace( '\\n', "\n", $sval ) ) ); ?></td></tr>
 												<?php endforeach; ?>
-												</tbody>
-											</table>
-										</div>
+											</tbody>
+										</table>
+									</div>
 										<?php endif; ?>
 									</td>
 									<?php endif; ?>
@@ -689,12 +690,13 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 							<div class="aoe-caracteristicas-popup">
 								<table class="aoe-caracteristicas-popup-table">
 									<tbody>
-									<?php foreach ( $specs as $skey => $sval ) : ?>
+								<?php foreach ( $specs as $skey => $sval ) : ?>
+									<?php if ( 'amphenol-lutze' === $manufacturer_slug && in_array( $skey, [ 'Caracteristicas', 'Area de aplicacion' ], true ) ) continue; ?>
 									<tr><th><?php echo esc_html( $skey ); ?></th><td><?php echo nl2br( esc_html( str_replace( '\\n', "\n", $sval ) ) ); ?></td></tr>
 									<?php endforeach; ?>
-									</tbody>
-								</table>
-							</div>
+								</tbody>
+							</table>
+						</div>
 							<?php endif; ?>
 						</td>
 						<?php endif; ?>
