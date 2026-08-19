@@ -38,8 +38,8 @@ require_once $wp_load;
 global $wpdb;
 
 $manufacturer_slug = 'amphenol-rf';
-$cats_file         = __DIR__ . '/categoriasamphenolrf.csv';
-$prods_file        = __DIR__ . '/productosamphenolrf.csv';
+$cats_file         = __DIR__ . '/amphenol-rf-categorias.csv';
+$prods_file        = __DIR__ . '/amphenol-rf-productos.csv';
 
 $table_c = $wpdb->prefix . 'aoe_catalog_categories';
 $table_p = $wpdb->prefix . 'aoe_catalog_products';

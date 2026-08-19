@@ -110,8 +110,8 @@ class AmphenolRfProcessor extends BaseProcessor {
 		}
 		$data['images'] = ( '' !== $image_url && false === strpos( $image_url, 'search-parts' ) ) ? [ $image_url ] : [];
 
-		// PDFs/CAD are intentionally not migrated for RF in this phase (see
-		// tools/nota-jefe-amphenol-rf-docs.txt): the CSV carries no real asset URLs.
+		// Documents: pdf_url (datasheet) and cad_url (3D CAD).
+		$data['pdf'] = $this->parse_documents( $row );
 
 		// Specs
 		$specs = [];
@@ -169,6 +169,22 @@ class AmphenolRfProcessor extends BaseProcessor {
 			return 'from ' . $min . ' °C';
 		}
 		return $min . ' to ' . $max . ' °C';
+	}
+
+	private function parse_documents( array $row ): array {
+		$pdfs = [];
+
+		$pdf_url = isset( $row['pdf_url'] ) ? trim( (string) $row['pdf_url'] ) : '';
+		if ( '' !== $pdf_url ) {
+			$pdfs['datasheet'][] = [ 'url' => $pdf_url, 'name' => 'Datasheet' ];
+		}
+
+		$cad_url = isset( $row['cad_url'] ) ? trim( (string) $row['cad_url'] ) : '';
+		if ( '' !== $cad_url ) {
+			$pdfs['3D CAD'][] = [ 'url' => $cad_url, 'name' => '3D CAD' ];
+		}
+
+		return $pdfs;
 	}
 
 	private function get_category_path_by_rf_id( string $rf_id ): ?array {
