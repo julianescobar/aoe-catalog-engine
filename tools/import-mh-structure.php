@@ -27,7 +27,7 @@ require_once $wp_load;
 
 global $wpdb;
 
-$manufacturer_slug = 'mhconnectors';
+$manufacturer_slug = 'mh-connectors';
 $catalog_file      = __DIR__ . '/mh_catalog.csv';
 $prods_file        = __DIR__ . '/mh_productos.csv';
 

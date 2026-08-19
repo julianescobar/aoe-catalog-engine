@@ -5,7 +5,7 @@ namespace AOE\CatalogEngine\Import\Processors;
 class AmphenolRfProcessor extends BaseProcessor {
 
 	public static function get_manufacturer_slug(): string {
-		return 'amphenolrf';
+		return 'amphenol-rf';
 	}
 
 	public function has_separate_categories(): bool {
@@ -111,7 +111,7 @@ class AmphenolRfProcessor extends BaseProcessor {
 		$data['images'] = ( '' !== $image_url && false === strpos( $image_url, 'search-parts' ) ) ? [ $image_url ] : [];
 
 		// PDFs/CAD are intentionally not migrated for RF in this phase (see
-		// tools/nota-jefe-amphenolrf-docs.txt): the CSV carries no real asset URLs.
+		// tools/nota-jefe-amphenol-rf-docs.txt): the CSV carries no real asset URLs.
 
 		// Specs
 		$specs = [];

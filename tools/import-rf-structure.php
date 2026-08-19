@@ -37,7 +37,7 @@ require_once $wp_load;
 
 global $wpdb;
 
-$manufacturer_slug = 'amphenolrf';
+$manufacturer_slug = 'amphenol-rf';
 $cats_file         = __DIR__ . '/categoriasamphenolrf.csv';
 $prods_file        = __DIR__ . '/productosamphenolrf.csv';
 

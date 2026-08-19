@@ -5,7 +5,7 @@ namespace AOE\CatalogEngine\Import\Processors;
 class AmphenolIndustrialProcessor extends BaseProcessor {
 
 	public static function get_manufacturer_slug(): string {
-		return 'amphenolindustrial';
+		return 'amphenol-industrial';
 	}
 
 	public function has_separate_categories(): bool {

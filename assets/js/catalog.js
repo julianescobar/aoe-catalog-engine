@@ -113,6 +113,14 @@ jQuery(document).ready(function ($) {
 	var aoeDownloadUrl = '';
 	var aoeProductName = '';
 
+	$('#modal-img-producto').on('load', function () {
+		$(this).show().closest('.aoe-catalog-product-image-wrap').show();
+		$(this).closest('.aoe-catalog-product-image-wrap').find('.aoe-modal-spinner').hide();
+	}).on('error', function () {
+		$(this).hide();
+		$(this).closest('.aoe-catalog-product-image-wrap').find('.aoe-modal-spinner').hide();
+	});
+
 	function aoeShowModal($target) {
 		$('body').addClass('aoe-modal-open');
 		setTimeout(function () {
@@ -155,8 +163,19 @@ jQuery(document).ready(function ($) {
 		var $modalDesc = $modal.find('#modal-descripcion');
 		if (subtitulo) { $modalSub.text(subtitulo).show(); } else { $modalSub.text('').hide(); }
 		if (descripcion) { $modalDesc.text(descripcion).show(); } else { $modalDesc.text('').hide(); }
-		$modal.find('#modal-img-producto').attr('src', imagen || '').attr('alt', altText).show();
-		$modal.find('#modal-img-producto').closest('.aoe-catalog-product-image-wrap').show();
+		var $img = $modal.find('#modal-img-producto');
+		var $spinner = $modal.find('.aoe-modal-spinner');
+		var $imgWrap = $img.closest('.aoe-catalog-product-image-wrap');
+		if (imagen) {
+			$img.hide();
+			$spinner.show();
+			$imgWrap.show();
+			$img.attr('src', imagen).attr('alt', altText);
+		} else {
+			$img.hide();
+			$spinner.hide();
+			$imgWrap.hide();
+		}
 		$modal.find('#modal-heading-1').text(sku);
 		$modal.find('#btn-contacto-modal').attr('data-sku-link', sku);
 		$modal.find('#btn-contacto-modal').attr('title', 'Quiero más información sobre ' + manufacturerName + ' ' + sku + ' ' + nombre);
@@ -387,6 +406,17 @@ jQuery(document).ready(function ($) {
 		if ($form.length && aoeDownloadUrl) {
 			window.open(aoeDownloadUrl, '_blank');
 		}
+	});
+
+	$(document).on('click', '.aoe-cat-row td.aoe-cat-desc', function() {
+		var link = $(this).closest('.aoe-cat-row').find('td.aoe-cat-name a').attr('href');
+		if (link) window.location = link;
+	});
+
+	$(document).on('mouseenter', '.aoe-cat-row td.aoe-cat-desc', function() {
+		$(this).closest('.aoe-cat-row').addClass('aoe-row-hover');
+	}).on('mouseleave', '.aoe-cat-row td.aoe-cat-desc', function() {
+		$(this).closest('.aoe-cat-row').removeClass('aoe-row-hover');
 	});
 
 });

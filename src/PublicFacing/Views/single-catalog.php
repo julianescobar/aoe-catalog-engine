@@ -960,7 +960,7 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 						}
 						$has_desc = ! empty( $desc );
 
-						echo '<tr class="' . $row_class . '">';
+						echo '<tr class="' . $row_class . ( $has_desc ? ' aoe-cat-row-with-desc' : '' ) . '">';
 						echo '<td class="aoe-cat-name"' . ( $has_desc ? '' : ' colspan="2"' ) . '>';
 						if ( $cat_url !== '#' ) {
 							echo '<a href="' . esc_url( $cat_url ) . '">' . esc_html( $item->category_name ) . '</a>';
@@ -1097,7 +1097,7 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 				$has_desc = ! empty( $desc );
 				$desc_separate_row = $has_desc && (int) $item->level < $max_level;
 
-				echo '<tr class="' . $row_class . '">';
+				echo '<tr class="' . $row_class . ( $has_desc ? ' aoe-cat-row-with-desc' : '' ) . '">';
 				echo '<td class="aoe-cat-name"' . ( $has_desc ? '' : ' colspan="2"' ) . '>';
 
 				if ( $level === 0 ) {

@@ -5,7 +5,7 @@ namespace AOE\CatalogEngine\Import\Processors;
 class MediKabelProcessor extends BaseProcessor {
 
 	public static function get_manufacturer_slug(): string {
-		return 'medikabel';
+		return 'medi-kabel';
 	}
 
 	public function has_separate_categories(): bool {

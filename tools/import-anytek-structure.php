@@ -39,7 +39,7 @@ require_once $wp_load;
 
 global $wpdb;
 
-$manufacturer_slug = 'amphenolanytek';
+$manufacturer_slug = 'amphenol-anytek';
 $cats_file         = __DIR__ . '/categoriassamphenoanytek.csv';
 $prods_file        = __DIR__ . '/productosamphenoanytek.csv';
 

@@ -44,7 +44,7 @@ require_once $wp_load;
 
 global $wpdb;
 
-$manufacturer_slug = 'amphenolindustrial';
+$manufacturer_slug = 'amphenol-industrial';
 $cats_file         = __DIR__ . '/amphenol_industrial_categorias.csv';
 $prods_file        = __DIR__ . '/amphenol_industrial_productos.csv';
 

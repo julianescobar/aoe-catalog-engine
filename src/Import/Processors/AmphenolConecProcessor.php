@@ -5,7 +5,7 @@ namespace AOE\CatalogEngine\Import\Processors;
 class AmphenolConecProcessor extends BaseProcessor {
 
 	public static function get_manufacturer_slug(): string {
-		return 'amphenolconec';
+		return 'amphenol-conec';
 	}
 
 	public function has_separate_categories(): bool {

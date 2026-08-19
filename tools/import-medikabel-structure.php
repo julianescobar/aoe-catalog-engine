@@ -40,7 +40,7 @@ require_once $wp_load;
 
 global $wpdb;
 
-$manufacturer_slug = 'medikabel';
+$manufacturer_slug = 'medi-kabel';
 
 /**
  * Capitalize the first letter only if the name starts with a lowercase ASCII

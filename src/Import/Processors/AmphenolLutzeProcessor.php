@@ -5,7 +5,7 @@ namespace AOE\CatalogEngine\Import\Processors;
 class AmphenolLutzeProcessor extends BaseProcessor {
 
 	public static function get_manufacturer_slug(): string {
-		return 'amphenollutze';
+		return 'amphenol-lutze';
 	}
 
 	public function has_separate_categories(): bool {

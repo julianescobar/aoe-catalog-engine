@@ -38,7 +38,7 @@ require_once $wp_load;
 
 global $wpdb;
 
-$manufacturer_slug = 'amphenolltw';
+$manufacturer_slug = 'amphenol-ltw';
 $cats_file         = __DIR__ . '/categoriasamphenolltw.csv';
 $prods_file        = __DIR__ . '/productosamphenolltw.csv';
 

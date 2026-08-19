@@ -43,7 +43,7 @@ require_once $wp_load;
 
 global $wpdb;
 
-$manufacturer_slug = 'amphenollutze';
+$manufacturer_slug = 'amphenol-lutze';
 $cats_file         = __DIR__ . '/lutze_categorias.csv';
 $prods_file        = __DIR__ . '/lutze_productos.csv';
 

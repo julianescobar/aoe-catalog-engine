@@ -821,6 +821,10 @@
 	text-decoration: underline;
 }
 
+.aoe-row-hover .aoe-cat-name a {
+	text-decoration: underline;
+}
+
 /* Grid mode for flat category lists */
 .aoe-cat-grid {
 	width: 100%;
@@ -1160,8 +1164,8 @@
 	margin-bottom: 15px;
 }
 
-.aoe-tree-amphenolindustrial h3.aoe-cat-heading,
-.aoe-tree-amphenolindustrial .aoe-cat-name a {
+.aoe-tree-amphenol-industrial h3.aoe-cat-heading,
+.aoe-tree-amphenol-industrial .aoe-cat-name a {
 	text-transform: capitalize;
 }
 
@@ -1401,8 +1405,8 @@ ul.aoe-cat-bullets {
 	display: none;
 }
 
-.aoe-tree-amphenolindustrial ul.aoe-cat-bullets,
-.aoe-tree-amphenolconec ul.aoe-cat-bullets {
+.aoe-tree-amphenol-industrial ul.aoe-cat-bullets,
+.aoe-tree-amphenol-conec ul.aoe-cat-bullets {
 	display: none;
 }
 
@@ -1423,8 +1427,8 @@ ul.aoe-cat-bullets {
 
 .aoe-catalog-table-yokowo.cat-yokowo-spring-connector-pogo-pins td:nth-child(2),
 .aoe-catalog-table-yokowo.cat-yokowo-spring-connector-pogo-pins>thead>tr>th:nth-child(2),
-.aoe-catalog-table-amphenollutze.cat-amphenollutze-cable-connectivity-confecciones-de-cable-confecciones-para-servoactuadores td:nth-child(2),
-.aoe-catalog-table-amphenollutze.cat-amphenollutze-cable-connectivity-confecciones-de-cable-confecciones-para-servoactuadores>thead>tr>th:nth-child(2) {
+.aoe-catalog-table-amphenol-lutze.cat-amphenol-lutze-cable-connectivity-confecciones-de-cable-confecciones-para-servoactuadores td:nth-child(2),
+.aoe-catalog-table-amphenol-lutze.cat-amphenol-lutze-cable-connectivity-confecciones-de-cable-confecciones-para-servoactuadores>thead>tr>th:nth-child(2) {
 	white-space: normal;
 	width: auto;
 	max-width: 200px;
@@ -1437,4 +1441,69 @@ ul.aoe-cat-bullets {
 .catalogo_online-template-default,
 .fusion-separator {
 	z-index: 10 !important;
+}
+
+.aoe-tree-layout-table_desc .aoe-cat-row {
+	cursor: pointer;
+}
+
+/*.aoe-tree-layout-table_desc .aoe-cat-row:hover .aoe-cat-desc p */
+.aoe-tree-layout-table_desc .aoe-cat-row:hover .aoe-cat-name a {
+	text-decoration: underline;
+}
+
+.aoe-tree-layout-table_desc .aoe-cat-row:hover .aoe-cat-name a span {
+	color: #666;
+	text-decoration: none;
+}
+
+.aoe-modal-spinner {
+	display: inline-block;
+	position: relative;
+	width: 40px;
+	height: 40px;
+	margin: 20px auto;
+}
+
+.aoe-modal-spinner div {
+	box-sizing: border-box;
+	display: block;
+	position: absolute;
+	width: 32px;
+	height: 32px;
+	margin: 4px;
+	border: 3px solid #ccc;
+	border-radius: 50%;
+	animation: aoe-spin 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+	border-color: #ccc transparent transparent transparent;
+}
+
+.aoe-modal-spinner div:nth-child(1) {
+	animation-delay: -0.45s;
+}
+
+.aoe-modal-spinner div:nth-child(2) {
+	animation-delay: -0.3s;
+}
+
+.aoe-modal-spinner div:nth-child(3) {
+	animation-delay: -0.15s;
+}
+
+@keyframes aoe-spin {
+	0% {
+		transform: rotate(0deg);
+	}
+
+	100% {
+		transform: rotate(360deg);
+	}
+}
+
+#main #aoe-catalog-container .aoe-cat-row-with-desc a {
+	color: #2d529f !important;
+}
+
+#main #aoe-catalog-container .aoe-cat-row-with-desc:hover {
+	background: rgb(223 223 223) !important;
 }

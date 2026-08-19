@@ -43,7 +43,7 @@ require_once $wp_load;
 
 global $wpdb;
 
-$manufacturer_slug = 'amphenolconec';
+$manufacturer_slug = 'amphenol-conec';
 $cats_file         = __DIR__ . '/conec_categorias.csv';
 $prods_file        = __DIR__ . '/conec_productos.csv';
 

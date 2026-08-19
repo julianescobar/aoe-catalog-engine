@@ -5,7 +5,7 @@ namespace AOE\CatalogEngine\Import\Processors;
 class AmphenolLtwProcessor extends BaseProcessor {
 
 	public static function get_manufacturer_slug(): string {
-		return 'amphenolltw';
+		return 'amphenol-ltw';
 	}
 
 	public function has_separate_categories(): bool {

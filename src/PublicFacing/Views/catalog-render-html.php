@@ -229,8 +229,8 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 	$family_image = aoe_catalog_get_first_value( $first_images );
 	$family_pdf   = $first_pdf;
 	$category_display_name = $category;
-	$show_features_col = in_array( $manufacturer_slug, [ 'samtec', 'edac', 'camdenboss', 'bivar', 'panduit', 'bulgin', 'medikabel', 'yokowo', 'amphenolanytek', 'amphenolltw', 'amphenolrf', 'amphenollutze', 'amphenolindustrial', 'amphenolconec', 'wieland', 'mhconnectors' ], true );
-	$show_subtitle_desc = in_array( $manufacturer_slug, [ 'panduit' ], true );
+	$show_features_col = in_array( $manufacturer_slug, [ 'samtec', 'edac', 'camdenboss', 'bivar', 'panduit', 'bulgin', 'medi-kabel', 'yokowo', 'amphenol-anytek', 'amphenol-ltw', 'amphenol-rf', 'amphenol-lutze', 'amphenol-industrial', 'amphenol-conec', 'wieland', 'mh-connectors' ], true );
+		$show_subtitle_desc = in_array( $manufacturer_slug, [ 'panduit' ], true );
 	if ( $show_features_col && ! $is_preview ) {
 		$has_any_specs = false;
 		foreach ( $page_products as $pp ) {
@@ -266,6 +266,28 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 			}
 	</style>
 	<?php $tree_layout = $category_metadata['tree_layout'] ?? ''; ?>
+	<?php
+	$image_domains = [
+		'bivar'             => [ 'www.bivar.com' ],
+		'bulgin'            => [ 'www.bulgin.com' ],
+		'medi-kabel'        => [ 'www.medikabel.de' ],
+		'yokowo'            => [ 'www.yokowoconnector.com' ],
+		'amphenol-anytek'   => [ 'www.anytek.com.cn' ],
+		'amphenol-ltw'      => [ 'www.amphenolltw.com' ],
+		'amphenol-rf'       => [ 's3.us-west-2.amazonaws.com' ],
+		'amphenol-industrial' => [ 'www.amphenol-industrial.de' ],
+		'amphenol-conec'    => [ 'conec.com' ],
+		'amphenol-lutze'    => [ 'mediabridge.luetze.de', 'pimport-cdn.luetze.com' ],
+		'wieland'           => [ 'wiemediadl.wieland-electric.com' ],
+		'mh-connectors'     => [ 'www.mhconnectors.com' ],
+		'panduit'           => [ 's7d9.scene7.com' ],
+	];
+	$preconnect_domains = $image_domains[ $manufacturer_slug ] ?? [];
+	foreach ( $preconnect_domains as $domain ) :
+	?>
+	<link rel="preconnect" href="https://<?php echo esc_attr( $domain ); ?>" crossorigin>
+	<link rel="dns-prefetch" href="https://<?php echo esc_attr( $domain ); ?>">
+	<?php endforeach; ?>
 	<div class="aoe-catalog-render aoe-catalog-<?php echo esc_attr( $manufacturer_slug ); ?> aoe-tree-layout-<?php echo esc_attr( $tree_layout ); ?>" id="aoe-catalog-container">
 		<header>
 			<h2>Catálogo de componentes <?php echo esc_html( ucfirst( $manufacturer_name ) ); ?><?php
@@ -284,7 +306,16 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 						<p>Fabricante</p>
 				</div>
 				<div class="aoe-catalog-data">
-						<a><a href="<?php echo esc_url( home_url( '/catalogo/' . $manufacturer_slug . '/' ) ); ?>" target="_blank"><?php echo esc_html( ucfirst( $manufacturer_name ) ); ?></a></a>
+						<?php
+						$mfr_link_slug = $manufacturer_slug;
+						$amphenol_slugs = [ 'amphenol-anytek', 'amphenol-ltw', 'amphenol-rf', 'amphenol-lutze', 'amphenol-industrial', 'amphenol-conec' ];
+						if ( in_array( $manufacturer_slug, $amphenol_slugs, true ) ) {
+							$mfr_link_slug = 'amphenol';
+						} elseif ( 'mh-connectors' === $manufacturer_slug ) {
+							$mfr_link_slug = 'edac';
+						}
+						?>
+						<a href="<?php echo esc_url( home_url( '/' . $mfr_link_slug . '/' ) ); ?>" target="_blank"><?php echo esc_html( ucfirst( $manufacturer_name ) ); ?></a>
 				</div>
 			</div>
 		</header>
@@ -505,7 +536,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 		<?php endif; ?>
 		<?php if ( ! in_array( $manufacturer_slug, [ 'samtec', 'bivar' ], true ) ) : ?>
 		<?php if ( ! empty( $category_metadata['description'] ) ) : ?>
-		<div class="aoe-series-description"><?php echo wp_kses_post( in_array( $manufacturer_slug, [ 'amphenolltw', 'amphenolindustrial', 'amphenolconec', 'mhconnectors' ], true ) ? aoe_catalog_bullets_to_html( str_replace( '\n', "\n", $category_metadata['description'] ) ) : wpautop( str_replace( '\n', "\n", $category_metadata['description'] ) ) ); ?></div>
+		<div class="aoe-series-description"><?php echo wp_kses_post( in_array( $manufacturer_slug, [ 'amphenol-ltw', 'amphenol-industrial', 'amphenol-conec', 'mh-connectors' ], true ) ? aoe_catalog_bullets_to_html( str_replace( '\n', "\n", $category_metadata['description'] ) ) : wpautop( str_replace( '\n', "\n", $category_metadata['description'] ) ) ); ?></div>
 		<?php endif; ?>
 		<?php if ( ! empty( $category_metadata['highlights'] ) ) : ?>
 		<div class="aoe-series-highlights"><?php echo wp_kses_post( nl2br( str_replace( '\n', "\n", $category_metadata['highlights'] ) ) ); ?></div>
@@ -646,6 +677,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 						<div id="ficha-producto-modal" class="aoe-catalog-product-card">
 							<div class="aoe-catalog-product-summary">
 								<div class="aoe-catalog-product-image-wrap">
+									<div class="aoe-modal-spinner" style="display:none;"><div></div><div></div><div></div></div>
 									<img data-skip-lazy="1" data-smush-skip="true" loading="eager" id="modal-img-producto" class="no-lazyload" src="" alt="">
 								</div>
 								<div class="aoe-catalog-product-info">
