@@ -242,6 +242,23 @@ jQuery(document).ready(function ($) {
 
 		var specsData = {};
 		try { specsData = JSON.parse($btn.attr('data-specs-json') || '{}'); } catch (e) { }
+
+		if (manufacturerName === 'Amphenol Lutze') {
+			var lutzeKeys = ['Caracteristicas', 'Area de aplicacion'];
+			var lutzeExtras = '';
+			$.each(lutzeKeys, function (i, key) {
+				if (specsData[key]) {
+					var items = specsData[key].split('\n').filter(function(s) { return s.trim(); });
+					lutzeExtras += '<p><strong>' + key + ':</strong></p><ul>' + items.map(function(s) { return '<li>' + s.trim() + '</li>'; }).join('') + '</ul>';
+					delete specsData[key];
+				}
+			});
+			var $extras = $modal.find('#modal-lutze-extras');
+			if ($extras.length && lutzeExtras) {
+				$extras.html(lutzeExtras).show();
+			}
+		}
+
 		var specsHtml = '';
 		$.each(specsData, function (key, value) {
 			if (!value) return;
@@ -408,8 +425,9 @@ jQuery(document).ready(function ($) {
 		}
 	});
 
-	$(document).on('click', '.aoe-cat-row td.aoe-cat-desc', function() {
-		var link = $(this).closest('.aoe-cat-row').find('td.aoe-cat-name a').attr('href');
+	$(document).on('click', '.aoe-cat-row', function(e) {
+		if ($(e.target).is('a')) return;
+		var link = $(this).find('td.aoe-cat-name a').attr('href');
 		if (link) window.location = link;
 	});
 
@@ -418,5 +436,20 @@ jQuery(document).ready(function ($) {
 	}).on('mouseleave', '.aoe-cat-row td.aoe-cat-desc', function() {
 		$(this).closest('.aoe-cat-row').removeClass('aoe-row-hover');
 	});
+
+	// Lutze: detect truncated descriptions for popup
+	function aoeDetectTruncated() {
+		$('.aoe-catalog-product-desc[data-full-text]').each(function () {
+			var el = this;
+			var $el = $(el);
+			if (el.scrollHeight > el.clientHeight + 1) {
+				$el.addClass('aoe-truncated');
+			} else {
+				$el.removeClass('aoe-truncated');
+			}
+		});
+	}
+	aoeDetectTruncated();
+	$(window).on('resize', aoeDetectTruncated);
 
 });

@@ -453,12 +453,32 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 									</span>
 									</td>
 									<td>
-										<span class="aoe-catalog-product-name<?php echo ( $show_subtitle_desc && ( '' !== $subtitle || '' !== $desc_line ) ) ? ' aoe-bold' : ''; ?>" itemprop="name"><?php echo esc_html( $name ); ?></span>
+										<?php
+										$lutze_has_desc = 'amphenol-lutze' === $manufacturer_slug && ( ! empty( $specs['Caracteristicas'] ) || ! empty( $specs['Area de aplicacion'] ) );
+										?>
+										<span class="aoe-catalog-product-name<?php echo ( ( $show_subtitle_desc && ( '' !== $subtitle || '' !== $desc_line ) ) || $lutze_has_desc ) ? ' aoe-bold' : ''; ?>" itemprop="name"><?php echo esc_html( $name ); ?></span>
 								<?php if ( $show_subtitle_desc && '' !== $subtitle ) : ?>
 									<span class="aoe-catalog-product-subtitle"><?php echo esc_html( $subtitle ); ?></span>
 								<?php endif; ?>
 								<?php if ( $show_subtitle_desc && '' !== $desc_line ) : ?>
 									<span class="aoe-catalog-product-desc"><?php echo esc_html( $desc_line ); ?></span>
+								<?php endif; ?>
+								<?php if ( 'amphenol-lutze' === $manufacturer_slug ) : ?>
+									<?php
+									$lutze_car = $specs['Caracteristicas'] ?? '';
+									$lutze_area = $specs['Area de aplicacion'] ?? '';
+									if ( $lutze_car || $lutze_area ) {
+										$lutze_text = '';
+										if ( $lutze_car ) $lutze_text .= $lutze_car;
+										if ( $lutze_car && $lutze_area ) $lutze_text .= "\n—\n";
+										if ( $lutze_area ) $lutze_text .= $lutze_area;
+										echo '<span class="aoe-catalog-product-desc" data-full-text="' . esc_attr( $lutze_text ) . '">' . esc_html( $lutze_text ) . '</span>';
+										echo '<div class="aoe-description-popup">';
+										if ( $lutze_car ) echo '<p><strong>Caracteristicas:</strong></p><p>' . esc_html( $lutze_car ) . '</p>';
+										if ( $lutze_area ) echo '<p><strong>Area de aplicacion:</strong></p><p>' . esc_html( $lutze_area ) . '</p>';
+										echo '</div>';
+									}
+									?>
 								<?php endif; ?>
 										<?php if ( ! empty( $image_url ) ) : ?>
 											<meta itemprop="image" content="<?php echo esc_url( $image_url ); ?>" class="no-lazyload">
@@ -627,12 +647,32 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 							</span>
 						</td>
 						<td>
-							<span class="aoe-catalog-product-name<?php echo ( $show_subtitle_desc && ( '' !== $subtitle || '' !== $desc_line ) ) ? ' aoe-bold' : ''; ?>" itemprop="name"><?php echo esc_html( $name ); ?></span>
+							<?php
+							$lutze_has_desc2 = 'amphenol-lutze' === $manufacturer_slug && ( ! empty( $specs['Caracteristicas'] ) || ! empty( $specs['Area de aplicacion'] ) );
+							?>
+							<span class="aoe-catalog-product-name<?php echo ( ( $show_subtitle_desc && ( '' !== $subtitle || '' !== $desc_line ) ) || $lutze_has_desc2 ) ? ' aoe-bold' : ''; ?>" itemprop="name"><?php echo esc_html( $name ); ?></span>
 								<?php if ( $show_subtitle_desc && '' !== $subtitle ) : ?>
 									<span class="aoe-catalog-product-subtitle"><?php echo esc_html( $subtitle ); ?></span>
 								<?php endif; ?>
 								<?php if ( $show_subtitle_desc && '' !== $desc_line ) : ?>
 									<span class="aoe-catalog-product-desc"><?php echo esc_html( $desc_line ); ?></span>
+								<?php endif; ?>
+								<?php if ( 'amphenol-lutze' === $manufacturer_slug ) : ?>
+									<?php
+									$lutze_car2 = $specs['Caracteristicas'] ?? '';
+									$lutze_area2 = $specs['Area de aplicacion'] ?? '';
+									if ( $lutze_car2 || $lutze_area2 ) {
+										$lutze_text2 = '';
+										if ( $lutze_car2 ) $lutze_text2 .= $lutze_car2;
+										if ( $lutze_car2 && $lutze_area2 ) $lutze_text2 .= "\n—\n";
+										if ( $lutze_area2 ) $lutze_text2 .= $lutze_area2;
+										echo '<span class="aoe-catalog-product-desc" data-full-text="' . esc_attr( $lutze_text2 ) . '">' . esc_html( $lutze_text2 ) . '</span>';
+										echo '<div class="aoe-description-popup">';
+										if ( $lutze_car2 ) echo '<p><strong>Caracteristicas:</strong></p><p>' . esc_html( $lutze_car2 ) . '</p>';
+										if ( $lutze_area2 ) echo '<p><strong>Area de aplicacion:</strong></p><p>' . esc_html( $lutze_area2 ) . '</p>';
+										echo '</div>';
+									}
+									?>
 								<?php endif; ?>
 							<?php if ( ! empty( $image_url ) ) : ?>
 								<meta itemprop="image" content="<?php echo esc_url( $image_url ); ?>" class="no-lazyload">
@@ -685,8 +725,11 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 									<p id="modal-nombre-subtitulo"></p>
 									<p id="modal-subtitulo" class="aoe-catalog-modal-subtitle"></p>
 									<p id="modal-descripcion" class="aoe-catalog-modal-desc"></p>
-									<p class="aoe-catalog-manufacturer"><strong>Fabricante:</strong> <?php echo esc_html( ucfirst( $manufacturer_name ) ); ?></p>
-									<div class="aoe-catalog-contact-wrap">
+								<p class="aoe-catalog-manufacturer"><strong>Fabricante:</strong> <?php echo esc_html( ucfirst( $manufacturer_name ) ); ?></p>
+								<?php if ( 'amphenol-lutze' === $manufacturer_slug ) : ?>
+								<div id="modal-lutze-extras" style="display:none;"></div>
+								<?php endif; ?>
+								<div class="aoe-catalog-contact-wrap">
 										<a id="btn-contacto-modal" class="fusion-button button-flat fusion-button-default-size button-default fusion-button-default btn-catalogo-generico aoe-catalog-contact-button" title="" href="javascript:void(0)" data-sku-link="">
 											<span id="btn-texto-dinamico" class="fusion-button-text">Quiero más información</span>
 										</a>
