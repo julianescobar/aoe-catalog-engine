@@ -10,7 +10,14 @@
  */
 
 $mapping = [
-	// 'old_slug' => 'new_slug',
+	'amphenolanytek'    => 'amphenol-anytek',
+	'amphenolltw'       => 'amphenol-ltw',
+	'amphenolrf'        => 'amphenol-rf',
+	'amphenollutze'     => 'amphenol-lutze',
+	'amphenolindustrial'=> 'amphenol-industrial',
+	'amphenolconec'     => 'amphenol-conec',
+	'medikabel'         => 'medi-kabel',
+	'mhconnectors'      => 'mh-connectors',
 ];
 
 if ( empty( $mapping ) ) {
@@ -18,9 +25,16 @@ if ( empty( $mapping ) ) {
 	exit( 1 );
 }
 
-require_once dirname( __DIR__ ) . '/wp-load.php';
+$wp_load = dirname( __DIR__, 4 ) . '/wp-load.php';
+if ( ! file_exists( $wp_load ) ) {
+	$wp_load = dirname( __DIR__, 5 ) . '/wp-load.php';
+}
+if ( ! file_exists( $wp_load ) ) {
+	die( "Could not find wp-load.php. Run from plugin root or adjust path.\n" );
+}
+require_once $wp_load;
 
-$table = 'wp_aoe_catalog_manufacturers';
+$table = $wpdb->prefix . 'aoe_catalog_manufacturers';
 
 foreach ( $mapping as $old => $new ) {
 	$result = $wpdb->update(
