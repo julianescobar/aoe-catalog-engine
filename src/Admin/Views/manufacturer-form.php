@@ -14,6 +14,8 @@ $config_json = $is_edit && isset( $manufacturer ) ? json_decode( $manufacturer->
 $tree_layout = $config_json['tree_layout'] ?? 'normal';
 $tree_columns = $config_json['tree_columns'] ?? 4;
 $media_source = $config_json['media_source'] ?? 'local';
+$logo_mode    = $config_json['manufacturer_logo_mode'] ?? 'template';
+$logo_url     = $config_json['manufacturer_logo_url'] ?? '';
 
 // Fetch all 'catalogo_online' CPT posts to populate drop-down
 $catalogs = get_posts( [
@@ -91,6 +93,34 @@ $catalogs = get_posts( [
 				</div>
 			</div>
 
+			<div class="aoe-card" style="margin-top:20px;">
+				<h2>Logo del Fabricante</h2>
+
+				<div class="aoe-form-group">
+					<label>Utilizar el mismo logo de la plantilla</label>
+					<label style="display:inline-block;margin-right:15px;">
+						<input type="radio" name="manufacturer_logo_mode" value="template" <?php checked( $logo_mode, 'template' ); ?>> Sí
+					</label>
+					<label style="display:inline-block;">
+						<input type="radio" name="manufacturer_logo_mode" value="custom" <?php checked( $logo_mode, 'custom' ); ?>> No, elegir otro
+					</label>
+				</div>
+
+				<div class="aoe-form-group" id="aoe-logo-custom-field" style="<?php echo $logo_mode !== 'custom' ? 'display:none;' : ''; ?>">
+					<label for="m_manufacturer_logo_url">Logo personalizado</label>
+					<div style="display:flex;align-items:center;gap:10px;">
+						<input type="text" name="manufacturer_logo_url" id="m_manufacturer_logo_url" value="<?php echo esc_url( $logo_url ); ?>" class="regular-text" placeholder="URL de la imagen" />
+						<button type="button" id="aoe-logo-upload" class="button">Seleccionar imagen</button>
+						<button type="button" id="aoe-logo-remove" class="button" style="<?php echo empty( $logo_url ) ? 'display:none;' : ''; ?>">Quitar</button>
+					</div>
+					<div id="aoe-logo-preview" style="margin-top:10px;">
+						<?php if ( ! empty( $logo_url ) ) : ?>
+							<img src="<?php echo esc_url( $logo_url ); ?>" style="max-height:60px;" />
+						<?php endif; ?>
+					</div>
+				</div>
+			</div>
+
 			<div class="aoe-btn-row">
 				<input type="submit" name="save_manufacturer" class="button button-primary" value="<?php echo esc_attr( $btn_text ); ?>" />
 			</div>
@@ -100,10 +130,42 @@ $catalogs = get_posts( [
 
 <script>
 jQuery(document).ready(function($) {
+	// Tree layout toggle
 	var $select = $('#m_tree_layout');
 	var $field = $('#aoe-columns-field');
 	$select.on('change', function() {
 		$field.toggle($(this).val() === 'columns');
+	});
+
+	// Logo mode toggle
+	$('input[name="manufacturer_logo_mode"]').on('change', function() {
+		$('#aoe-logo-custom-field').toggle($(this).val() === 'custom');
+	});
+
+	// Media uploader
+	$('#aoe-logo-upload').on('click', function(e) {
+		e.preventDefault();
+		var frame = wp.media({
+			title: 'Seleccionar logo del fabricante',
+			multiple: false,
+			library: { type: 'image' }
+		});
+		frame.on('select', function() {
+			var attachment = frame.state().get('selection').first().toJSON();
+			var url = attachment.url;
+			$('#m_manufacturer_logo_url').val(url);
+			$('#aoe-logo-preview').html('<img src="' + url + '" style="max-height:60px;" />');
+			$('#aoe-logo-remove').show();
+		});
+		frame.open();
+	});
+
+	// Remove logo
+	$('#aoe-logo-remove').on('click', function(e) {
+		e.preventDefault();
+		$('#m_manufacturer_logo_url').val('');
+		$('#aoe-logo-preview').html('');
+		$(this).hide();
 	});
 });
 </script>

@@ -223,6 +223,8 @@ class AdminManager {
 			$config['tree_layout'] = in_array( $_POST['tree_layout'] ?? '', [ 'normal', 'columns', 'table_desc', 'auto' ] ) ? $_POST['tree_layout'] : 'normal';
 			$config['tree_columns'] = min( 8, max( 2, intval( $_POST['tree_columns'] ?? 4 ) ) );
 			$config['media_source'] = in_array( $_POST['media_source'] ?? '', [ 'remote', 'local' ] ) ? $_POST['media_source'] : 'local';
+			$config['manufacturer_logo_mode'] = in_array( $_POST['manufacturer_logo_mode'] ?? '', [ 'template', 'custom' ] ) ? $_POST['manufacturer_logo_mode'] : 'template';
+			$config['manufacturer_logo_url'] = esc_url_raw( $_POST['manufacturer_logo_url'] ?? '' );
 
 			$data = [
 				'name'        => $name,

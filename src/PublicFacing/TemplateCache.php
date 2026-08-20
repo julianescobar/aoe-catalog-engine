@@ -198,6 +198,30 @@ class TemplateCache {
 
 		$html = $header_html . "\n" . $content . "\n" . $footer_html;
 
+		// Replace manufacturer logo if custom mode
+		if ( ! isset( $manufacturer ) || ! $manufacturer ) {
+			$manufacturer = $wpdb->get_row( $wpdb->prepare(
+				"SELECT * FROM {$wpdb->prefix}aoe_catalog_manufacturers WHERE slug = %s",
+				$slug
+			) );
+		}
+		if ( $manufacturer ) {
+			$config = json_decode( $manufacturer->config_json ?? '', true ) ?: [];
+			if ( ( $config['manufacturer_logo_mode'] ?? 'template' ) === 'custom' && ! empty( $config['manufacturer_logo_url'] ) ) {
+				$custom_logo = esc_url( $config['manufacturer_logo_url'] );
+				$html = preg_replace(
+					'~(<span[^>]*id="aoe-manufacturer-logo"[^>]*>\s*<img[^>]*\s)(?:src=")[^"]*(")~',
+					'${1}src="' . $custom_logo . '"${2}',
+					$html
+				);
+				$html = preg_replace(
+					'~(<span[^>]*id="aoe-manufacturer-logo"[^>]*>\s*<img[^>]*\s)(?:srcset=")[^"]*(")~',
+					'${1}srcset=""${2}',
+					$html
+				);
+			}
+		}
+
 		$dir = self::base_dir();
 		if ( ! is_dir( $dir ) ) {
 			wp_mkdir_p( $dir );
