@@ -93,7 +93,7 @@ function aoe_catalog_cta_modal( $manufacturer = '', $category = '' ) {
 			<h3 id="aoe-cta-modal-title" class="aoe-cta-modal__title">Pide más información</h3>
 			<div class="aoe-cta-modal__form">
 				<?php
-				$form_id = ( strpos( home_url(), 'dev.tc-componentes.es' ) !== false ) ? 11535 : 10487;
+				$form_id = ( strpos( home_url(), 'dev.tc-componentes.es' ) !== false ) ? 10487 : 11535;
 				echo do_shortcode(
 					'[fusion_form form_post_id="' . $form_id . '" hide_on_mobile="small-visibility,medium-visibility,large-visibility"][/fusion_form]'
 				);
