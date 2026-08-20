@@ -41,6 +41,7 @@ if ( ! function_exists( 'aoe_profile_mark' ) ) {
 }
 
 require_once __DIR__ . '/catalog-head-injector.php';
+require_once __DIR__ . '/catalog-cta.php';
 
 /**
  * Get a post regardless of its status (publish, draft, etc.)
@@ -586,6 +587,7 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 			<?php endfor; ?>
 		</nav>
 		<?php endif; ?>
+		<?php aoe_catalog_cta_button( $page->manufacturer_name ); ?>
 		<?php if ( true ) : ?>
 		<?php
 		global $wpdb;
@@ -1154,6 +1156,8 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 		$leaf_idx = 0;
 		aoe_render_cat_tree( $root_items, $tree_by_parent, $segments_by_id, $cat_page_map, 0, true, $leaf_idx, $tree_layout, $tree_columns, $manufacturer_slug, $level3_with_children, $cat_has_dedicated_page, $max_level, $cats_with_descendants );
 		?><?php endif; ?>
+		<?php aoe_catalog_cta_button( $page->manufacturer_name ); ?>
+		<?php aoe_catalog_cta_modal(); ?>
 	</div>
 	<?php
 	aoe_profile_mark( 'tree_rendered' );

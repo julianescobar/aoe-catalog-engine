@@ -4,6 +4,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/catalog-cta.php';
+
 function aoe_catalog_get_first_value( array $values ): string {
 	foreach ( $values as $value ) {
 		if ( is_string( $value ) && '' !== trim( $value ) ) {
@@ -366,6 +368,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 		<?php endif; ?>
 
 		<?php if ( ! empty( $grouped_segments ) ) : ?>
+			<?php aoe_catalog_cta_button( ucfirst( $manufacturer_name ), $category_display_name ); ?>
 			<?php foreach ( $grouped_segments as $gseg ) : ?>
 				<?php
 				$path_parts  = $gseg['category_path'] ?? [];
@@ -513,6 +516,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 					</table>
 				</div>
 			<?php endforeach; ?>
+			<?php aoe_catalog_cta_button( ucfirst( $manufacturer_name ), $category_display_name ); ?>
 		<?php else : ?>
 		<?php if ( ! empty( $breadcrumb_path ) ) : ?>
 			<h3 class="aoe-cat-breadcrumb"><?php echo esc_html( implode( ' > ', $breadcrumb_path ) ); ?></h3>
@@ -568,6 +572,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 		</div>
 		<?php endif; ?>
 		<?php endif; ?>
+			<?php aoe_catalog_cta_button( ucfirst( $manufacturer_name ), $category_display_name ); ?>
 			<table class="aoe-catalog-table<?php echo $show_features_col ? ' aoe-catalog-table-with-features' : ''; ?> aoe-catalog-table-<?php echo esc_attr( $manufacturer_slug ); ?><?php echo ! empty( $page_slug ) ? ' cat-' . esc_attr( sanitize_title( $page_slug ) ) : ''; ?>" itemscope itemtype="https://schema.org/ItemList">
 			<thead>
 				<tr>
@@ -706,7 +711,11 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 				<?php endforeach; ?>
 			</tbody>
 		</table>
+			<?php aoe_catalog_cta_button( ucfirst( $manufacturer_name ), $category_display_name ); ?>
 		<?php endif; ?>
+		<?php 
+			aoe_catalog_cta_modal( ucfirst( $manufacturer_name ), $cta_category );
+		?>
 
 		<div class="fusion-modal modal modal-productos aoe-catalog-modal" id="aoe-catalog-modal" aria-hidden="true">
 			<div class="modal-dialog modal-lg" role="document">
