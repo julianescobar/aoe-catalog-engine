@@ -128,44 +128,4 @@ $catalogs = get_posts( [
 	</div>
 </div>
 
-<script>
-jQuery(document).ready(function($) {
-	// Tree layout toggle
-	var $select = $('#m_tree_layout');
-	var $field = $('#aoe-columns-field');
-	$select.on('change', function() {
-		$field.toggle($(this).val() === 'columns');
-	});
-
-	// Logo mode toggle
-	$('input[name="manufacturer_logo_mode"]').on('change', function() {
-		$('#aoe-logo-custom-field').toggle($(this).val() === 'custom');
-	});
-
-	// Media uploader
-	$('#aoe-logo-upload').on('click', function(e) {
-		e.preventDefault();
-		var frame = wp.media({
-			title: 'Seleccionar logo del fabricante',
-			multiple: false,
-			library: { type: 'image' }
-		});
-		frame.on('select', function() {
-			var attachment = frame.state().get('selection').first().toJSON();
-			var url = attachment.url;
-			$('#m_manufacturer_logo_url').val(url);
-			$('#aoe-logo-preview').html('<img src="' + url + '" style="max-height:60px;" />');
-			$('#aoe-logo-remove').show();
-		});
-		frame.open();
-	});
-
-	// Remove logo
-	$('#aoe-logo-remove').on('click', function(e) {
-		e.preventDefault();
-		$('#m_manufacturer_logo_url').val('');
-		$('#aoe-logo-preview').html('');
-		$(this).hide();
-	});
-});
-</script>
+</div>

@@ -1164,10 +1164,13 @@ class AdminManager {
 			[],
 			file_exists( $css_path ) ? filemtime( $css_path ) : '1.0.0'
 		);
+		// wp.media() needs media-editor + its templates. Declaring it as a hard
+		// dependency guarantees WP prints it before our admin.js no matter what.
+		wp_enqueue_media();
 		wp_enqueue_script(
 			'aoe-catalog-admin-js',
 			plugin_dir_url( dirname( __DIR__ ) ) . 'assets/js/admin.js',
-			[ 'jquery' ],
+			[ 'jquery', 'media-editor' ],
 			file_exists( $js_path ) ? filemtime( $js_path ) : '1.0.0',
 			true
 		);

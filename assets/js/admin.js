@@ -696,9 +696,49 @@ jQuery(document).ready(function ($) {
 					});
 				}
 
-				sendBatch(0);
-			};
-			reader.readAsText(file);
+			sendBatch(0);
+		};
+		reader.readAsText(file);
+	});
+	}
+
+	// Manufacturer logo uploader
+	if ($('#aoe-logo-upload').length) {
+		// Tree layout toggle
+		$('#m_tree_layout').on('change', function() {
+			$('#aoe-columns-field').toggle($(this).val() === 'columns');
+		});
+
+		// Logo mode toggle
+		$('input[name="manufacturer_logo_mode"]').on('change', function() {
+			$('#aoe-logo-custom-field').toggle($(this).val() === 'custom');
+		});
+
+		$('#aoe-logo-upload').on('click', function(e) {
+			e.preventDefault();
+			if (typeof wp === 'undefined' || typeof wp.media === 'undefined') {
+				alert('El selector de imágenes no está disponible. Puede pegar la URL directamente en el campo.');
+				return;
+			}
+			var frame = wp.media({
+				title: 'Seleccionar logo del fabricante',
+				multiple: false,
+				library: { type: 'image' }
+			});
+			frame.on('select', function() {
+				var attachment = frame.state().get('selection').first().toJSON();
+				$('#m_manufacturer_logo_url').val(attachment.url);
+				$('#aoe-logo-preview').html('<img src="' + attachment.url + '" style="max-height:60px;" />');
+				$('#aoe-logo-remove').show();
+			});
+			frame.open();
+		});
+
+		$('#aoe-logo-remove').on('click', function(e) {
+			e.preventDefault();
+			$('#m_manufacturer_logo_url').val('');
+			$('#aoe-logo-preview').html('');
+			$(this).hide();
 		});
 	}
 });
