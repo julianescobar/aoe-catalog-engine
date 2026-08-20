@@ -1319,13 +1319,13 @@
    contra las secciones hermanas (pattern/mask backgrounds, fusion-separator) */
 #aoe-catalog-container {
 	position: relative;
-	z-index: 20;
+	z-index: 10;
 }
 
 .catalogo_online-template-default .fusion-fullwidth:has(#aoe-catalog-container) {
 	overflow: visible !important;
 	position: relative !important;
-	z-index: 999 !important;
+	z-index: 18 !important;
 }
 
 .aoe-catalog-caracteristicas:hover .aoe-caracteristicas-popup {
@@ -1446,11 +1446,11 @@ ul.aoe-cat-bullets {
 }
 
 #main #aoe-catalog-container .aoe-link-cat a {
-	color: #47b5ff !important;
+	color: #2D529F !important;
 }
 
 #main #aoe-catalog-container .aoe-link-cat a:hover {
-	color: #eb9900 !important;
+	color: #EB9900 !important;
 }
 
 .aoe-catalog-table-yokowo.cat-yokowo-spring-connector-pogo-pins td:first-child,
