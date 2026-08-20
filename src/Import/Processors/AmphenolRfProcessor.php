@@ -44,20 +44,40 @@ class AmphenolRfProcessor extends BaseProcessor {
 	}
 
 	private function get_spec_label_map(): array {
-		return [
-			'impedance_ohms'           => 'Impedance (Ω)',
-			'frequency_max_ghz'        => 'Frequency Max (GHz)',
-			'unit_weight_grams'        => 'Unit Weight (g)',
-			'body_material'            => 'Body Material',
-			'termination_style'        => 'Termination Style',
-			'gender'                   => 'Gender',
-			'ports'                    => 'Ports',
-			'coupling_mechanism'       => 'Coupling Mechanism',
-			'mating_cycles_min'        => 'Mating Cycles (min)',
-			'cable_assembly_length'    => 'Cable Assembly Length',
-			'cable_type_cable_assemblies' => 'Cable Type',
-			'applications'             => 'Applications',
+		return [];
+	}
+
+	private function parse_attrs( array $row ): array {
+		$raw = isset( $row['attrs'] ) ? trim( (string) $row['attrs'] ) : '';
+		if ( '' === $raw || '[]' === $raw ) {
+			return [];
+		}
+		$decoded = json_decode( $raw, true );
+		if ( ! is_array( $decoded ) ) {
+			return [];
+		}
+
+		$noise_labels = [
+			'country of origin', 'eccn', 'hts code', 'pfas',
+			'rohs', 'reach', 'lead free', 'compliance',
 		];
+		$specs = [];
+		foreach ( $decoded as $item ) {
+			$label = trim( $item['label'] ?? '' );
+			$value = trim( $item['value'] ?? '' );
+			if ( '' === $label || '' === $value ) {
+				continue;
+			}
+			$low = strtolower( $value );
+			if ( 'not applicable' === $low || 'not rated' === $low || 'null' === $low ) {
+				continue;
+			}
+			if ( in_array( strtolower( $label ), $noise_labels, true ) ) {
+				continue;
+			}
+			$specs[ $label ] = $this->normalize_text( $value );
+		}
+		return $specs;
 	}
 
 	public function process_row( array $row ): array {
@@ -113,24 +133,8 @@ class AmphenolRfProcessor extends BaseProcessor {
 		// Documents: pdf_url (datasheet) and cad_url (3D CAD).
 		$data['pdf'] = $this->parse_documents( $row );
 
-		// Specs
-		$specs = [];
-		foreach ( $this->get_spec_label_map() as $col => $label ) {
-			$value = isset( $row[ $col ] ) ? trim( (string) $row[ $col ] ) : '';
-			if ( '' === $value || 'null' === strtolower( $value ) ) {
-				continue;
-			}
-			$value = $this->normalize_text( $value );
-			if ( '' === $value || 'not applicable' === strtolower( $value ) || 'not rated' === strtolower( $value ) ) {
-				continue;
-			}
-			$specs[ $label ] = $value;
-		}
-
-		$temp_range = $this->build_temperature_range( $row );
-		if ( '' !== $temp_range ) {
-			$specs = array_merge( [ 'Operating Temperature (°C)' => $temp_range ], $specs );
-		}
+		// Specs — from attrs JSON (the only source; no individual spec columns in CSV)
+		$specs = $this->parse_attrs( $row );
 
 		$additional = [];
 		if ( ! empty( $specs ) ) {
