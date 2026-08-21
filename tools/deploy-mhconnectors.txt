@@ -2,7 +2,7 @@ DEPLOY MH CONNECTORS A PRODUCCIÓN
 =================================
 
 PREREQUISITO
-   - Fabricante "MH Connectors" (slug: "mhconnectors") creado en el admin
+   - Fabricante "MH Connectors" (slug: "mh-connectors") creado en el admin
      con plantilla [catalogo] asociada. tree_layout: "table_desc".
    - En local es el id 16 de la tabla aoe_catalog_manufacturers.
 
@@ -13,26 +13,26 @@ PREREQUISITO
    - Código fuente del plugin:
        * src/Import/Processors/MHConnectorsProcessor.php (nuevo; BOM handling;
          specs from series via structure importer)
-       * src/Import/ProcessorManager.php (registro mhconnectors)
+        * src/Import/ProcessorManager.php (registro mh-connectors)
        * src/PublicFacing/Views/catalog-render-html.php (mhconnectors en
          show_features_col + bullets; fix \n en specs: tabla=espacio, modal=salto)
        * assets/js/catalog.js (fix \n → <br> en modal de specs)
 
 2) IMPORTAR PRODUCTOS
-   nohup php tools/full-import.php --manufacturer=mhconnectors --csv=tools/mh_productos.csv --mode=replace > import-mh.log 2>&1 &
+   nohup php -d register_argc_argv=1 tools/full-import.php --manufacturer=mh-connectors --csv=/home2/hosting158857eu/public_html/tc-componentes.es/wp-content/plugins/aoe-catalog-engine/tools/mh_productos.csv --mode=replace > import-mh.log 2>&1 &
    ~3s por 845 filas.
 
 3) RECONSTRUIR CATEGORÍAS + MERGE SPECS DE SERIES
-   php tools/import-mh-structure.php
+   php /home2/hosting158857eu/public_html/tc-componentes.es/wp-content/plugins/aoe-catalog-engine/tools/import-mh-structure.php
    - 7 categories + 17 subcategories + 76 series (3 niveles)
    - Specs de series se mergean con attrs de productos
    - 0 a uncategorized
 
 4) VERIFICAR
-   a) Árbol /catalogo/mhconnectors/: 7 L1 → 17 L2 → 76 series
+   a) Árbol /catalogo/mh-connectors/: 7 L1 → 17 L2 → 76 series
    b) Ficha técnica: specs con saltos de línea correctos (\n → <br>)
    c) Tabla: specs con espacios (sin \n)
-   d) LIMPIAR CACHÉ: borrar wp-content/uploads/aoe-cache-catalog/mhconnectors/
+   d) LIMPIAR CACHÉ: borrar wp-content/uploads/aoe-cache-catalog/mh-connectors/
 
 NOTAS
    - 799 productos (845 en CSV, 46 deduplicados)

@@ -180,6 +180,10 @@ foreach ( $prods as $row ) {
 	$parent_db = isset( $l2_by_mkid[ $subcat_id ] ) ? $l2_by_mkid[ $subcat_id ] : ( isset( $l1_by_mkid[ $cat_id ] ) ? $l1_by_mkid[ $cat_id ] : null );
 	if ( null === $parent_db ) continue;
 
+	// If parent is L1 (no L2 intermediary), this becomes L2; otherwise L3.
+	$parent_is_l1 = isset( $l1_by_mkid[ $cat_id ] ) && ! isset( $l2_by_mkid[ $subcat_id ] );
+	$item_level = $parent_is_l1 ? 2 : 3;
+
 	$key = $parent_db . '|' . $series_id;
 	if ( isset( $series_by_key[ $key ] ) ) continue;
 
@@ -208,7 +212,7 @@ foreach ( $prods as $row ) {
 		'type'            => 'series',
 		'description'     => '',
 		'image'           => trim( $row['image_url'] ?? '' ),
-		'level'           => 3,
+		'level'           => $item_level,
 		'products_count'  => 0,
 		'metadata_json'   => wp_json_encode( $meta, JSON_UNESCAPED_SLASHES ),
 	], [ '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%s' ] );

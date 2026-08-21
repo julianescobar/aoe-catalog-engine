@@ -15,7 +15,9 @@
 
 namespace AOE\CatalogEngine\Tools;
 
-if ( PHP_SAPI !== 'cli' ) {
+// Block web requests (HTTP_HOST/REQUEST_METHOD only exist in web SAPIs).
+// Allows CLI and CGI-from-shell (nohup) on shared hosting.
+if ( isset( $_SERVER['HTTP_HOST'] ) || isset( $_SERVER['REQUEST_METHOD'] ) ) {
 	die( "CLI only.\n" );
 }
 
@@ -34,6 +36,34 @@ $longopts = [
 	'sep::',
 ];
 $args = getopt( '', $longopts );
+
+// CGI fallback: getopt() returns empty when register_argc_argv=off.
+// Parse $_SERVER['argv'] manually (populated when run with -d register_argc_argv=1),
+// then fall back to AOE_* environment variables.
+if ( empty( $args ) ) {
+	$argv = $_SERVER['argv'] ?? [];
+	array_shift( $argv ); // script name
+	foreach ( $argv as $arg ) {
+		if ( preg_match( '/^--([a-z_-]+)(?:=(.*))?$/', $arg, $m ) ) {
+			$args[ $m[1] ] = $m[2] ?? false;
+		}
+	}
+}
+if ( empty( $args ) || ( empty( $args['manufacturer'] ) && empty( $args['csv'] ) ) ) {
+	$env_map = [
+		'manufacturer' => 'AOE_MANUFACTURER',
+		'csv'          => 'AOE_CSV',
+		'mode'         => 'AOE_MODE',
+		'limit'        => 'AOE_LIMIT',
+		'sep'          => 'AOE_SEP',
+	];
+	foreach ( $env_map as $key => $env ) {
+		$val = getenv( $env );
+		if ( $val !== false && $val !== '' ) {
+			$args[ $key ] = $val;
+		}
+	}
+}
 
 $manufacturer_slug = $args['manufacturer'] ?? '';
 $csv_path          = $args['csv'] ?? '';

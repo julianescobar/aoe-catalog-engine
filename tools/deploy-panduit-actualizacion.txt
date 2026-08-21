@@ -9,14 +9,14 @@ NO borra productos ni categorías.
    - panduit-catalogo.csv   (CSV grande ~133 MB)
 
 2) IMPORTAR EN MODO INCREMENTAL (actualiza por SKU, sin borrar)
-   cd /RUTA_DEL_SITIO/wp-content/plugins/aoe-catalog-engine
-   nohup php tools/full-import.php --manufacturer=panduit --csv=tools/panduit-catalogo.csv --mode=incremental > import-panduit.log 2>&1 &
+   cd /home2/hosting158857eu/public_html/tc-componentes.es/wp-content/plugins/aoe-catalog-engine
+   nohup php -d register_argc_argv=1 tools/full-import.php --manufacturer=panduit --csv=/home2/hosting158857eu/public_html/tc-componentes.es/wp-content/plugins/aoe-catalog-engine/tools/panduit-catalogo.csv --mode=incremental > import-panduit.log 2>&1 &
 
    Monitorear: tail -f import-panduit.log
    Debe terminar con "Importación finalizada" y "pack_catalog completado".
 
 3) REGENERAR PÁGINAS (el import lo corre solo, no sobra)
-   php tools/pack-catalog.php panduit
+   php /home2/hosting158857eu/public_html/tc-componentes.es/wp-content/plugins/aoe-catalog-engine/tools/pack-catalog.php panduit
 
 4) VERIFICAR
    - Productos con todos los formatos de documento/subtítulo guardados

@@ -2,7 +2,7 @@ DEPLOY AMPHENOL CONEC A PRODUCCIÓN
 =================================
 
 PREREQUISITO (lo hace el usuario por Avada, NO es parte de estos pasos)
-   - Fabricante "Amphenol Conec" (slug: "amphenolconec") ya creado en
+   - Fabricante "Amphenol Conec" (slug: "amphenol-conec") ya creado en
      el admin con su plantilla (post con [catalogo]) asociada, igual que los demás.
    - tree_layout recomendado: "table_desc" (mismo criterio que Edac/Bulgin/RF/Lutze).
    - post del fabricante: wp_post_id 10492, config_json con media_source local.
@@ -23,8 +23,8 @@ PREREQUISITO (lo hace el usuario por Avada, NO es parte de estos pasos)
          (labels en inglés, todos técnicos, sin filtros); descripción del
          producto: array JSON de líneas unidas con ", " para la línea de
          subtítulo de la fila)
-       * src/Import/ProcessorManager.php (registro del procesador amphenolconec)
-       * src/PublicFacing/Views/catalog-render-html.php (amphenolconec en
+        * src/Import/ProcessorManager.php (registro del procesador amphenol-conec)
+        * src/PublicFacing/Views/catalog-render-html.php (amphenol-conec en
          show_features_col para la columna "Características"; descripción de la
          página de categoría con bullets como amphenolltw/amphenolindustrial)
        * src/PublicFacing/Views/single-catalog.php (conversión GENÉRICA de
@@ -33,8 +33,8 @@ PREREQUISITO (lo hace el usuario por Avada, NO es parte de estos pasos)
          con texto plano)
 
 2) IMPORTAR PRODUCTOS (REMPLAZA todo Conec: borra categorías y reimporta productos)
-   cd /RUTA_DEL_SITIO/wp-content/plugins/aoe-catalog-engine
-   nohup php tools/full-import.php --manufacturer=amphenolconec --csv=tools/conec_productos.csv --mode=replace > import-conec.log 2>&1 &
+   cd /home2/hosting158857eu/public_html/tc-componentes.es/wp-content/plugins/aoe-catalog-engine
+   nohup php -d register_argc_argv=1 tools/full-import.php --manufacturer=amphenol-conec --csv=/home2/hosting158857eu/public_html/tc-componentes.es/wp-content/plugins/aoe-catalog-engine/tools/conec_productos.csv --mode=replace > import-conec.log 2>&1 &
 
    Monitorear: tail -f import-conec.log
    Debe terminar con "Importación finalizada" y "pack_catalog completado".
@@ -72,14 +72,14 @@ PREREQUISITO (lo hace el usuario por Avada, NO es parte de estos pasos)
      Paginas regeneradas.
 
 4) VERIFICAR
-   a) Árbol /catalogo/amphenolconec/
+   a) Árbol /catalogo/amphenol-conec/
       - 8 familias L1 como headings con su descripción: párrafo intro +
         <ul class="aoe-cat-bullets"> (los "•" del CSV se convierten a ul/li).
       - L2 debajo como tabla con links y conteos.
 
    b) Páginas de categoría: toda L2 con productos tiene URL propia y paginación
       (las grandes paginadas de a 200, p.ej.
-      /catalogo/amphenolconec/d-sub-connectors-d-sub-standard-high-density/).
+       /catalogo/amphenol-conec/d-sub-connectors-d-sub-standard-high-density/).
       Top categorías (link_count total): ver con
       SELECT slug, link_count FROM wp_aoe_catalog_pregenerated_pages
       WHERE manufacturer_id = <id> AND type = 'category' ORDER BY link_count DESC;
@@ -96,7 +96,7 @@ PREREQUISITO (lo hace el usuario por Avada, NO es parte de estos pasos)
       - 3D CAD: los productos con cad_url lo muestran en el modal bajo "3D CAD"
         (archivos .zip STEP de conec.com).
 
-   d) NO debe existir /catalogo/amphenolconec/productos/ (página grouped vacía).
+   d) NO debe existir /catalogo/amphenol-conec/productos/ (página grouped vacía).
       Con threshold 1 no se generan grouped; si quedara un grouped con 0
       productos, borrarlo.
 

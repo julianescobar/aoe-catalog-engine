@@ -4,7 +4,7 @@ DEPLOY MEDI KABEL A PRODUCCIÓN
 1) CREAR EL FABRICANTE EN EL ADMIN (antes de importar)
    - Admin > Fabricantes > Añadir nuevo
    - Nombre: "Medi Kabel"
-   - Slug: "medikabel"
+   - Slug: "medi-kabel"
    - Guardar plantilla asociada (post con [catalogo]) igual que los demás fabricantes.
 
 2) SUBIR A tools/ EN PRODUCCIÓN
@@ -15,7 +15,7 @@ DEPLOY MEDI KABEL A PRODUCCIÓN
 
 3) IMPORTAR PRODUCTOS (REMPLAZA todo Medi Kabel: borra categorías y reimporta productos)
    cd /RUTA_DEL_SITIO/wp-content/plugins/aoe-catalog-engine
-   nohup php tools/full-import.php --manufacturer=medikabel --csv=tools/productosmedikabel.csv --mode=replace > import-medikabel.log 2>&1 &
+   nohup php -d register_argc_argv=1 tools/full-import.php --manufacturer=medi-kabel --csv=tools/productosmedikabel.csv --mode=replace > import-medikabel.log 2>&1 &
 
    Monitorear: tail -f import-medikabel.log
    Debe terminar con "Importación finalizada" y "pack_catalog completado".
@@ -44,19 +44,19 @@ DEPLOY MEDI KABEL A PRODUCCIÓN
 5) CONFIGURAR tree_layout (opcional, recomendado para que salga como Edac/Bulgin)
    En el admin, editar el fabricante "Medi Kabel" y poner tree_layout = "table_desc"
    (o por BD: UPDATE wp_aoe_catalog_manufacturers SET config_json =
-    JSON_SET(config_json, '$.tree_layout', 'table_desc') WHERE slug='medikabel')
-   Luego regenerar páginas: php tools/pack-catalog.php medikabel
+     JSON_SET(config_json, '$.tree_layout', 'table_desc') WHERE slug='medi-kabel')
+    Luego regenerar páginas: php tools/pack-catalog.php medi-kabel
 
 6) VERIFICAR
-   - /catalogo/medikabel/ carga OK y renderiza con table_desc
+   - /catalogo/medi-kabel/ carga OK y renderiza con table_desc
      (familias -> subcategorías -> series, con conteos (n))
    - Las series hoja con link muestran (n) en el heading
    - Nombres de categorías con la primera letra en mayúscula
    - No aparecen categorías vacías (se podan automáticamente)
-   - Una página de serie (ej. /catalogo/medikabel/coaxial-cables/) muestra
+   - Una página de serie (ej. /catalogo/medi-kabel/coaxial-cables/) muestra
      productos con la columna de especificaciones técnicas (specs) y badges
-   - Slugs que contienen dígitos (ej. /catalogo/medikabel/ul-style-1213-silver-plated/
-     o /catalogo/medikabel/yv-based-on-vde-0812/) cargan (NO dan 404)
+   - Slugs que contienen dígitos (ej. /catalogo/medi-kabel/ul-style-1213-silver-plated/
+      o /catalogo/medi-kabel/yv-based-on-vde-0812/) cargan (NO dan 404)
    - Uncategorized muestra (n)
 
 NOTAS

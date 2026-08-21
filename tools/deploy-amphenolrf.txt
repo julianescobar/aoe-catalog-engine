@@ -21,8 +21,8 @@ PREREQUISITO (lo hace el usuario por Avada, NO es parte de estos pasos)
           en el agrupado, evita páginas grouped vacías)
 
 2) IMPORTAR PRODUCTOS (REMPLAZA todo RF: borra categorías y reimporta productos)
-   cd /RUTA_DEL_SITIO/wp-content/plugins/aoe-catalog-engine
-   nohup php tools/full-import.php --manufacturer=amphenol-rf --csv=tools/amphenol-rf-productos.csv --mode=replace > import-rf.log 2>&1 &
+   cd /home2/hosting158857eu/public_html/tc-componentes.es/wp-content/plugins/aoe-catalog-engine
+   nohup php -d register_argc_argv=1 tools/full-import.php --manufacturer=amphenol-rf --csv=/home2/hosting158857eu/public_html/tc-componentes.es/wp-content/plugins/aoe-catalog-engine/tools/amphenol-rf-productos.csv --mode=replace > import-rf.log 2>&1 &
 
    Monitorear: tail -f import-rf.log
    Debe terminar con "Importación finalizada" y "pack_catalog completado".
@@ -31,7 +31,7 @@ PREREQUISITO (lo hace el usuario por Avada, NO es parte de estos pasos)
    En local tardó ~125s por 11.616 filas; en prod puede ser similar.
 
 3) RECONSTRUIR CATEGORÍAS + RE-ADJUNTAR PRODUCTOS + PODAR VACÍAS
-   php tools/import-rf-structure.php
+   php /home2/hosting158857eu/public_html/tc-componentes.es/wp-content/plugins/aoe-catalog-engine/tools/import-rf-structure.php
 
    Esto hace:
      - L1 familias + L2 subcategorías con metadata rf_id + url, descripción

@@ -20,8 +20,8 @@ PREREQUISITO (lo hace el usuario por Avada, NO es parte de estos pasos)
          muestra (n) y enlaza a su página)
 
 2) IMPORTAR PRODUCTOS (REMPLAZA todo Yokowo: borra categorías y reimporta productos)
-   cd /RUTA_DEL_SITIO/wp-content/plugins/aoe-catalog-engine
-   nohup php tools/full-import.php --manufacturer=yokowo --csv=tools/productosyokowo.csv --mode=replace > import-yokowo.log 2>&1 &
+   cd /home2/hosting158857eu/public_html/tc-componentes.es/wp-content/plugins/aoe-catalog-engine
+   nohup php -d register_argc_argv=1 tools/full-import.php --manufacturer=yokowo --csv=/home2/hosting158857eu/public_html/tc-componentes.es/wp-content/plugins/aoe-catalog-engine/tools/productosyokowo.csv --mode=replace > import-yokowo.log 2>&1 &
 
    Monitorear: tail -f import-yokowo.log
    Debe terminar con "Importación finalizada" y "pack_catalog completado".
@@ -29,7 +29,7 @@ PREREQUISITO (lo hace el usuario por Avada, NO es parte de estos pasos)
     categorías no existen todavía; se arregla en el paso 3.)
 
 3) RECONSTRUIR CATEGORÍAS + RE-ADJUNTAR PRODUCTOS + PODAR VACÍAS
-   php tools/import-yokowo-structure.php
+   php /home2/hosting158857eu/public_html/tc-componentes.es/wp-content/plugins/aoe-catalog-engine/tools/import-yokowo-structure.php
 
    Esto hace:
      - L1 familias (3): mating-pad, spring-connector-pogo-pins, two-piece-connector
