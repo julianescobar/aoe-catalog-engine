@@ -42,10 +42,10 @@ function aoe_catalog_render_pdf_links( array $pdf ): string {
 function aoe_catalog_render_pdf_icon_links( bool $has_pdf = false, bool $has_specs = false, bool $has_image = true ): string {
 	$html = '';
 	if ( $has_image ) {
-		$html .= '	<a class="abrir-modal-dinamico aoe-catalog-icon-link" href="#" aria-label="Ver imagen del producto"><i class="fas fa-image"></i></a>';
+		$html .= '	<a class="abrir-modal-dinamico aoe-catalog-icon-link" href="#" title="Imagen de producto" aria-label="Ver imagen del producto"><i class="fas fa-image"></i></a>';
 	}
 	if ( $has_pdf ) {
-		$html .= '<a class="abrir-modal-dinamico aoe-catalog-icon-link" href="#" aria-label="Ver documentos del producto"><i class="fas fa-file-pdf"></i></a>';
+		$html .= '<a class="abrir-modal-dinamico aoe-catalog-icon-link" href="#" title="PDF" aria-label="Ver documentos del producto"><i class="fas fa-file-pdf"></i></a>';
 	}
 	if ( $has_specs ) {
 		$html .= '<a class="abrir-modal-dinamico aoe-catalog-icon-link aoe-catalog-specs-icon" href="#" aria-label="Ver ficha tecnica"><i class="fas fa-clipboard-list"></i></a>';
@@ -292,39 +292,32 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 	<?php endforeach; ?>
 	<div class="aoe-catalog-render aoe-catalog-<?php echo esc_attr( $manufacturer_slug ); ?> aoe-tree-layout-<?php echo esc_attr( $tree_layout ); ?>" id="aoe-catalog-container">
 		<header>
-			<h2>Catálogo de componentes <?php echo esc_html( ucfirst( $manufacturer_name ) ); ?><?php
-				if ( ! empty( $category_display_name ) ) {
-					echo ' - ' . esc_html( $category_display_name );
-				} elseif ( ! empty( $grouped_segments ) ) {
-					echo ' - Productos';
-				}
-				if ( $total_pages > 1 ) {
-					echo ' (Página ' . intval( $current_page ) . ' de ' . intval( $total_pages ) . ')';
-				}
+			<h2>Catálogo de componentes <?php echo esc_html( ucfirst( $manufacturer_name ) );
+			if ( ! empty( $category_display_name ) ) {
+				echo '<br>' . esc_html( $category_display_name );
+			} elseif ( ! empty( $grouped_segments ) ) {
+				echo '<br>Productos';
+			}
+			if ( $total_pages > 1 ) {
+				echo ' (Página ' . intval( $current_page ) . ' de ' . intval( $total_pages ) . ')';
+			}
 			?></h2>
 
-			<div class="aoe-catalog-row">
-				<div class="aoe-catalog-title">
-						<p>Fabricante</p>
-				</div>
-				<div class="aoe-catalog-data">
-						<?php
-						$mfr_link_slug = $manufacturer_slug;
-						$amphenol_slugs = [ 'amphenol-anytek', 'amphenol-ltw', 'amphenol-rf', 'amphenol-lutze', 'amphenol-industrial', 'amphenol-conec' ];
-						if ( in_array( $manufacturer_slug, $amphenol_slugs, true ) ) {
-							$mfr_link_slug = 'amphenol';
-						} elseif ( 'mh-connectors' === $manufacturer_slug ) {
-							$mfr_link_slug = 'edac';
-						}
-						?>
-						<a href="<?php echo esc_url( home_url( '/' . $mfr_link_slug . '/' ) ); ?>" target="_blank"><?php echo esc_html( ucfirst( $manufacturer_name ) ); ?></a>
-				</div>
-			</div>
+			<?php
+			$mfr_link_slug = $manufacturer_slug;
+			$amphenol_slugs = [ 'amphenol-anytek', 'amphenol-ltw', 'amphenol-rf', 'amphenol-lutze', 'amphenol-industrial', 'amphenol-conec' ];
+			if ( in_array( $manufacturer_slug, $amphenol_slugs, true ) ) {
+				$mfr_link_slug = 'amphenol';
+			} elseif ( 'mh-connectors' === $manufacturer_slug ) {
+				$mfr_link_slug = 'edac';
+			}
+			?>
+			<div class="aoe-mfr-info"><span class="aoe-mfr-label">Fabricante:</span> <a href="<?php echo esc_url( home_url( '/' . $mfr_link_slug . '/' ) ); ?>" target="_blank"><?php echo esc_html( ucfirst( $manufacturer_name ) ); ?></a></div>
 		</header>
 
 		<?php if ( $total_pages > 1 ) : ?>
 		<nav class="aoe-catalog-pagination" aria-label="Paginacion de productos">
-			<span class="aoe-catalog-bold">Ir a la pagina:</span>
+			<span class="aoe-catalog-bold">Ir a la página:</span>
 			<?php for ( $i = 1; $i <= $total_pages; $i++ ) : ?>
 				<?php
 				if ( $i === 1 && ! empty( $post_url ) ) {
@@ -375,7 +368,22 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 				$seg_prods   = $gseg['products'] ?? [];
 				?>
 				<div class="aoe-catalog-group-section">
-					<h3 class="aoe-cat-breadcrumb"><?php echo esc_html( implode( ' > ', $path_parts ) ); ?></h3>
+					<?php $mfr_catalog_url = home_url( '/catalogo/' . $manufacturer_slug . '/' ); ?>
+					<span class="aoe-cat-breadcrumb"><a href="<?php echo esc_url( $mfr_catalog_url ); ?>">Catálogo online de <?php echo esc_html( ucfirst( $manufacturer_name ) ); ?></a> > <?php
+						$bc_parts = [];
+						$bc_count = count( $path_parts );
+						$bc_idx = 0;
+						foreach ( $path_parts as $pp ) {
+							$pp_slug = sanitize_title( $pp );
+							$bc_idx++;
+							if ( $bc_idx < $bc_count ) {
+								$bc_parts[] = '<a href="' . esc_url( $mfr_catalog_url . '#' . 'cat-' . $pp_slug ) . '">' . esc_html( $pp ) . '</a>';
+							} else {
+								$bc_parts[] = esc_html( $pp );
+							}
+						}
+						echo implode( ' > ', $bc_parts );
+					?></span>
 				<table class="aoe-catalog-table<?php echo $show_features_col ? ' aoe-catalog-table-with-features' : ''; ?> aoe-catalog-table-<?php echo esc_attr( $manufacturer_slug ); ?> cat-grouped" itemscope itemtype="https://schema.org/ItemList">
 						<thead>
 							<tr>
@@ -385,7 +393,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 								<th>Características</th>
 								<?php endif; ?>
 								<th class="aoe-catalog-underlined">Fabricante</th>
-								<th>PDFs</th>
+								<th>Docs</th>
 							</tr>
 						</thead>
 						<tbody>
@@ -519,7 +527,22 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 			<?php aoe_catalog_cta_button( ucfirst( $manufacturer_name ), $category_display_name ); ?>
 		<?php else : ?>
 		<?php if ( ! empty( $breadcrumb_path ) ) : ?>
-			<h3 class="aoe-cat-breadcrumb"><?php echo esc_html( implode( ' > ', $breadcrumb_path ) ); ?></h3>
+			<?php $mfr_catalog_url = home_url( '/catalogo/' . $manufacturer_slug . '/' ); ?>
+			<span class="aoe-cat-breadcrumb"><a href="<?php echo esc_url( $mfr_catalog_url ); ?>">Catálogo online de <?php echo esc_html( ucfirst( $manufacturer_name ) ); ?></a> > <?php
+				$bc_parts = [];
+				$bc_count = count( $breadcrumb_path );
+				$bc_idx = 0;
+				foreach ( $breadcrumb_path as $bp ) {
+					$bp_slug = sanitize_title( $bp );
+					$bc_idx++;
+					if ( $bc_idx < $bc_count ) {
+						$bc_parts[] = '<a href="' . esc_url( $mfr_catalog_url . '#' . 'cat-' . $bp_slug ) . '">' . esc_html( $bp ) . '</a>';
+					} else {
+						$bc_parts[] = esc_html( $bp );
+					}
+				}
+				echo implode( ' > ', $bc_parts );
+			?></span>
 		<?php endif; ?>
 		<?php if ( in_array( $manufacturer_slug, [ 'samtec', 'bivar' ], true ) && ! empty( $category_chain ) ) : ?>
 		<div class="aoe-category-chain">
@@ -582,7 +605,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 					<th>Características</th>
 					<?php endif; ?>
 					<th class="aoe-catalog-underlined">Fabricante</th>
-					<th>PDFs</th>
+					<th>Docs</th>
 				</tr>
 			</thead>
 			<tbody>

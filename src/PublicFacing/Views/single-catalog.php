@@ -511,6 +511,16 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 	?>
 	<div class="aoe-tree aoe-tree-<?php echo esc_attr( $manufacturer_slug ); ?> aoe-tree-layout-<?php echo esc_attr( $tree_layout ); ?>" id="aoe-catalog-container">
 		<h2>Catálogo de componentes <?php echo esc_html( $page->manufacturer_name ); ?></h2>
+		<?php
+		$mfr_link_slug = $manufacturer_slug;
+		$amphenol_slugs = [ 'amphenol-anytek', 'amphenol-ltw', 'amphenol-rf', 'amphenol-lutze', 'amphenol-industrial', 'amphenol-conec' ];
+		if ( in_array( $manufacturer_slug, $amphenol_slugs, true ) ) {
+			$mfr_link_slug = 'amphenol';
+		} elseif ( 'mh-connectors' === $manufacturer_slug ) {
+			$mfr_link_slug = 'edac';
+		}
+		?>
+		<div class="aoe-mfr-info"><span class="aoe-mfr-label">Fabricante:</span> <a href="<?php echo esc_url( home_url( '/' . $mfr_link_slug . '/' ) ); ?>" target="_blank"><?php echo esc_html( ucfirst( $page->manufacturer_name ) ); ?></a></div>
 		<?php 		if ( $manufacturer_slug === 'samtec' ) :
 			$level1_for_nav = $wpdb->get_results( $wpdb->prepare(
 				"SELECT slug AS category_slug, name AS category_name, level, id AS category_id
@@ -565,7 +575,7 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 		<?php endif; ?>
 		<?php if ( $total_pages > 1 && ! $is_samtec_index ) : ?>
 		<nav class="aoe-catalog-pagination" aria-label="Paginacion de categorias">
-			<span class="aoe-catalog-bold">Ir a la pagina:</span>
+			<span class="aoe-catalog-bold">Ir a la página:</span>
 			<?php for ( $i = 1; $i <= $total_pages; $i++ ) : ?>
 				<?php
 				if ( $is_samtec_subtree ) {
@@ -855,7 +865,8 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 						$cat_url = '#';
 					}
 					$heading_tag = (int) $item->level <= 0 ? 'h3' : ( (int) $item->level === 1 ? 'h4' : 'h5' );
-					echo '<div class="aoe-cat-level-' . (int) $item->level . '">';
+					$anchor_id = ' id="cat-' . esc_attr( sanitize_title( $item->category_slug ?? '' ) ) . '"';
+					echo '<div class="aoe-cat-level-' . (int) $item->level . '"' . $anchor_id . '>';
 					echo '<' . $heading_tag . ' class="aoe-cat-heading">';
 					if ( $cat_url !== '#' ) {
 						echo '<a href="' . esc_url( $cat_url ) . '">' . esc_html( $item->category_name ) . '</a>';
@@ -915,7 +926,8 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 							$desc = '<p>' . esc_html( $desc ) . '</p>';
 						}
 					}
-							echo '<div class="aoe-cat-level-' . (int) $item->level . '"><h4 class="aoe-cat-heading' . ( $cat_url !== '#' ? ' aoe-link-cat' : '' ) . '">';
+							$anchor_id = ' id="cat-' . esc_attr( sanitize_title( $item->category_slug ?? '' ) ) . '"';
+						echo '<div class="aoe-cat-level-' . (int) $item->level . '"' . $anchor_id . '><h4 class="aoe-cat-heading' . ( $cat_url !== '#' ? ' aoe-link-cat' : '' ) . '">';
 							if ( $cat_url !== '#' ) {
 								echo '<a href="' . esc_url( $cat_url ) . '">' . esc_html( $item->category_name );
 								if ( $count > 0 ) {
@@ -1014,10 +1026,11 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 						$cat_url = '#';
 					}
 
-				$sin_id = ( $item->category_slug ?? '' ) === 'sin-clasificar' ? ' id="aoe-cat-uncategorized"' : '';
+				$sin_id = ( $item->category_slug ?? '' ) === 'sin-clasificar' ? ' id="cat-uncategorized"' : '';
+				$anchor_id = ' id="cat-' . esc_attr( sanitize_title( $item->category_slug ?? '' ) ) . '"';
 
 				if ( $manufacturer_slug === 'samtec' && (int) $item->level === 1 && empty( $children ) && $sin_id === '' ) {
-					echo '<div class="aoe-cat-level-1">';
+					echo '<div class="aoe-cat-level-1"' . $anchor_id . '>';
 					echo '<h3 class="aoe-cat-heading">';
 					if ( $cat_url !== '#' ) {
 						echo '<a href="' . esc_url( $cat_url ) . '">' . esc_html( $item->category_name ) . '</a>';
@@ -1028,8 +1041,8 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 					continue;
 				}
 
-				echo '<div class="aoe-cat-level-' . (int) $item->level . '"' . $sin_id . '>';
-				echo '<' . $heading . ' class="aoe-cat-heading' . ( $cat_url !== '#' ? ' aoe-link-cat' : '' ) . '">';
+				echo '<div class="aoe-cat-level-' . (int) $item->level . '"' . ( $sin_id ?: '' ) . '>';
+				echo '<' . $heading . ' class="aoe-cat-heading' . ( $cat_url !== '#' ? ' aoe-link-cat' : '' ) . '"' . $anchor_id . '>';
 				if ( $cat_url !== '#' ) {
 					echo '<a href="' . esc_url( $cat_url ) . '">' . esc_html( $item->category_name );
 					if ( $count > 0 && ( $is_leaf || $manufacturer_slug === 'yokowo' ) ) {

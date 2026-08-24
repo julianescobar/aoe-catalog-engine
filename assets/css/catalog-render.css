@@ -703,6 +703,19 @@
 
 .aoe-cat-level-0 {
 	background: #fff;
+	scroll-margin-top: 80px;
+}
+
+.aoe-mfr-info {
+	font-size: 18px;
+	color: #000;
+	font-weight: bold;
+	margin-bottom: 30px;
+}
+
+.aoe-cat-breadcrumb {
+	display: block;
+	margin-bottom: 30px;
 }
 
 .aoe-cat-level-1,
@@ -710,6 +723,7 @@
 .aoe-cat-level-3,
 .aoe-cat-level-4 {
 	background: #fff !important;
+	scroll-margin-top: 80px;
 	border: none;
 }
 
