@@ -1483,8 +1483,8 @@ ul.aoe-cat-bullets {
 }
 
 /*.aoe-tree-layout-table_desc .aoe-cat-row:hover .aoe-cat-desc p */
-.aoe-tree-layout-table_desc .aoe-cat-row:hover .aoe-cat-name a {
-	text-decoration: underline;
+#main #aoe-catalog-container.aoe-tree-layout-table_desc .aoe-cat-row:hover .aoe-cat-name a {
+	color: #EB9900 !important;
 }
 
 .aoe-tree-layout-table_desc .aoe-cat-row:hover .aoe-cat-name a span {
@@ -1537,6 +1537,11 @@ ul.aoe-cat-bullets {
 
 #main #aoe-catalog-container .aoe-cat-row a {
 	color: #2d529f !important;
+}
+
+#main #aoe-catalog-container .aoe-cat-row a:hover {
+	color: #EB9900 !important;
+	text-decoration: none !important;
 }
 
 #main #aoe-catalog-container .aoe-cat-row-with-desc:hover {
