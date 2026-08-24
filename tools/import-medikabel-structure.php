@@ -82,14 +82,18 @@ while ( ( $r = fgetcsv( $fh ) ) !== false ) {
 fclose( $fh );
 echo "Categorias CSV: " . count( $cats ) . "\n";
 
-// ---- Parse products CSV (semicolon) ----
+// ---- Parse products CSV (auto-detect delimiter) ----
 $prods = [];
 $fh = fopen( $prods_file, 'r' );
 if ( ! $fh ) die( "Cannot open $prods_file\n" );
-$hp = fgetcsv( $fh, 0, ';' ); $hp[0] = preg_replace( '/^\xEF\xBB\xBF/', '', $hp[0] );
+$first_line = fgets( $fh );
+rewind( $fh );
+$prod_sep = ( substr_count( $first_line, ';' ) > substr_count( $first_line, ',' ) ) ? ';' : ',';
+echo "  Delimiter: " . ( ';' === $prod_sep ? 'semicolon' : 'comma' ) . "\n";
+$hp = fgetcsv( $fh, 0, $prod_sep ); $hp[0] = preg_replace( '/^\xEF\xBB\xBF/', '', $hp[0] );
 $pcols = array_map( 'trim', $hp );
 $pi = array_flip( $pcols );
-while ( ( $r = fgetcsv( $fh, 0, ';' ) ) !== false ) {
+while ( ( $r = fgetcsv( $fh, 0, $prod_sep ) ) !== false ) {
 	if ( count( $r ) < count( $pcols ) ) continue;
 	$prods[] = array_combine( $pcols, array_map( 'trim', $r ) );
 }
