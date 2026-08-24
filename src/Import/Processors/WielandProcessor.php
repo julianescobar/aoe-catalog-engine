@@ -178,61 +178,7 @@ class WielandProcessor extends BaseProcessor {
 
 	private function get_ignored_attr_labels(): array {
 		return [
-			// Packaging / logistics
-			'Altura embalada',
-			'Anchura embalada',
-			'Longitud empaquetada',
-			'Peso bruto embalado',
-			'Volumen de la caja de carton',
-			'Empaquetado',
-			'Unidad de embalaje',
-			'Cantidad mínima de pedido',
-			'Peso neto de una pieza',
-			'Peso neto',
-			'Peso',
-			'País de origen',
-			'Número del arancel aduanero',
-			// Classification codes
-			'Etim 6 0',
-			'Etim 9 0',
-			'Etim 5 0',
-			'Etim 8 0',
-			'Etim 7 0',
-			'Etim 4 0',
-			'Etim 3 0',
-			'Eclass 8 1',
-			'Eclass 11',
-			// Compliance / regulatory
-			'Reach svhc conformity status',
-			'Rohs conformity status',
-			'Excepciones rohs',
-			'Declaracion reach svhc cas',
-			'Substancias reach svhc',
-			'Reach cas numbers',
-			'Reach substance',
-			'Rohs exceptions',
-			'Certificacion rohs',
-			'Certificacion ul',
-			'Certificaciones homologaciones',
-			'Homologacion culus',
-			'Ce norm',
-			// German labels (not translated)
-			'Nennspannung dc',
-			'Umgebungstemperatur ta min',
-			'Leiterquerschnitt starr ein mehrdr htig max',
-			'Reihenklemmen fur installationsverteiler',
-			'Anzahl der klemmstellen je etage',
-			'Erweiterbar',
-			// Other noise
-			'Noticia legal',
-			'Hft',
-			'Tm',
-			'D',
-			'Dd',
-			'Du',
-			'S',
-			'Descripcion 1',
-			'Descripcion 2',
+			// TODO: Boss review pending — showing all attrs for now
 		];
 	}
 }
