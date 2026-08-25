@@ -12,6 +12,10 @@ class CamdenBossProcessor extends BaseProcessor {
 		return 0;
 	}
 
+	public function has_product_descriptions(): bool {
+		return true;
+	}
+
 	protected function get_technical_spec_columns(): array {
 		return [
 			'External length (mm)',

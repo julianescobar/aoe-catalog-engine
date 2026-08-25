@@ -12,6 +12,10 @@ class PanduitProcessor extends BaseProcessor {
 		return 999999;
 	}
 
+	public function has_product_descriptions(): bool {
+		return true;
+	}
+
 	public function get_supported_columns(): array {
 		return [
 			'sku', 'name', 'breadcrumb', 'description', 'image_url', 'documents',

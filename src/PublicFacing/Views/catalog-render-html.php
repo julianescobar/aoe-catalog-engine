@@ -5,6 +5,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/catalog-cta.php';
+require_once dirname( __DIR__, 2 ) . '/Import/ProcessorManager.php';
 
 function aoe_catalog_get_first_value( array $values ): string {
 	foreach ( $values as $value ) {
@@ -48,7 +49,7 @@ function aoe_catalog_render_pdf_icon_links( bool $has_pdf = false, bool $has_spe
 		$html .= '<a class="abrir-modal-dinamico aoe-catalog-icon-link" href="#" title="PDF" aria-label="Ver documentos del producto"><i class="fas fa-file-pdf"></i></a>';
 	}
 	if ( $has_specs ) {
-		$html .= '<a class="abrir-modal-dinamico aoe-catalog-icon-link aoe-catalog-specs-icon" href="#" aria-label="Ver ficha tecnica"><i class="fas fa-clipboard-list"></i></a>';
+		$html .= '<a class="abrir-modal-dinamico aoe-catalog-icon-link aoe-catalog-specs-icon" href="#" title="Ficha técnica" aria-label="Ver ficha tecnica"><i class="fas fa-clipboard-list"></i></a>';
 	}
 	return $html;
 }
@@ -232,7 +233,12 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 	$family_pdf   = $first_pdf;
 	$category_display_name = $category;
 	$show_features_col = in_array( $manufacturer_slug, [ 'samtec', 'edac', 'camdenboss', 'bivar', 'panduit', 'bulgin', 'medi-kabel', 'yokowo', 'amphenol-anytek', 'amphenol-ltw', 'amphenol-rf', 'amphenol-lutze', 'amphenol-industrial', 'amphenol-conec', 'wieland', 'mh-connectors' ], true );
-		$show_subtitle_desc = in_array( $manufacturer_slug, [ 'panduit' ], true );
+	$show_subtitle_desc = false;
+	$_aoe_proc_mgr = new \AOE\CatalogEngine\Import\ProcessorManager();
+	$_aoe_proc = $_aoe_proc_mgr->get_processor( $manufacturer_slug );
+	if ( $_aoe_proc && $_aoe_proc->has_product_descriptions() ) {
+		$show_subtitle_desc = true;
+	}
 	if ( $show_features_col && ! $is_preview ) {
 		$has_any_specs = false;
 		foreach ( $page_products as $pp ) {
@@ -292,7 +298,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 	<?php endforeach; ?>
 	<div class="aoe-catalog-render aoe-catalog-<?php echo esc_attr( $manufacturer_slug ); ?> aoe-tree-layout-<?php echo esc_attr( $tree_layout ); ?>" id="aoe-catalog-container">
 		<header>
-			<h2>Catálogo de componentes <?php echo esc_html( ucfirst( $manufacturer_name ) );
+			<h2 id="fab-<?php echo esc_attr( $manufacturer_slug ); ?>">Catálogo de componentes <?php echo esc_html( ucfirst( $manufacturer_name ) );
 			if ( ! empty( $category_display_name ) ) {
 				echo '<br>' . esc_html( $category_display_name );
 			} elseif ( ! empty( $grouped_segments ) ) {
@@ -369,17 +375,26 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 				?>
 				<div class="aoe-catalog-group-section">
 					<?php $mfr_catalog_url = home_url( '/catalogo/' . $manufacturer_slug . '/' ); ?>
-					<span class="aoe-cat-breadcrumb"><a href="<?php echo esc_url( $mfr_catalog_url ); ?>">Catálogo online de <?php echo esc_html( ucfirst( $manufacturer_name ) ); ?></a> > <?php
+					<span class="aoe-cat-breadcrumb"><a href="<?php echo esc_url( $mfr_catalog_url ); ?>#fab-<?php echo esc_attr( $manufacturer_slug ); ?>">Catálogo online de <?php echo esc_html( ucfirst( $manufacturer_name ) ); ?></a> > <?php
 						$bc_parts = [];
 						$bc_count = count( $path_parts );
 						$bc_idx = 0;
+						$bc_last_subtree_url = '';
 						foreach ( $path_parts as $pp ) {
-							$pp_slug = sanitize_title( $pp );
+							$pp_name  = is_array( $pp ) ? ( $pp['name'] ?? '' ) : $pp;
+							$pp_slug  = is_array( $pp ) ? ( $pp['slug'] ?? '' ) : sanitize_title( $pp );
+							$pp_url   = is_array( $pp ) ? ( $pp['url'] ?? '' ) : '';
 							$bc_idx++;
 							if ( $bc_idx < $bc_count ) {
-								$bc_parts[] = '<a href="' . esc_url( $mfr_catalog_url . '#' . 'cat-' . $pp_slug ) . '">' . esc_html( $pp ) . '</a>';
+								if ( '' !== $pp_url ) {
+									$bc_last_subtree_url = $pp_url;
+									$bc_parts[] = '<a href="' . esc_url( $pp_url . '#cat-' . $pp_slug ) . '">' . esc_html( $pp_name ) . '</a>';
+								} else {
+									$base_url = '' !== $bc_last_subtree_url ? $bc_last_subtree_url : $mfr_catalog_url;
+									$bc_parts[] = '<a href="' . esc_url( $base_url . '#cat-' . $pp_slug ) . '">' . esc_html( $pp_name ) . '</a>';
+								}
 							} else {
-								$bc_parts[] = esc_html( $pp );
+								$bc_parts[] = esc_html( $pp_name );
 							}
 						}
 						echo implode( ' > ', $bc_parts );
@@ -464,17 +479,17 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 									</span>
 									</td>
 									<td>
-										<?php
-										$lutze_has_desc = 'amphenol-lutze' === $manufacturer_slug && ( ! empty( $specs['Caracteristicas'] ) || ! empty( $specs['Area de aplicacion'] ) );
-										?>
-										<span class="aoe-catalog-product-name<?php echo ( ( $show_subtitle_desc && ( '' !== $subtitle || '' !== $desc_line ) ) || $lutze_has_desc ) ? ' aoe-bold' : ''; ?>" itemprop="name"><?php echo esc_html( $name ); ?></span>
+									<?php
+									$lutze_has_desc = $_aoe_proc && $_aoe_proc->has_custom_description_from_specs() && ( ! empty( $specs['Caracteristicas'] ) || ! empty( $specs['Area de aplicacion'] ) );
+									?>
+									<span class="aoe-catalog-product-name<?php echo ( ( $show_subtitle_desc && ( '' !== $subtitle || '' !== $desc_line ) ) || $lutze_has_desc ) ? ' aoe-bold' : ''; ?>" itemprop="name"><?php echo esc_html( $name ); ?></span>
 								<?php if ( $show_subtitle_desc && '' !== $subtitle ) : ?>
 									<span class="aoe-catalog-product-subtitle"><?php echo esc_html( $subtitle ); ?></span>
 								<?php endif; ?>
 								<?php if ( $show_subtitle_desc && '' !== $desc_line ) : ?>
 									<span class="aoe-catalog-product-desc"><?php echo esc_html( $desc_line ); ?></span>
 								<?php endif; ?>
-								<?php if ( 'amphenol-lutze' === $manufacturer_slug ) : ?>
+								<?php if ( $_aoe_proc && $_aoe_proc->has_custom_description_from_specs() ) : ?>
 									<?php
 									$lutze_car = $specs['Caracteristicas'] ?? '';
 									$lutze_area = $specs['Area de aplicacion'] ?? '';
@@ -528,17 +543,36 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 		<?php else : ?>
 		<?php if ( ! empty( $breadcrumb_path ) ) : ?>
 			<?php $mfr_catalog_url = home_url( '/catalogo/' . $manufacturer_slug . '/' ); ?>
-			<span class="aoe-cat-breadcrumb"><a href="<?php echo esc_url( $mfr_catalog_url ); ?>">Catálogo online de <?php echo esc_html( ucfirst( $manufacturer_name ) ); ?></a> > <?php
+			<span class="aoe-cat-breadcrumb"><a href="<?php echo esc_url( $mfr_catalog_url ); ?>#fab-<?php echo esc_attr( $manufacturer_slug ); ?>">Catálogo online de <?php echo esc_html( ucfirst( $manufacturer_name ) ); ?></a> > <?php
 				$bc_parts = [];
 				$bc_count = count( $breadcrumb_path );
 				$bc_idx = 0;
+				$bc_last_subtree_url = '';
 				foreach ( $breadcrumb_path as $bp ) {
-					$bp_slug = sanitize_title( $bp );
+					$bc_name = is_array( $bp ) ? ( $bp['name'] ?? '' ) : $bp;
+					$bc_slug = is_array( $bp ) ? ( $bp['slug'] ?? '' ) : sanitize_title( $bc_name );
+					$bc_page = is_array( $bp ) ? (int) ( $bp['page'] ?? 1 ) : 1;
+					$bc_url_custom = is_array( $bp ) ? ( $bp['url'] ?? '' ) : '';
 					$bc_idx++;
 					if ( $bc_idx < $bc_count ) {
-						$bc_parts[] = '<a href="' . esc_url( $mfr_catalog_url . '#' . 'cat-' . $bp_slug ) . '">' . esc_html( $bp ) . '</a>';
+						if ( '' !== $bc_url_custom ) {
+							// Category has its own subtree page (e.g. samtec/high-speed-cable)
+							$bc_last_subtree_url = $bc_url_custom;
+							$bc_parts[] = '<a href="' . esc_url( $bc_url_custom . '#cat-' . $bc_slug ) . '">' . esc_html( $bc_name ) . '</a>';
+						} else {
+							// Determine base URL: subtree page of a parent (if any) or tree page
+							if ( '' !== $bc_last_subtree_url ) {
+								$bc_url = $bc_last_subtree_url;
+							} else {
+								$bc_url = $mfr_catalog_url;
+								if ( $bc_page > 1 ) {
+									$bc_url = home_url( '/catalogo/' . $manufacturer_slug . '-' . $bc_page . '/' );
+								}
+							}
+							$bc_parts[] = '<a href="' . esc_url( $bc_url . '#cat-' . $bc_slug ) . '">' . esc_html( $bc_name ) . '</a>';
+						}
 					} else {
-						$bc_parts[] = esc_html( $bp );
+						$bc_parts[] = esc_html( $bc_name );
 					}
 				}
 				echo implode( ' > ', $bc_parts );
@@ -677,7 +711,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 						</td>
 						<td>
 							<?php
-							$lutze_has_desc2 = 'amphenol-lutze' === $manufacturer_slug && ( ! empty( $specs['Caracteristicas'] ) || ! empty( $specs['Area de aplicacion'] ) );
+							$lutze_has_desc2 = $_aoe_proc && $_aoe_proc->has_custom_description_from_specs() && ( ! empty( $specs['Caracteristicas'] ) || ! empty( $specs['Area de aplicacion'] ) );
 							?>
 							<span class="aoe-catalog-product-name<?php echo ( ( $show_subtitle_desc && ( '' !== $subtitle || '' !== $desc_line ) ) || $lutze_has_desc2 ) ? ' aoe-bold' : ''; ?>" itemprop="name"><?php echo esc_html( $name ); ?></span>
 								<?php if ( $show_subtitle_desc && '' !== $subtitle ) : ?>
@@ -686,7 +720,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 								<?php if ( $show_subtitle_desc && '' !== $desc_line ) : ?>
 									<span class="aoe-catalog-product-desc"><?php echo esc_html( $desc_line ); ?></span>
 								<?php endif; ?>
-								<?php if ( 'amphenol-lutze' === $manufacturer_slug ) : ?>
+								<?php if ( $_aoe_proc && $_aoe_proc->has_custom_description_from_specs() ) : ?>
 									<?php
 									$lutze_car2 = $specs['Caracteristicas'] ?? '';
 									$lutze_area2 = $specs['Area de aplicacion'] ?? '';

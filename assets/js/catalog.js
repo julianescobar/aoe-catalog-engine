@@ -452,4 +452,17 @@ jQuery(document).ready(function ($) {
 	aoeDetectTruncated();
 	$(window).on('resize', aoeDetectTruncated);
 
+	// Anchor scroll with offset for sticky header
+	if (window.location.hash) {
+		var target = document.querySelector(window.location.hash);
+		if (target) {
+			setTimeout(function() {
+				var offset = 80;
+				var rect = target.getBoundingClientRect();
+				var scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+				window.scrollTo(0, rect.top + scrollTop - offset);
+			}, 100);
+		}
+	}
+
 });

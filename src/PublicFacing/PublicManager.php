@@ -901,14 +901,29 @@ class PublicManager {
 			$cat_lookup[ (int) $c->id ] = $c;
 			$cat_parent_lookup[ (int) $c->id ] = (int) $c->parent_id;
 		}
-		$breadcrumb_path = [];
-		$chain_ids = [];
-		$cur = (int) $category->id;
-		while ( $cur && isset( $cat_lookup[ $cur ] ) ) {
-			array_unshift( $breadcrumb_path, $cat_lookup[ $cur ]->name );
-			array_unshift( $chain_ids, $cur );
-			$cur = $cat_parent_lookup[ $cur ] ?? 0;
+	$breadcrumb_path = [];
+	$chain_ids = [];
+	$cur = (int) $category->id;
+	while ( $cur && isset( $cat_lookup[ $cur ] ) ) {
+		// Find which tree page this category appears on
+		$cat_page = 1;
+		$seg = $wpdb->get_row( $wpdb->prepare(
+			"SELECT s.page_id, p.page_number FROM {$wpdb->prefix}aoe_catalog_page_segments s
+			 JOIN {$wpdb->prefix}aoe_catalog_pregenerated_pages p ON p.id = s.page_id
+			 WHERE s.category_id = %d AND p.manufacturer_id = %d AND p.type = 'tree' LIMIT 1",
+			$cur, $mfr->id
+		) );
+		if ( $seg ) {
+			$cat_page = (int) $seg->page_number;
 		}
+		array_unshift( $breadcrumb_path, [
+			'name' => $cat_lookup[ $cur ]->name,
+			'slug' => $cat_lookup[ $cur ]->slug,
+			'page' => $cat_page,
+		] );
+		array_unshift( $chain_ids, $cur );
+		$cur = $cat_parent_lookup[ $cur ] ?? 0;
+	}
 		$category_chain = [];
 		if ( ! empty( $chain_ids ) ) {
 			foreach ( $chain_ids as $cid ) {

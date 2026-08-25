@@ -320,13 +320,15 @@ $breadcrumb_path = [];
 
 // Build hierarchy lookup for breadcrumbs
 $all_cats_lookup = $wpdb->get_results( $wpdb->prepare(
-	"SELECT id, name, parent_id FROM $table_cat WHERE manufacturer_id = %d",
+	"SELECT id, name, slug, parent_id FROM $table_cat WHERE manufacturer_id = %d",
 	$page->manufacturer_id
 ) );
 $cat_name_lookup = [];
+$cat_slug_lookup = [];
 $cat_parent_lookup = [];
 foreach ( $all_cats_lookup as $c ) {
 	$cat_name_lookup[ (int) $c->id ] = $c->name;
+	$cat_slug_lookup[ (int) $c->id ] = $c->slug;
 	$cat_parent_lookup[ (int) $c->id ] = (int) $c->parent_id;
 }
 
@@ -347,7 +349,36 @@ if ( 'category' === $page_type ) {
 		// Build breadcrumb from parent chain
 		$cur = (int) $cat_seg->category_id;
 		while ( $cur && isset( $cat_name_lookup[ $cur ] ) ) {
-			array_unshift( $breadcrumb_path, $cat_name_lookup[ $cur ] );
+			// Find which tree page this category appears on
+			$cat_page = 1;
+			$seg = $wpdb->get_row( $wpdb->prepare(
+				"SELECT s.page_id, p.page_number FROM {$wpdb->prefix}aoe_catalog_page_segments s
+				 JOIN {$wpdb->prefix}aoe_catalog_pregenerated_pages p ON p.id = s.page_id
+				 WHERE s.category_id = %d AND p.manufacturer_id = %d AND p.type = 'tree' LIMIT 1",
+				$cur, $page->manufacturer_id
+			) );
+			if ( $seg ) {
+				$cat_page = (int) $seg->page_number;
+			}
+			// Check if this category has its own subtree page (e.g. samtec/high-speed-cable)
+			$subtree_url = '';
+			$cat_slug_val = $cat_slug_lookup[ $cur ] ?? '';
+			if ( '' !== $cat_slug_val ) {
+				$subtree = $wpdb->get_var( $wpdb->prepare(
+					"SELECT slug FROM {$wpdb->prefix}aoe_catalog_pregenerated_pages
+					 WHERE manufacturer_id = %d AND type = 'tree' AND slug = %s LIMIT 1",
+					$page->manufacturer_id, $manufacturer_slug . '/' . $cat_slug_val
+				) );
+				if ( $subtree ) {
+					$subtree_url = home_url( '/catalogo/' . $subtree . '/' );
+				}
+			}
+			array_unshift( $breadcrumb_path, [
+				'name' => $cat_name_lookup[ $cur ],
+				'slug' => $cat_slug_val,
+				'page' => $cat_page,
+				'url'  => $subtree_url,
+			] );
 			$cur = $cat_parent_lookup[ $cur ] ?? 0;
 		}
 
@@ -435,7 +466,23 @@ if ( 'category' === $page_type ) {
 		$path = [];
 		$cur = $cid;
 		while ( $cur && isset( $cat_name_lookup[ $cur ] ) ) {
-			array_unshift( $path, $cat_name_lookup[ $cur ] );
+			$path_slug = $cat_slug_lookup[ $cur ] ?? '';
+			$subtree_url = '';
+			if ( '' !== $path_slug ) {
+				$subtree = $wpdb->get_var( $wpdb->prepare(
+					"SELECT slug FROM {$wpdb->prefix}aoe_catalog_pregenerated_pages
+					 WHERE manufacturer_id = %d AND type = 'tree' AND slug = %s LIMIT 1",
+					$page->manufacturer_id, $manufacturer_slug . '/' . $path_slug
+				) );
+				if ( $subtree ) {
+					$subtree_url = home_url( '/catalogo/' . $subtree . '/' );
+				}
+			}
+			array_unshift( $path, [
+				'name' => $cat_name_lookup[ $cur ],
+				'slug' => $path_slug,
+				'url'  => $subtree_url,
+			] );
 			$cur = $cat_parent_lookup[ $cur ] ?? 0;
 		}
 		$cat_hierarchies[ $cid ] = $path;
@@ -510,7 +557,7 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 
 	?>
 	<div class="aoe-tree aoe-tree-<?php echo esc_attr( $manufacturer_slug ); ?> aoe-tree-layout-<?php echo esc_attr( $tree_layout ); ?>" id="aoe-catalog-container">
-		<h2>Catálogo de componentes <?php echo esc_html( $page->manufacturer_name ); ?></h2>
+		<h2 id="fab-<?php echo esc_attr( $manufacturer_slug ); ?>">Catálogo de componentes <?php echo esc_html( $page->manufacturer_name ); ?></h2>
 		<?php
 		$mfr_link_slug = $manufacturer_slug;
 		$amphenol_slugs = [ 'amphenol-anytek', 'amphenol-ltw', 'amphenol-rf', 'amphenol-lutze', 'amphenol-industrial', 'amphenol-conec' ];

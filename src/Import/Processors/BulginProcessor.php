@@ -12,6 +12,10 @@ class BulginProcessor extends BaseProcessor {
 		return 0;
 	}
 
+	public function has_product_descriptions(): bool {
+		return true;
+	}
+
 	public function get_supported_columns(): array {
 		return [
 			'sku', 'name', 'url', 'image_url', 'pdf_url', 'short_description', 'series_slug',

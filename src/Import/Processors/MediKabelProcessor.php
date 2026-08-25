@@ -12,6 +12,10 @@ class MediKabelProcessor extends BaseProcessor {
 		return true;
 	}
 
+	public function has_product_descriptions(): bool {
+		return true;
+	}
+
 	public function get_page_threshold(): int {
 		return 190;
 	}

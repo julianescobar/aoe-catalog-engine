@@ -12,6 +12,10 @@ class BivarProcessor extends BaseProcessor {
 		return true;
 	}
 
+	public function has_product_descriptions(): bool {
+		return true;
+	}
+
 	public function get_supported_columns(): array {
 		return [
 			'Part Number', 'Category', 'Subcategory', 'Grouping', 'Series',

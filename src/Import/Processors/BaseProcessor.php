@@ -66,6 +66,14 @@ abstract class BaseProcessor implements ProcessorInterface {
 		return false;
 	}
 
+	public function has_product_descriptions(): bool {
+		return false;
+	}
+
+	public function has_custom_description_from_specs(): bool {
+		return false;
+	}
+
 	/**
 	 * Extract technical specifications from a CSV row (case-insensitive column matching).
 	 * Returns a key-value array of non-empty specs using the canonical column names.

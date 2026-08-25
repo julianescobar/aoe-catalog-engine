@@ -65,27 +65,29 @@ function aoe_get_catalog_seo_context( array $extra = [] ): array {
 	if ( empty( $breadcrumb_path ) && $category_slug && $mfr_id ) {
 		$table_c = $wpdb->prefix . 'aoe_catalog_categories';
 		$cat = $wpdb->get_row( $wpdb->prepare(
-			"SELECT id, parent_id, name FROM $table_c WHERE slug = %s AND manufacturer_id = %d LIMIT 1",
+			"SELECT id, parent_id, name, slug FROM $table_c WHERE slug = %s AND manufacturer_id = %d LIMIT 1",
 			$category_slug, $mfr_id
 		) );
 		if ( $cat ) {
 			$all_cats = $wpdb->get_results( $wpdb->prepare(
-				"SELECT id, name, parent_id FROM $table_c WHERE manufacturer_id = %d",
+				"SELECT id, name, slug, parent_id FROM $table_c WHERE manufacturer_id = %d",
 				$mfr_id
 			) );
 			$parent_of = [];
 			$name_of   = [];
+			$slug_of   = [];
 			foreach ( $all_cats as $c ) {
 				$parent_of[ (int) $c->id ] = (int) $c->parent_id;
 				$name_of[ (int) $c->id ]   = $c->name;
+				$slug_of[ (int) $c->id ]   = $c->slug;
 			}
 			$ancestors = [];
 			$cur = (int) $cat->parent_id;
 			while ( $cur && isset( $name_of[ $cur ] ) ) {
-				array_unshift( $ancestors, $name_of[ $cur ] );
+				array_unshift( $ancestors, [ 'name' => $name_of[ $cur ], 'slug' => $slug_of[ $cur ] ] );
 				$cur = $parent_of[ $cur ] ?? 0;
 			}
-			$breadcrumb_path = array_merge( [ $manufacturer_name ], $ancestors );
+			$breadcrumb_path = array_merge( [ [ 'name' => $manufacturer_name, 'slug' => '' ] ], $ancestors );
 		}
 	}
 

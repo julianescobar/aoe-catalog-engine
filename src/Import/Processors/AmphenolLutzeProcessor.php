@@ -12,6 +12,14 @@ class AmphenolLutzeProcessor extends BaseProcessor {
 		return true;
 	}
 
+	public function has_product_descriptions(): bool {
+		return true;
+	}
+
+	public function has_custom_description_from_specs(): bool {
+		return true;
+	}
+
 	public function get_page_threshold(): int {
 		return 1;
 	}
