@@ -1,6 +1,7 @@
 // Abrir todas las páginas de catálogo de fabricantes en pestañas
-// PEGAR EN LA CONSOLA DEL NAVEGADOR (F12) estando en tc-componentes.local
+// PEGAR EN LA CONSOLA DEL NAVEGADOR (F12) estando en tc-componentes.local o tc-componentes.es
 
+const base = window.location.origin + '/catalogo/';
 const slugs = [
   'samtec',
   'camdenboss',
@@ -13,8 +14,13 @@ const slugs = [
   'amphenolanytek',
   'amphenolltw',
   'amphenolrf',
+  'amphenollutze',
+  'amphenolindustrial',
+  'amphenolconec',
+  'wieland',
+  'mhconnectors',
 ];
 
 slugs.forEach(slug => {
-  window.open('http://tc-componentes.local/catalogo/' + slug + '/', '_blank');
+  window.open(base + slug + '/', '_blank');
 });

@@ -416,12 +416,12 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 				<table class="aoe-catalog-table<?php echo $show_features_col ? ' aoe-catalog-table-with-features' : ''; ?> aoe-catalog-table-<?php echo esc_attr( $manufacturer_slug ); ?> cat-grouped" itemscope itemtype="https://schema.org/ItemList">
 						<thead>
 							<tr>
-								<th>Codigo</th>
-								<th class="aoe-catalog-underlined">Nombre</th>
+								<th>Código</th>
+								<th class="">Nombre</th>
 								<?php if ( $show_features_col ) : ?>
 								<th>Características</th>
 								<?php endif; ?>
-								<th class="aoe-catalog-underlined">Fabricante</th>
+								<th class="">Fabricante</th>
 								<th>Docs</th>
 							</tr>
 						</thead>
@@ -659,12 +659,12 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 			<table class="aoe-catalog-table<?php echo $show_features_col ? ' aoe-catalog-table-with-features' : ''; ?> aoe-catalog-table-<?php echo esc_attr( $manufacturer_slug ); ?><?php echo ! empty( $page_slug ) ? ' cat-' . esc_attr( sanitize_title( $page_slug ) ) : ''; ?>" itemscope itemtype="https://schema.org/ItemList">
 			<thead>
 				<tr>
-					<th>Codigo</th>
-					<th class="aoe-catalog-underlined">Nombre</th>
+					<th>Código</th>
+					<th class="">Nombre</th>
 					<?php if ( $show_features_col ) : ?>
 					<th>Características</th>
 					<?php endif; ?>
-					<th class="aoe-catalog-underlined">Fabricante</th>
+					<th class="">Fabricante</th>
 					<th>Docs</th>
 				</tr>
 			</thead>
