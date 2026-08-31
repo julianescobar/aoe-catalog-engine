@@ -457,7 +457,8 @@ jQuery(document).ready(function ($) {
 		var target = document.querySelector(window.location.hash);
 		if (target) {
 			setTimeout(function() {
-				var offset = 80;
+				var header = document.querySelector('.fusion-sticky-container');
+				var offset = (header && header.offsetHeight > 0 && header.offsetHeight < 200) ? header.offsetHeight + 16 : 80;
 				var rect = target.getBoundingClientRect();
 				var scrollTop = window.pageYOffset || document.documentElement.scrollTop;
 				window.scrollTo(0, rect.top + scrollTop - offset);
