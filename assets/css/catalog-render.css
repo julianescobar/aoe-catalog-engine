@@ -1553,11 +1553,25 @@ ul.aoe-cat-bullets {
 	color: #2d529f !important;
 }
 
-#main #aoe-catalog-container .aoe-cat-row a:hover {
+#main #aoe-catalog-container .aoe-cat-row a:hover,
+#main #aoe-catalog-container .aoe-mfr-info a:hover {
 	color: #EB9900 !important;
 	text-decoration: none !important;
 }
 
 #main #aoe-catalog-container .aoe-cat-row-with-desc:hover {
 	background: rgb(223 223 223) !important;
+}
+
+#main #aoe-catalog-container h2.tit-catalog {
+	margin-bottom: 10px !important;
+}
+
+#main #aoe-catalog-container .aoe-mfr-label,
+#main #aoe-catalog-container .aoe-mfr-label:hover {
+	color: #000 !important;
+}
+
+#main #aoe-catalog-container .aoe-mfr-info a {
+	color: #47b5ff !important;
 }

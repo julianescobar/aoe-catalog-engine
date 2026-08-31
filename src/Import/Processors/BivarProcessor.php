@@ -16,6 +16,22 @@ class BivarProcessor extends BaseProcessor {
 		return true;
 	}
 
+	/**
+	 * Bivar stores the 3D drawing URL in additional_data['drawing_3d']
+	 * (not in url_pdf), so merge it into the normalized 3dcad list.
+	 */
+	public function get_search_docs( array $stored_pdf = [], array $additional_data = [] ): array {
+		$docs = $this->classify_docs( $stored_pdf );
+
+		$drawing_3d = trim( (string) ( $additional_data['drawing_3d'] ?? '' ) );
+		if ( '' !== $drawing_3d ) {
+			$ext = strtolower( pathinfo( parse_url( $drawing_3d, PHP_URL_PATH ), PATHINFO_EXTENSION ) );
+			$docs['3dcad'][] = [ 'url' => $drawing_3d, 'name' => '3D Drawing', 'ext' => $ext ];
+		}
+
+		return $docs;
+	}
+
 	public function get_supported_columns(): array {
 		return [
 			'Part Number', 'Category', 'Subcategory', 'Grouping', 'Series',

@@ -557,7 +557,7 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 
 	?>
 	<div class="aoe-tree aoe-tree-<?php echo esc_attr( $manufacturer_slug ); ?> aoe-tree-layout-<?php echo esc_attr( $tree_layout ); ?>" id="aoe-catalog-container">
-		<h2 id="fab-<?php echo esc_attr( $manufacturer_slug ); ?>">Catálogo de componentes <?php echo esc_html( $page->manufacturer_name ); ?></h2>
+		<h2 id="fab-<?php echo esc_attr( $manufacturer_slug ); ?>" class="tit-catalog">Catálogo de componentes <?php echo esc_html( $page->manufacturer_name ); ?></h2>
 		<?php
 		$mfr_link_slug = $manufacturer_slug;
 		$amphenol_slugs = [ 'amphenol-anytek', 'amphenol-ltw', 'amphenol-rf', 'amphenol-lutze', 'amphenol-industrial', 'amphenol-conec' ];

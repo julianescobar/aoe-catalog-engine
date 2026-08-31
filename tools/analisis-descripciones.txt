@@ -1,0 +1,32 @@
+ANÁLISIS: Descripciones de productos por fabricante
+===================================================
+ Fuente: tabla aoe_catalog_products (columna description)
+ Fecha: 2026-08-24
+
+FABRICANTES QUE SÍ SOPORTAN DESCRIPCIÓN (description > 0%)
+-----------------------------------------------------------
+Bivar                  40,068 productos   100% con descripción
+Camdenboss              4,341 productos   100% con descripción
+Amphenol Anytek        18,890 productos   100% con descripción
+Amphenol Conec         10,085 productos   100% con descripción
+Medi Kabel                465 productos   100% con descripción
+Bulgin                 22,632 productos    99% con descripción
+Amphenol Industrial    17,566 productos    99% con descripción
+Amphenol Lutze          4,771 productos    92% con descripción
+Panduit                51,377 productos    85% con descripción (ya activo)
+
+Total con descripción: 170,195 productos
+
+FABRICANTES QUE NO SOPORTAN DESCRIPCIÓN (description = 0%)
+-----------------------------------------------------------
+Samtec                561,017 productos    0% sin descripción
+Edac                  542,062 productos    0% sin descripción
+Amphenol LTW           28,125 productos    0% sin descripción
+Wieland                23,966 productos    0% sin descripción
+Amphenol RF            11,616 productos    0% sin descripción
+MH Connectors             799 productos    0% sin descripción
+Yokowo                    490 productos    0% sin descripción
+
+Total sin descripción: 1,168,079 productos
+
+NOTA: Todos los fabricantes tienen additional_data (specs, urls, etc.)

@@ -22,7 +22,8 @@ CREATE TABLE wp_aoe_catalog_search_products (
   sku                     VARCHAR(255) NOT NULL,  -- 'Y-CONTOOL-11'
   search_text             TEXT NOT NULL,           -- manufacturer + sku + name + description
   payload_json            JSON NOT NULL,           -- ficha completa
-  updated_at              DATETIME NOT NULL,
+  created_at              DATETIME NOT NULL,        -- fecha de primera indexación
+  updated_at              DATETIME NOT NULL,        -- última actualización
 
   UNIQUE KEY uq_mfr_sku (manufacturer_normalized, sku),
   KEY k_sku (sku_normalized),
@@ -81,7 +82,8 @@ WHERE manufacturer_normalized = 'BIVAR' AND sku_normalized LIKE 'RHD07002500%';
 ### Flujo
 1. Crear tabla si no existe (CREATE TABLE IF NOT EXISTS).
 2. Por cada fabricante (o --manufacturer=slug para uno solo):
-   a. DELETE por manufacturer_normalized (rebuild transaccional).
+   a. UPSERT (INSERT ... ON DUPLICATE KEY UPDATE): preserva created_at de filas
+      existentes, refresca updated_at + campos en cada build. Sin DELETE.
    b. Cargar categorías en memoria (id → ruta de nombres).
    c. Cargar páginas + segmentos (pregenerated_pages + page_segments)
       para calcular URLs exactas donde aparece cada producto.

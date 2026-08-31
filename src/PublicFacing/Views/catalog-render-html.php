@@ -54,6 +54,20 @@ function aoe_catalog_render_pdf_icon_links( bool $has_pdf = false, bool $has_spe
 	return $html;
 }
 
+function aoe_catalog_sku_anchor( string $sku ): string {
+	$text = iconv( 'UTF-8', 'UTF-8//IGNORE', $sku );
+	$text = preg_replace( '/[áàâã]/u', 'A', $text );
+	$text = preg_replace( '/[éèêë]/u', 'E', $text );
+	$text = preg_replace( '/[íìîï]/u', 'I', $text );
+	$text = preg_replace( '/[óòôõ]/u', 'O', $text );
+	$text = preg_replace( '/[úùûü]/u', 'U', $text );
+	$text = preg_replace( '/[ñ]/u', 'N', $text );
+	$text = preg_replace( '/[ç]/u', 'C', $text );
+	$text = strtoupper( $text );
+	$text = preg_replace( '/[^A-Z0-9]/', '', $text );
+	return 'producto-' . $text;
+}
+
 if ( ! defined( 'AOE_CATALOG_MEDIA_URL' ) ) {
 	define( 'AOE_CATALOG_MEDIA_URL', content_url( 'uploads/catalogo' ) );
 }
@@ -298,7 +312,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 	<?php endforeach; ?>
 	<div class="aoe-catalog-render aoe-catalog-<?php echo esc_attr( $manufacturer_slug ); ?> aoe-tree-layout-<?php echo esc_attr( $tree_layout ); ?>" id="aoe-catalog-container">
 		<header>
-			<h2 id="fab-<?php echo esc_attr( $manufacturer_slug ); ?>">Catálogo de componentes <?php echo esc_html( ucfirst( $manufacturer_name ) );
+			<h2 id="fab-<?php echo esc_attr( $manufacturer_slug ); ?>" class="tit-catalog">Catálogo de componentes <?php echo esc_html( ucfirst( $manufacturer_name ) );
 			if ( ! empty( $category_display_name ) ) {
 				echo '<br>' . esc_html( $category_display_name );
 			} elseif ( ! empty( $grouped_segments ) ) {
@@ -455,7 +469,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 								$has_pdf = ! empty( array_filter( $pdf, function( $v ) { return ! empty( $v ); } ) );
 								$specs_json = $has_specs ? htmlspecialchars( json_encode( $specs ), ENT_QUOTES, 'UTF-8' ) : '';
 								?>
-								<tr class="fila-producto no-lazyload" itemprop="itemListElement" itemscope itemtype="https://schema.org/Product"
+								<tr id="<?php echo esc_attr( aoe_catalog_sku_anchor( $sku ) ); ?>" class="fila-producto no-lazyload" itemprop="itemListElement" itemscope itemtype="https://schema.org/Product"
 									data-sku="<?php echo esc_attr( $sku ); ?>"
 									data-nombre="<?php echo esc_attr( $name ); ?>"
 									<?php if ( $show_subtitle_desc && '' !== $subtitle ) : ?>
@@ -578,7 +592,19 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 				echo implode( ' > ', $bc_parts );
 			?></span>
 		<?php endif; ?>
-		<?php if ( in_array( $manufacturer_slug, [ 'samtec', 'bivar' ], true ) && ! empty( $category_chain ) ) : ?>
+		<?php
+			$has_sin_clasificar = false;
+			if ( ! empty( $breadcrumb_path ) ) {
+				foreach ( $breadcrumb_path as $bp ) {
+					$bp_slug = is_array( $bp ) ? ( $bp['slug'] ?? '' ) : '';
+					if ( $bp_slug === 'sin-clasificar' ) {
+						$has_sin_clasificar = true;
+						break;
+					}
+				}
+			}
+		?>
+		<?php if ( in_array( $manufacturer_slug, [ 'samtec', 'bivar' ], true ) && ! empty( $category_chain ) && ! $has_sin_clasificar ) : ?>
 		<div class="aoe-category-chain">
 			<?php foreach ( $category_chain as $link ) :
 				$name  = $link['name'] ?? '';
@@ -686,7 +712,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 					$has_pdf = ! empty( array_filter( $pdf, function( $v ) { return ! empty( $v ); } ) );
 					$specs_json = $has_specs ? htmlspecialchars( json_encode( $specs ), ENT_QUOTES, 'UTF-8' ) : '';
 					?>
-					<tr class="fila-producto no-lazyload" itemprop="itemListElement" itemscope itemtype="https://schema.org/Product"
+					<tr id="<?php echo esc_attr( aoe_catalog_sku_anchor( $sku ) ); ?>" class="fila-producto no-lazyload" itemprop="itemListElement" itemscope itemtype="https://schema.org/Product"
 						data-sku="<?php echo esc_attr( $sku ); ?>"
 						data-nombre="<?php echo esc_attr( $name ); ?>"
 						<?php if ( $show_subtitle_desc && '' !== $subtitle ) : ?>

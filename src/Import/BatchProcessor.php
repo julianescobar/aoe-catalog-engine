@@ -293,7 +293,7 @@ class BatchProcessor {
 
 		// Get categories with products
 		$categories = $wpdb->get_results( $wpdb->prepare(
-			"SELECT id, name, slug, level, products_count, description, metadata_json, image FROM $table_cat WHERE manufacturer_id = %d AND (products_count > 0 OR (description IS NOT NULL AND description != '') OR (metadata_json IS NOT NULL AND metadata_json != '[]' AND metadata_json != '{}') OR (image IS NOT NULL AND image != '')) ORDER BY id ASC",
+			"SELECT id, name, slug, level, parent_id, products_count, description, metadata_json, image FROM $table_cat WHERE manufacturer_id = %d AND (products_count > 0 OR (description IS NOT NULL AND description != '') OR (metadata_json IS NOT NULL AND metadata_json != '[]' AND metadata_json != '{}') OR (image IS NOT NULL AND image != '')) ORDER BY id ASC",
 			$manufacturer_id
 		) );
 
@@ -304,6 +304,16 @@ class BatchProcessor {
 		// Separate large/categories-with-content and small categories
 		$large = [];
 		$small = [];
+		$samtec_sin_clasificar_id = 0;
+		if ( $manufacturer_slug === 'samtec' ) {
+			$row_sc = $wpdb->get_row( $wpdb->prepare(
+				"SELECT id FROM $table_cat WHERE manufacturer_id = %d AND slug = 'sin-clasificar' LIMIT 1",
+				$manufacturer_id
+			) );
+			if ( $row_sc ) {
+				$samtec_sin_clasificar_id = (int) $row_sc->id;
+			}
+		}
 		foreach ( $categories as $cat ) {
 			$meta_has_content = false;
 			if ( ! empty( $cat->metadata_json ) && $cat->metadata_json !== '[]' && $cat->metadata_json !== '{}' ) {
@@ -313,7 +323,10 @@ class BatchProcessor {
 				}
 			}
 			$has_content = ! empty( $cat->description ) || ! empty( $cat->image ) || $meta_has_content;
-			if ( (int) $cat->products_count >= $threshold || $has_content || $manufacturer_slug === 'panduit' ) {
+			// Samtec: L4 children of sin-clasificar always get their own page
+			if ( $samtec_sin_clasificar_id > 0 && (int) $cat->parent_id === $samtec_sin_clasificar_id ) {
+				$large[] = $cat;
+			} elseif ( (int) $cat->products_count >= $threshold || $has_content || $manufacturer_slug === 'panduit' ) {
 				$large[] = $cat;
 			} else {
 				$small[] = $cat;

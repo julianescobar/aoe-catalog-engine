@@ -16,6 +16,22 @@ class BulginProcessor extends BaseProcessor {
 		return true;
 	}
 
+	/**
+	 * Bulgin keeps the 3D CAD model in additional_data['cad_url'].
+	 * The datasheet already lives in url_pdf['datasheet'].
+	 */
+	public function get_search_docs( array $stored_pdf = [], array $additional_data = [] ): array {
+		$docs = $this->classify_docs( $stored_pdf );
+
+		$cad_url = trim( (string) ( $additional_data['cad_url'] ?? '' ) );
+		if ( '' !== $cad_url ) {
+			$ext = strtolower( pathinfo( parse_url( $cad_url, PHP_URL_PATH ), PATHINFO_EXTENSION ) );
+			$docs['3dcad'][] = [ 'url' => $cad_url, 'name' => '3D CAD', 'ext' => $ext ];
+		}
+
+		return $docs;
+	}
+
 	public function get_supported_columns(): array {
 		return [
 			'sku', 'name', 'url', 'image_url', 'pdf_url', 'short_description', 'series_slug',
@@ -74,6 +90,15 @@ class BulginProcessor extends BaseProcessor {
 		$data['pdf'] = [
 			'datasheet' => $datasheet,
 		];
+
+		$cad_url = isset( $row['cad_url'] ) ? $this->normalize_text( (string) $row['cad_url'] ) : '';
+		if ( '' !== $cad_url ) {
+			$data['additional_data']['cad_url'] = $cad_url;
+		}
+		$cad_viewer_url = isset( $row['cad_viewer_url'] ) ? $this->normalize_text( (string) $row['cad_viewer_url'] ) : '';
+		if ( '' !== $cad_viewer_url ) {
+			$data['additional_data']['cad_viewer_url'] = $cad_viewer_url;
+		}
 
 		$data['description'] = isset( $row['short_description'] ) ? $this->normalize_text( (string) $row['short_description'] ) : '';
 

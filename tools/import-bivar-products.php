@@ -121,8 +121,8 @@ foreach ( $rows as $i => $row ) {
 		'name'           => $data['name'],
 		'description'    => $data['description'],
 		'category_id'    => $category_id,
-		'images'         => ! empty( $data['images'] ) ? json_encode( $data['images'] ) : '',
-		'pdf'            => ! empty( $data['pdf'] ) ? json_encode( $data['pdf'] ) : '',
+		'urls_images'    => ! empty( $data['images'] ) ? json_encode( $data['images'] ) : '',
+		'url_pdf'        => ! empty( $data['pdf'] ) ? json_encode( $data['pdf'] ) : '',
 		'additional_data'=> ! empty( $data['additional_data'] ) ? json_encode( $data['additional_data'] ) : '',
 	];
 
