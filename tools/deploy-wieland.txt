@@ -8,7 +8,8 @@ PREREQUISITO (lo hace el usuario por Avada, NO es parte de estos pasos)
    - En local es el id 15 de la tabla aoe_catalog_manufacturers.
 
 1) SUBIR ARCHIVOS A tools/ EN PRODUCCIÓN
-   - wieland_productos.csv
+   - wieland_productos_v2.csv
+   - wieland_categorias_v2.csv
    - import-wieland-structure.php
    (los tools .php ya desplegados: full-import.php, repack-catalog.php, etc.)
    - Código fuente del plugin ya desplegado con estos cambios:
@@ -22,7 +23,7 @@ PREREQUISITO (lo hace el usuario por Avada, NO es parte de estos pasos)
 
 2) IMPORTAR PRODUCTOS
    cd /RUTA_DEL_SITIO/wp-content/plugins/aoe-catalog-engine
-   nohup php tools/full-import.php --manufacturer=wieland --csv=tools/wieland_productos.csv --mode=replace > import-wieland.log 2>&1 &
+   nohup php -d register_argc_argv=1 tools/full-import.php --manufacturer=wieland --csv=tools/wieland_productos_v2.csv --mode=replace > import-wieland.log 2>&1 &
 
    Monitorear: tail -f import-wieland.log
    Debe terminar con "Importación finalizada" y "pack_catalog completado".
@@ -30,7 +31,7 @@ PREREQUISITO (lo hace el usuario por Avada, NO es parte de estos pasos)
    En local tardó ~87s por 23.966 filas.
 
 3) RECONSTRUIR CATEGORÍAS + RE-ADJUNTAR PRODUCTOS
-   php tools/import-wieland-structure.php
+   php -d register_argc_argv=1 tools/import-wieland-structure.php
 
    Esto hace:
      - Lee las 13 categorías únicas de la columna "category" del CSV
@@ -67,7 +68,7 @@ PREREQUISITO (lo hace el usuario por Avada, NO es parte de estos pasos)
       borrar wp-content/uploads/aoe-cache-catalog/wieland/
 
    f) Si en prod solo cambia el render, regenerar con:
-      php tools/repack-catalog.php wieland
+      php -d register_argc_argv=1 tools/repack-catalog.php wieland
 
 NOTAS
    - El orden importa: full-import --mode=replace BORRA todas las categorías,

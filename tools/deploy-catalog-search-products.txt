@@ -1,0 +1,134 @@
+DEPLOY: POBLADO DE LA TABLA DE BÚSQUEDA DE PRODUCTOS (Nina)
+=========================================================
+Script: tools/build-search-index.php
+Tabla:  <prefijo>aoe_catalog_search_products  (wp_ local / tc_ produccion)
+
+------------------------------------------------------------
+0) ESTRUCTURA DE LA TABLA (se crea sola con el script)
+------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS tc_aoe_catalog_search_products (
+  id                      BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  manufacturer_normalized VARCHAR(64)  NOT NULL,
+  manufacturer_name       VARCHAR(255) NOT NULL,
+  sku_normalized          VARCHAR(255) NOT NULL,
+  sku                     VARCHAR(255) NOT NULL,
+  search_text             TEXT NOT NULL,
+  payload_json            JSON NOT NULL,
+  created_at              DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at              DATETIME NOT NULL,
+  UNIQUE KEY uq_mfr_sku (manufacturer_normalized, sku),
+  KEY k_sku (sku_normalized),
+  FULLTEXT KEY ft_search (search_text)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+NOTA: El script usa UPSERT (INSERT ... ON DUPLICATE KEY UPDATE):
+  - created_at se setea SOLO la primera vez que se indexa el producto
+  - updated_at se refresca en cada reconstruccion
+Si la tabla ya existe en un entorno sin created_at, hacer ANTES:
+  ALTER TABLE tc_aoe_catalog_search_products
+    ADD COLUMN created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP AFTER updated_at;
+  UPDATE tc_aoe_catalog_search_products SET created_at = updated_at;
+
+------------------------------------------------------------
+1) PRE-REQUISITOS ANTES DEL INDEX (por fabricante)
+------------------------------------------------------------
+IMPORTANTE: los docs (PDF/3D CAD) los decide cada PROCESSOR. El index
+lee via processador.get_search_docs(). Los fabricantes que guardan el CAD
+en additional_data (BIVAR drawing_3d, BULGIN cad_url) necesitan que el
+producto ya este importado con esas columnas. Si se cambio un processor,
+re-importar el fabricante ANTES de re-indexar.
+
+------------------------------------------------------------
+2) LOCAL (Windows / Local by Flywheel)
+------------------------------------------------------------
+Usar el php de Local + env var para la BD:
+  $env:AOE_DB_HOST='127.0.0.1:10006'
+
+Indexar UN fabricante:
+  php -d register_argc_argv=1 -d memory_limit=2G tools/build-search-index.php --manufacturer=bivar
+
+Re-importar un fabricante (solo si cambio su processor): EJEMPLO BULGIN
+  php -d register_argc_argv=1 -d memory_limit=2G tools/full-import.php --manufacturer=bulgin --csv=tools/productosbulginv2-serie.csv --mode=replace
+  php -d register_argc_argv=1 tools/import-bulgin-categories.php
+  php -d register_argc_argv=1 tools/pack-catalog.php bulgin
+  php -d register_argc_argv=1 tools/build-search-index.php --manufacturer=bulgin
+
+Indexar TODOS los fabricantes:
+  php -d register_argc_argv=1 -d memory_limit=2G tools/build-search-index.php --all
+
+Ver estadisticas:
+  php -d register_argc_argv=1 tools/build-search-index.php --stats
+
+------------------------------------------------------------
+3) PRODUCCION / PRE-PRODUCCION (php CGI compartido)
+------------------------------------------------------------
+El hosting compartido usa PHP CGI: NECESITA -d register_argc_argv=1.
+Prefijo de BD produccion es tc_ (no wp_). No usar AOE_DB_HOST.
+
+cd /home2/hosting158857eu/public_html/tc-componentes.es/wp-content/plugins/aoe-catalog-engine   (produccion)
+cd /var/www/vhosts/projecte.eu/dev.tc-componentes.es/wp-content/plugins/aoe-catalog-engine      (pre-produccion)
+
+Indexar UN fabricante:
+  php -d register_argc_argv=1 tools/build-search-index.php --manufacturer=bivar
+
+Re-importar un fabricante (si cambio su processor): EJEMPLO BULGIN
+  php -d register_argc_argv=1 -d memory_limit=2G tools/full-import.php --manufacturer=bulgin --csv=tools/productosbulginv2-serie.csv --mode=replace
+  php -d register_argc_argv=1 tools/import-bulgin-categories.php
+  php -d register_argc_argv=1 tools/pack-catalog.php bulgin
+  php -d register_argc_argv=1 tools/build-search-index.php --manufacturer=bulgin
+
+Indexar TODOS los fabricantes (~1.3M productos, 5-10 min):
+  php -d register_argc_argv=1 tools/build-search-index.php --all
+
+Ver estadisticas:
+  php -d register_argc_argv=1 tools/build-search-index.php --stats
+
+------------------------------------------------------------
+4) NOTAS
+------------------------------------------------------------
+- Fabricantes actuales: 16 (samtec, edac, camdenboss, bivar, panduit, bulgin,
+  medikabel, yokowo, amphenol-anytek, amphenol-ltw, amphenol-rf, amphenol-lutze,
+  amphenol-industrial, amphenol-conec, wieland, mh-connectors).
+- Total productos: ~1.313.505.
+- El index NO borra filas: usa UPSERT. Si un producto desaparece del origen,
+  su fila queda en search_products (hay que limpiarla manualmente si aplica).
+- Fields del payload_json:
+    name, description, category_path, image_url[], docs{pdfs[], 3dcad[]}, specs{}, urls{...}
+
+------------------------------------------------------------
+5) CAMBIOS REALIZADOS 27/08/2026 - Bivar
+------------------------------------------------------------
+ Problema: 7.489 productos Bivar sin category_id (category_id=0).
+ Causa raiz:
+   a) import-bivar-products.php usaba columnas 'images'/'pdf' que no existen
+      en el schema real ('urls_images'/'url_pdf'). El $wpdb->update fallaba
+      silenciosamente y no persistia category_id ni ningun campo.
+   b) build-search-index.php: build_category_path devolvia el slug de la
+      categoria raiz (L1) en vez de la hoja mas profunda (L3). ParaMLPS-RT
+      (Light Pipes > Modular Systems > MLPS-RT) devolvia 'light-pipes' en
+      vez de 'mlps-rt'. Tambien el fallback de producto usaba #cat- en vez
+      de #producto-.
+
+ Fixes aplicados:
+   1) import-bivar-products.php linea 124-125:
+      'images' -> 'urls_images'
+      'pdf'    -> 'url_pdf'
+
+   2) build-search-index.php funcion build_category_path():
+      Ahora captura el slug de la primera categoria (hoja/L3) en vez de
+      sobrescribir con el slug de la raiz. Retorna leaf_slug.
+
+   3) build-search-index.php linea 355 (fallback sin pagina mapeada):
+      $urls['product'] ahora usa '#producto-' . $sku_norm en vez de
+      '#cat-' . $cat_slug.
+
+ Resultado:
+   - 40.068 productos Bivar con category_id asignado (0 sin categoria)
+   - 40.068/40.068 productos validados OK (URLs y anchors correctos)
+   - Categorias nuevas creadas: GLP1, GLP2, Modular Systems, MLPS-RT, MLPS-RTB
+   - CSV fuente: Bivar_Distributor_Price_File(Sheet1) (1).csv (40.179 filas)
+
+ Comandos ejecutados (local):
+   php -d register_argc_argv=1 tools\import-bivar-products.php "tools\Bivar_Distributor_Price_File(Sheet1) (1).csv"
+   php -d register_argc_argv=1 -d memory_limit=2G tools\build-search-index.php --manufacturer=bivar
+   php -d register_argc_argv=1 tools\validate-search-products.php --manufacturer=bivar --limit=0 --broken-only
