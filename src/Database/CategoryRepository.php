@@ -91,4 +91,43 @@ class CategoryRepository {
 		$table = $wpdb->prefix . 'aoe_catalog_categories';
 		$wpdb->delete( $table, [ 'manufacturer_id' => $manufacturer_id ], [ '%d' ] );
 	}
+
+	public static function update( int $id, array $data ): bool {
+		global $wpdb;
+		$table = $wpdb->prefix . 'aoe_catalog_categories';
+		$formats = [];
+		foreach ( $data as $key => $value ) {
+			if ( in_array( $key, [ 'name', 'slug', 'description', 'image', 'sort_order', 'is_hidden', 'metadata_json' ], true ) ) {
+				$formats[] = is_int( $value ) ? '%d' : '%s';
+			}
+		}
+		return (bool) $wpdb->update( $table, $data, [ 'id' => $id ], $formats, [ '%d' ] );
+	}
+
+	public static function find_all( int $manufacturer_id ): array {
+		global $wpdb;
+		$table = $wpdb->prefix . 'aoe_catalog_categories';
+		return $wpdb->get_results( $wpdb->prepare(
+			"SELECT * FROM $table WHERE manufacturer_id = %d ORDER BY sort_order ASC, level ASC, id ASC",
+			$manufacturer_id
+		) );
+	}
+
+	public static function reorder( array $ordered_ids ): void {
+		global $wpdb;
+		$table = $wpdb->prefix . 'aoe_catalog_categories';
+		foreach ( $ordered_ids as $position => $id ) {
+			$wpdb->update( $table, [ 'sort_order' => $position + 1 ], [ 'id' => (int) $id ], [ '%d' ], [ '%d' ] );
+		}
+	}
+
+	public static function toggle_hidden( int $id ): bool {
+		global $wpdb;
+		$table = $wpdb->prefix . 'aoe_catalog_categories';
+		$current = (int) $wpdb->get_var( $wpdb->prepare(
+			"SELECT is_hidden FROM $table WHERE id = %d", $id
+		) );
+		$new_value = $current ? 0 : 1;
+		return (bool) $wpdb->update( $table, [ 'is_hidden' => $new_value ], [ 'id' => $id ], [ '%d' ], [ '%d' ] );
+	}
 }

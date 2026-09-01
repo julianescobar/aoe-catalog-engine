@@ -14,6 +14,14 @@ class AdminManager {
 		add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_styles_scripts' ] );
 		add_action( 'admin_init', [ $this, 'handle_manufacturer_crud' ] );
 		add_action( 'admin_post_aoe_export_media_txt', [ $this, 'handle_export_media_txt' ] );
+		add_action( 'admin_post_aoe_export_search', [ $this, 'handle_export_search' ] );
+		add_action( 'wp_ajax_aoe_get_categories', [ $this, 'ajax_get_categories' ] );
+		add_action( 'wp_ajax_aoe_reorder_categories', [ $this, 'ajax_reorder_categories' ] );
+		add_action( 'wp_ajax_aoe_update_category', [ $this, 'ajax_update_category' ] );
+		add_action( 'wp_ajax_aoe_toggle_category_hidden', [ $this, 'ajax_toggle_category_hidden' ] );
+		add_action( 'wp_ajax_aoe_reindex_manufacturer', [ $this, 'ajax_reindex_manufacturer' ] );
+		add_action( 'wp_ajax_aoe_check_index_progress', [ $this, 'ajax_check_index_progress' ] );
+		add_action( 'wp_ajax_aoe_get_row_count', [ $this, 'ajax_get_row_count' ] );
 		add_action( 'wp_ajax_aoe_clear_cache', [ $this, 'ajax_clear_cache' ] );
 		add_action( 'wp_ajax_aoe_regenerate_pages', [ $this, 'ajax_regenerate_pages' ] );
 		add_action( 'wp_ajax_aoe_generate_template_cache', [ $this, 'ajax_generate_template_cache' ] );
@@ -66,6 +74,36 @@ class AdminManager {
 			'aoe-catalog-media-validator',
 			[ $this, 'display_media_validator_page' ]
 		);
+
+		// Submenu: Exportar datos
+		add_submenu_page(
+			'aoe-catalog-engine',
+			'Exportar datos',
+			'Exportar datos',
+			'manage_options',
+			'aoe-catalog-export-search',
+			[ $this, 'display_export_search_page' ]
+		);
+
+		// Submenu: Categorías (solo visible fuera de pre-producción dev)
+		if ( ! $this->is_dev_environment() ) {
+			add_submenu_page(
+				'aoe-catalog-engine',
+				'Categorías',
+				'Categorías',
+				'manage_options',
+				'aoe-catalog-categories',
+				[ $this, 'display_categories_page' ]
+			);
+		}
+	}
+
+	/**
+	 * Whether we are on the dev/pre-production site (https://dev.tc-componentes.es/).
+	 */
+	private function is_dev_environment() {
+		$home = home_url();
+		return ( false !== strpos( $home, 'dev.tc-componentes.es' ) || false !== strpos( $home, 'localhost' ) || false !== strpos( $home, '.local' ) );
 	}
 
 	/**
@@ -117,9 +155,136 @@ class AdminManager {
 	}
 
 	public function display_logs_page() {
-		$logs = get_option( 'aoe_catalog_import_logs', [] );
+		$logs = \get_option( 'aoe_catalog_import_logs', [] );
 		require_once __DIR__ . '/Views/logs-list.php';
 	}
+
+	public function display_export_search_page() {
+		global $wpdb;
+		$table = $wpdb->prefix . 'aoe_catalog_search_products';
+		$manufacturers = $wpdb->get_results(
+			"SELECT manufacturer_normalized, manufacturer_name, COUNT(*) AS cnt
+			 FROM $table
+			 GROUP BY manufacturer_normalized, manufacturer_name
+			 ORDER BY cnt DESC"
+		);
+		$total = $wpdb->get_var( "SELECT COUNT(*) FROM $table" );
+		require_once __DIR__ . '/Views/export-search.php';
+	}
+
+	public function display_categories_page() {
+		if ( $this->is_dev_environment() ) {
+			wp_die( 'Acceso no autorizado en este entorno.' );
+		}
+		global $wpdb;
+		$table = $wpdb->prefix . 'aoe_catalog_manufacturers';
+		$manufacturers = $wpdb->get_results( "SELECT id, name, slug FROM $table ORDER BY name ASC" );
+		$selectedManufacturer = isset( $_GET['manufacturer'] ) ? intval( $_GET['manufacturer'] ) : 0;
+		require_once __DIR__ . '/Views/categories-list.php';
+	}
+
+	public function ajax_get_categories() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( 'Unauthorized' );
+		}
+		$manufacturer_id = isset( $_POST['manufacturer_id'] ) ? intval( $_POST['manufacturer_id'] ) : 0;
+		if ( ! $manufacturer_id ) {
+			wp_send_json_error( 'No manufacturer' );
+		}
+		$categories = \AOE\CatalogEngine\Database\CategoryRepository::find_all( $manufacturer_id );
+		wp_send_json_success( $categories );
+	}
+
+	public function ajax_reorder_categories() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( 'Unauthorized' );
+		}
+		$ordered_ids = isset( $_POST['ordered_ids'] ) ? array_map( 'intval', (array) $_POST['ordered_ids'] ) : [];
+		if ( empty( $ordered_ids ) ) {
+			wp_send_json_error( 'No ids' );
+		}
+		\AOE\CatalogEngine\Database\CategoryRepository::reorder( $ordered_ids );
+		wp_send_json_success();
+	}
+
+	public function ajax_update_category() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( 'Unauthorized' );
+		}
+		$id = isset( $_POST['id'] ) ? intval( $_POST['id'] ) : 0;
+		$name = isset( $_POST['name'] ) ? sanitize_text_field( $_POST['name'] ) : '';
+		if ( ! $id || empty( $name ) ) {
+			wp_send_json_error( 'Invalid data' );
+		}
+		$slug = sanitize_title( $name );
+		\AOE\CatalogEngine\Database\CategoryRepository::update( $id, [ 'name' => $name, 'slug' => $slug ] );
+		wp_send_json_success();
+	}
+
+	public function ajax_toggle_category_hidden() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( 'Unauthorized' );
+		}
+		$id = isset( $_POST['id'] ) ? intval( $_POST['id'] ) : 0;
+		$is_hidden = isset( $_POST['is_hidden'] ) ? intval( $_POST['is_hidden'] ) : 0;
+		if ( ! $id ) {
+			wp_send_json_error( 'No id' );
+		}
+		\AOE\CatalogEngine\Database\CategoryRepository::update( $id, [ 'is_hidden' => $is_hidden ] );
+		wp_send_json_success( [ 'is_hidden' => $is_hidden ] );
+	}
+
+	public function ajax_reindex_manufacturer() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( 'Unauthorized' );
+		}
+		$slug = isset( $_POST['manufacturer'] ) ? sanitize_text_field( $_POST['manufacturer'] ) : '';
+		if ( ! $slug ) {
+			wp_send_json_error( 'No manufacturer' );
+		}
+
+		$result = \AOE\CatalogEngine\Database\SearchIndexer::start_job( $slug );
+		if ( isset( $result['error'] ) ) {
+			wp_send_json_error( $result['error'] );
+		}
+		wp_send_json_success( [ 'progress_key' => $result['progress_key'] ] );
+	}
+
+	public function ajax_check_index_progress() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( 'Unauthorized' );
+		}
+		$progress_key = isset( $_POST['progress_key'] ) ? sanitize_text_field( $_POST['progress_key'] ) : '';
+		if ( ! $progress_key ) {
+			wp_send_json_error( 'No progress_key' );
+		}
+
+		// Each poll advances one batch of the job (polling drives the work).
+		$state = \AOE\CatalogEngine\Database\SearchIndexer::process_batch( $progress_key );
+		wp_send_json_success( $state );
+	}
+
+	/**
+	 * Returns the fresh product count for one manufacturer (by normalized name),
+	 * so the export table row can update in place without reloading the page.
+	 */
+	public function ajax_get_row_count() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( 'Unauthorized' );
+		}
+		$slug = isset( $_POST['manufacturer'] ) ? sanitize_text_field( $_POST['manufacturer'] ) : '';
+		if ( ! $slug ) {
+			wp_send_json_error( 'No manufacturer' );
+		}
+		global $wpdb;
+		$table = $wpdb->prefix . 'aoe_catalog_search_products';
+		$norm  = \AOE\CatalogEngine\Database\SearchIndexer::normalize_search( $slug );
+		$cnt   = (int) $wpdb->get_var( $wpdb->prepare(
+			"SELECT COUNT(*) FROM $table WHERE manufacturer_normalized = %s", $norm
+		) );
+		wp_send_json_success( [ 'count' => $cnt ] );
+	}
+
 
 	/**
 	 * Handle CRUD save and delete requests for manufacturers
@@ -178,6 +343,100 @@ class AdminManager {
 			}
 
 			echo $prod->sku . "\t" . $prod->name . "\t" . ( $prod->category_name ?? '-' ) . "\t" . implode( ', ', $missing_img ) . "\t" . implode( ', ', $missing_pdf ) . "\r\n";
+		}
+
+		exit;
+	}
+
+	public function handle_export_search() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( 'Acceso no autorizado' );
+		}
+
+		global $wpdb;
+		$table   = $wpdb->prefix . 'aoe_catalog_search_products';
+		$format  = isset( $_GET['format'] ) && 'csv' === $_GET['format'] ? 'csv' : 'sql';
+		$mfr     = isset( $_GET['manufacturer'] ) ? sanitize_text_field( $_GET['manufacturer'] ) : '';
+		$all     = empty( $mfr );
+
+		$where = '';
+		if ( ! $all ) {
+			$normalized = strtoupper( preg_replace( '/[^a-zA-Z0-9]/', '', $mfr ) );
+			$where = $wpdb->prepare( " WHERE manufacturer_normalized = %s", $normalized );
+		}
+
+		$total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM $table $where" );
+		$filename = $all ? 'search-products-all' : "search-products-{$mfr}";
+
+		if ( 'csv' === $format ) {
+			header( 'Content-Type: text/csv; charset=utf-8' );
+			header( 'Content-Disposition: attachment; filename="' . $filename . '.csv"' );
+			echo "id,manufacturer_normalized,manufacturer_name,sku_normalized,sku,search_text,payload_json,created_at,updated_at\n";
+		} else {
+			$target = $wpdb->prefix . 'aoe_catalog_search_products';
+			header( 'Content-Type: text/plain; charset=utf-8' );
+			header( 'Content-Disposition: attachment; filename="' . $filename . '.sql"' );
+			echo "-- Export from $table\n";
+			echo "-- Filter: " . ( $all ? 'ALL' : "manufacturer=$mfr" ) . "\n";
+			echo "-- Rows: $total\n";
+			echo "-- Generated: " . date( 'Y-m-d H:i:s' ) . "\n\n";
+			echo "CREATE TABLE IF NOT EXISTS `$target` (\n";
+			echo "  `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,\n";
+			echo "  `manufacturer_normalized` varchar(64) NOT NULL,\n";
+			echo "  `manufacturer_name` varchar(255) NOT NULL,\n";
+			echo "  `sku_normalized` varchar(255) NOT NULL,\n";
+			echo "  `sku` varchar(255) NOT NULL,\n";
+			echo "  `search_text` text NOT NULL,\n";
+			echo "  `payload_json` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,\n";
+			echo "  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,\n";
+			echo "  `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),\n";
+			echo "  PRIMARY KEY (`id`),\n";
+			echo "  UNIQUE KEY `uq_mfr_sku` (`manufacturer_normalized`,`sku`),\n";
+			echo "  KEY `k_sku` (`sku_normalized`),\n";
+			echo "  FULLTEXT KEY `ft_search` (`search_text`)\n";
+			echo ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;\n\n";
+		}
+
+		$chunk  = 1000;
+		$offset = 0;
+		$count  = 0;
+
+		while ( $offset < $total ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$rows = $wpdb->get_results( "SELECT * FROM $table $where ORDER BY id ASC LIMIT $chunk OFFSET $offset" );
+			if ( empty( $rows ) ) {
+				break;
+			}
+
+			foreach ( $rows as $r ) {
+				if ( 'csv' === $format ) {
+					echo $r->id . ','
+						. $r->manufacturer_normalized . ','
+						. $r->manufacturer_name . ','
+						. $r->sku_normalized . ','
+						. $r->sku . ','
+						. '"' . str_replace( '"', '""', $r->search_text ) . '",'
+						. '"' . str_replace( '"', '""', $r->payload_json ) . '",'
+						. $r->created_at . ','
+						. $r->updated_at . "\n";
+				} else {
+				$v = [
+					$wpdb->prepare( '%s', $r->manufacturer_normalized ),
+					$wpdb->prepare( '%s', $r->manufacturer_name ),
+					$wpdb->prepare( '%s', $r->sku_normalized ),
+					$wpdb->prepare( '%s', $r->sku ),
+					$wpdb->prepare( '%s', $r->search_text ),
+					$wpdb->prepare( '%s', $r->payload_json ),
+					$wpdb->prepare( '%s', $r->created_at ),
+					$wpdb->prepare( '%s', $r->updated_at ),
+				];
+				echo "INSERT INTO `$target` (`manufacturer_normalized`,`manufacturer_name`,`sku_normalized`,`sku`,`search_text`,`payload_json`,`created_at`,`updated_at`) VALUES (" . implode( ',', $v ) . ") ON DUPLICATE KEY UPDATE "
+					. "manufacturer_name=VALUES(manufacturer_name), sku_normalized=VALUES(sku_normalized), sku=VALUES(sku), search_text=VALUES(search_text), payload_json=VALUES(payload_json), created_at=VALUES(created_at);\n";
+				}
+				$count++;
+			}
+
+			$offset += $chunk;
 		}
 
 		exit;
@@ -860,7 +1119,7 @@ class AdminManager {
 		}
 
 		// Invalidate root cache if the root template was saved
-		if ( (int) get_option( 'aoe_catalog_root_template_post_id', 0 ) === $post_id ) {
+		if ( (int) \get_option( 'aoe_catalog_root_template_post_id', 0 ) === $post_id ) {
 			\AOE\CatalogEngine\PublicFacing\TemplateCache::delete( 'root' );
 		}
 

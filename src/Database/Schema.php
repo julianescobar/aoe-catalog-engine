@@ -33,6 +33,8 @@ class Schema {
 			description longtext NULL,
 			image varchar(255) NULL,
 			level int(11) NOT NULL DEFAULT 0,
+			sort_order int(11) NOT NULL DEFAULT 0,
+			is_hidden tinyint(1) NOT NULL DEFAULT 0,
 			products_count int(11) NOT NULL DEFAULT 0,
 			metadata_json longtext NULL,
 			PRIMARY KEY  (id),

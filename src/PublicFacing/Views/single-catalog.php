@@ -302,14 +302,52 @@ $mfr_config = json_decode( $page->config_json ?? '', true ) ?: [];
 
 aoe_profile_mark( 'before_segments_query' );
 $segments = $wpdb->get_results( $wpdb->prepare(
-	"SELECT s.*, c.name AS category_name, c.slug AS category_slug, c.parent_id, c.level, c.metadata_json, c.description AS category_description
+	"SELECT s.*, c.name AS category_name, c.slug AS category_slug, c.parent_id, c.level, c.metadata_json, c.description AS category_description, c.sort_order AS cat_sort_order, c.is_hidden
 	 FROM $table_seg s
 	 JOIN $table_cat c ON s.category_id = c.id
-	 WHERE s.page_id = %d
-	 ORDER BY s.sort_order ASC",
+	 WHERE s.page_id = %d AND c.is_hidden = 0
+	 ORDER BY CASE WHEN c.sort_order > 0 THEN c.sort_order ELSE s.sort_order END ASC",
 	$page->id
 ) );
 aoe_profile_mark( 'after_segments_query' );
+
+// Hide parent categories whose children are all hidden and have no direct products
+if ( ! empty( $segments ) ) {
+	$seg_cat_ids = array_map( function( $s ) { return (int) $s->category_id; }, $segments );
+	$placeholders = implode( ',', array_fill( 0, count( $seg_cat_ids ), '%d' ) );
+	// Get ALL children (hidden and visible) grouped by parent
+	$cat_all_children = $wpdb->get_results( $wpdb->prepare(
+		"SELECT parent_id, GROUP_CONCAT(id) AS child_ids, SUM(is_hidden) AS hidden_count, COUNT(*) AS total_count
+		 FROM $table_cat
+		 WHERE parent_id IN ($placeholders)
+		 GROUP BY parent_id",
+		...$seg_cat_ids
+	) );
+	$children_info = [];
+	foreach ( $cat_all_children as $row ) {
+		$children_info[ (int) $row->parent_id ] = [
+			'hidden_count' => (int) $row->hidden_count,
+			'total_count'  => (int) $row->total_count,
+		];
+	}
+	$remove_cat_ids = [];
+	foreach ( $segments as $seg ) {
+		$cat_id = (int) $seg->category_id;
+		$has_direct_products = ( (int) $seg->products_to - (int) $seg->products_from ) > 0;
+		$info = $children_info[ $cat_id ] ?? null;
+		if ( $info && ! $has_direct_products ) {
+			$all_hidden = $info['hidden_count'] === $info['total_count'];
+			if ( $all_hidden ) {
+				$remove_cat_ids[] = $cat_id;
+			}
+		}
+	}
+	if ( ! empty( $remove_cat_ids ) ) {
+		$segments = array_values( array_filter( $segments, function( $s ) use ( $remove_cat_ids ) {
+			return ! in_array( (int) $s->category_id, $remove_cat_ids, true );
+		} ) );
+	}
+}
 
 $page_products = [];
 $grouped_segments = [];
