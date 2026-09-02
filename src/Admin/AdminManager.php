@@ -19,6 +19,7 @@ class AdminManager {
 		add_action( 'wp_ajax_aoe_reorder_categories', [ $this, 'ajax_reorder_categories' ] );
 		add_action( 'wp_ajax_aoe_update_category', [ $this, 'ajax_update_category' ] );
 		add_action( 'wp_ajax_aoe_toggle_category_hidden', [ $this, 'ajax_toggle_category_hidden' ] );
+		add_action( 'wp_ajax_aoe_save_categories', [ $this, 'ajax_save_categories' ] );
 		add_action( 'wp_ajax_aoe_reindex_manufacturer', [ $this, 'ajax_reindex_manufacturer' ] );
 		add_action( 'wp_ajax_aoe_check_index_progress', [ $this, 'ajax_check_index_progress' ] );
 		add_action( 'wp_ajax_aoe_get_row_count', [ $this, 'ajax_get_row_count' ] );
@@ -103,7 +104,7 @@ class AdminManager {
 	 */
 	private function is_dev_environment() {
 		$home = home_url();
-		return ( false !== strpos( $home, 'dev.tc-componentes.es' ) || false !== strpos( $home, 'localhost' ) || false !== strpos( $home, '.local' ) );
+		return ( false !== strpos( $home, 'dev.tc-componentes.es' ) );
 	}
 
 	/**
@@ -192,7 +193,38 @@ class AdminManager {
 			wp_send_json_error( 'No manufacturer' );
 		}
 		$categories = \AOE\CatalogEngine\Database\CategoryRepository::find_all( $manufacturer_id );
-		wp_send_json_success( $categories );
+
+		// Hide empty categories (no direct products and no descendants with products)
+		// so the admin list doesn't show containers without data. Mirrors the frontend.
+		$by_id     = [];
+		$by_parent = [];
+		foreach ( $categories as $c ) {
+			$by_id[ (int) $c->id ]     = $c;
+			$by_parent[ (int) $c->parent_id ][] = (int) $c->id;
+		}
+
+		$has_content = [];
+		foreach ( $by_id as $cid => $c ) {
+			if ( (int) $c->products_count > 0 ) {
+				$has_content[ $cid ] = true;
+			}
+		}
+		// Propagate leaf content upward through ancestors.
+		foreach ( $by_id as $cid => $c ) {
+			if ( (int) $c->products_count > 0 ) {
+				$pid = (int) $c->parent_id;
+				while ( $pid > 0 && isset( $by_id[ $pid ] ) ) {
+					$has_content[ $pid ] = true;
+					$pid = (int) $by_id[ $pid ]->parent_id;
+				}
+			}
+		}
+
+		$visible = array_values( array_filter( $categories, function ( $c ) use ( $has_content ) {
+			return ! empty( $has_content[ (int) $c->id ] );
+		} ) );
+
+		wp_send_json_success( $visible );
 	}
 
 	public function ajax_reorder_categories() {
@@ -232,6 +264,153 @@ class AdminManager {
 		}
 		\AOE\CatalogEngine\Database\CategoryRepository::update( $id, [ 'is_hidden' => $is_hidden ] );
 		wp_send_json_success( [ 'is_hidden' => $is_hidden ] );
+	}
+
+	/**
+	 * Batch-save all pending category changes (names, visibility, order) in one request.
+	 * POST changes[names][id]   = new name
+	 * POST changes[hidden][id]  = 0|1
+	 * POST changes[order][]     = id (in desired order)
+	 * POST manufacturer_id      = manufacturer id (for cache invalidation)
+	 */
+	public function ajax_save_categories() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( 'Unauthorized' );
+		}
+		$changes = isset( $_POST['changes'] ) ? $_POST['changes'] : [];
+		if ( empty( $changes ) ) {
+			wp_send_json_error( 'No changes' );
+		}
+		$manufacturer_id = isset( $_POST['manufacturer_id'] ) ? intval( $_POST['manufacturer_id'] ) : 0;
+		$needs_reindex   = false;
+
+		$repo   = '\AOE\CatalogEngine\Database\CategoryRepository';
+		$errors = [];
+		$saved  = [ 'names' => 0, 'hidden' => 0, 'order' => 0 ];
+
+		// 1. Name updates (triggers reindex needed — names in payload_json).
+		//    If the name changed, also update the slug and regenerate pages.
+		$slug_changes = []; // [ ['old' => 'x', 'new' => 'y'], ... ]
+		if ( ! empty( $changes['names'] ) && is_array( $changes['names'] ) ) {
+			$needs_reindex = true;
+			global $wpdb;
+			$table_cat = $wpdb->prefix . 'aoe_catalog_categories';
+			foreach ( $changes['names'] as $id => $name ) {
+				$name = sanitize_text_field( $name );
+				$name = preg_replace( '/[^\p{L}\p{N}\s\-\/()&.,#+]/u', '', $name );
+				$name = trim( preg_replace( '/\s+/', ' ', $name ) );
+				if ( ! $name ) {
+					continue;
+				}
+				$id = intval( $id );
+				$current = $wpdb->get_row( $wpdb->prepare(
+					"SELECT name, slug FROM $table_cat WHERE id = %d", $id
+				) );
+				if ( ! $current ) {
+					$errors[] = "name id=$id not found";
+					continue;
+				}
+				$new_slug = sanitize_title( $name );
+				$update = [ 'name' => $name ];
+				if ( $new_slug !== $current->slug ) {
+					$update['slug'] = $new_slug;
+					$slug_changes[] = [ 'old' => $current->slug, 'new' => $new_slug ];
+				}
+				$ok = $repo::update( $id, $update );
+				if ( $ok ) {
+					$saved['names']++;
+				} else {
+					$errors[] = "name id=$id";
+				}
+			}
+		}
+
+		// 2. Visibility updates (triggers reindex needed)
+		if ( ! empty( $changes['hidden'] ) && is_array( $changes['hidden'] ) ) {
+			$needs_reindex = true;
+			foreach ( $changes['hidden'] as $id => $val ) {
+				$ok = $repo::update( intval( $id ), [ 'is_hidden' => intval( $val ) ] );
+				if ( $ok ) {
+					$saved['hidden']++;
+				} else {
+					$errors[] = "hidden id=$id";
+				}
+			}
+		}
+
+		// 3. Order (full reorder)
+		if ( ! empty( $changes['order'] ) && is_array( $changes['order'] ) ) {
+			$ordered_ids = array_map( 'intval', $changes['order'] );
+			$ordered_ids = array_filter( $ordered_ids );
+			if ( $ordered_ids ) {
+				$repo::reorder( $ordered_ids );
+				$saved['order'] = count( $ordered_ids );
+			}
+		}
+
+		if ( $errors ) {
+			wp_send_json_error( [
+				'message' => 'Errores en: ' . implode( ', ', $errors ),
+				'saved'   => $saved,
+			] );
+		}
+
+		// 4. If any category slug changed, update pregenerated page slugs directly.
+		//    Pages store full path like "mfr/category-slug" or "mfr/category-slug-2".
+		//    Two queries: one for exact match, one for paginated (-N) variants.
+		$pages_updated = 0;
+		if ( $slug_changes && $manufacturer_id ) {
+			global $wpdb;
+			$table_pages = $wpdb->prefix . 'aoe_catalog_pregenerated_pages';
+			foreach ( $slug_changes as $sc ) {
+				$old_path = '/' . $sc['old'];
+				$new_path = '/' . $sc['new'];
+				// 1) Exact match: "mfr/old-slug" → "mfr/new-slug"
+				$wpdb->query( $wpdb->prepare(
+					"UPDATE $table_pages SET slug = CONCAT(SUBSTRING_INDEX(slug, %s, 1), %s)
+					 WHERE manufacturer_id = %d AND slug = CONCAT(SUBSTRING_INDEX(slug, %s, 1), %s)",
+					$old_path, $new_path,
+					$manufacturer_id,
+					$old_path, $old_path
+				) );
+				$pages_updated += $wpdb->rows_affected;
+				// 2) Paginated: "mfr/old-slug-3" → "mfr/new-slug-3" (digits only after dash)
+				$wpdb->query( $wpdb->prepare(
+					"UPDATE $table_pages SET slug = CONCAT(SUBSTRING_INDEX(slug, %s, 1), %s, SUBSTRING_INDEX(slug, %s, -1))
+					 WHERE manufacturer_id = %d AND slug REGEXP CONCAT('^.*/', %s, '-[0-9]+$')",
+					$old_path, $new_path,
+					$old_path,
+					$manufacturer_id,
+					$sc['old']
+				) );
+				$pages_updated += $wpdb->rows_affected;
+			}
+		}
+
+		// Clear catalog cache for this manufacturer
+		if ( $manufacturer_id ) {
+			global $wpdb;
+			$mfr_slug = $wpdb->get_var( $wpdb->prepare(
+				"SELECT slug FROM {$wpdb->prefix}aoe_catalog_manufacturers WHERE id = %d",
+				$manufacturer_id
+			) );
+			if ( $mfr_slug ) {
+				\AOE\CatalogEngine\PublicFacing\CacheCatalog::invalidate( $mfr_slug );
+			}
+		}
+
+		wp_send_json_success( [
+			'message' => sprintf(
+				'Guardado: %d nombres, %d visibilidad, %d orden%s',
+				$saved['names'],
+				$saved['hidden'],
+				$saved['order'],
+				$pages_updated ? " ($pages_updated páginas actualizadas)" : ''
+			),
+			'saved'          => $saved,
+			'needs_index'    => $needs_reindex,
+			'pages_updated'  => $pages_updated,
+		] );
 	}
 
 	public function ajax_reindex_manufacturer() {

@@ -140,12 +140,16 @@ jQuery(function($) {
 	// Search/filter
 	$('#aoe-export-filter').on('keyup', function() {
 		var term = $(this).val().toLowerCase();
-		$('#aoe-export-table tbody tr[data-slug]').each(function() {
+		$('#aoe-export-table tbody tr[data-slug]').not('.aoe-progress-row').each(function() {
 			var name = $(this).data('name') || '';
 			var slug = $(this).data('slug') || '';
 			var match = name.indexOf(term) !== -1 || slug.indexOf(term) !== -1;
 			$(this).toggle(match);
-			$(this).next('.aoe-progress-row[data-slug="' + slug + '"]').toggle(match);
+			// Only hide progress rows when the manufacturer doesn't match;
+			// never force-show them (only the "Actualizar" click shows them).
+			if (!match) {
+				$(this).next('.aoe-progress-row[data-slug="' + slug + '"]').hide();
+			}
 		});
 	});
 

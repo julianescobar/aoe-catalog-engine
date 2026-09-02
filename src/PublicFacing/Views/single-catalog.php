@@ -176,6 +176,52 @@ if ( $is_test ) {
 
 // --- Production mode ---
 
+// Block access to hidden categories: redirect to manufacturer's main page.
+if ( $category_slug ) {
+	$mfr_id_check = (int) $wpdb->get_var( $wpdb->prepare(
+		"SELECT id FROM {$wpdb->prefix}aoe_catalog_manufacturers WHERE slug = %s",
+		$manufacturer_slug
+	) );
+	if ( $mfr_id_check ) {
+		// Find the category and walk up its ancestors: 404 if the category itself
+		// or any of its parents is hidden.
+		$cat_row = $wpdb->get_row( $wpdb->prepare(
+			"SELECT id, parent_id, is_hidden FROM {$wpdb->prefix}aoe_catalog_categories WHERE slug = %s AND manufacturer_id = %d",
+			$category_slug, $mfr_id_check
+		) );
+		if ( $cat_row ) {
+			$is_hidden_any = (int) $cat_row->is_hidden === 1;
+			$pid = (int) $cat_row->parent_id;
+			while ( $pid > 0 && ! $is_hidden_any ) {
+				$par = $wpdb->get_row( $wpdb->prepare(
+					"SELECT parent_id, is_hidden FROM {$wpdb->prefix}aoe_catalog_categories WHERE id = %d",
+					$pid
+				) );
+				if ( ! $par ) {
+					break;
+				}
+				if ( (int) $par->is_hidden === 1 ) {
+					$is_hidden_any = true;
+					break;
+				}
+				$pid = (int) $par->parent_id;
+			}
+			if ( $is_hidden_any ) {
+				// Render the theme's normal 404 page (header + 404 template + footer).
+				status_header( 404 );
+				nocache_headers();
+				global $wp_query;
+				$wp_query->set_404();
+				status_header( 404 );
+				get_header();
+				get_template_part( '404' );
+				get_footer();
+				exit;
+			}
+		}
+	}
+}
+
 $catalog_type = get_query_var( 'aoe_catalog_type' );
 
 aoe_profile_mark( 'query_vars_parsed' );
@@ -301,13 +347,46 @@ $mfr_config = json_decode( $page->config_json ?? '', true ) ?: [];
 	}
 
 aoe_profile_mark( 'before_segments_query' );
+// A hidden category hides its whole subtree: build the set of effective hidden
+// ids = all categories that are themselves hidden OR have a hidden ancestor.
+$all_hid = $wpdb->get_results( $wpdb->prepare(
+	"SELECT id, parent_id, is_hidden FROM $table_cat WHERE manufacturer_id = %d",
+	$page->manufacturer_id
+) );
+$hidden_eff = [];
+$parent_of  = [];
+foreach ( $all_hid as $hc ) {
+	$parent_of[ (int) $hc->id ] = (int) $hc->parent_id;
+	if ( (int) $hc->is_hidden === 1 ) {
+		$hidden_eff[ (int) $hc->id ] = true;
+	}
+}
+// Propagate up: an id is hidden if it has a hidden ancestor.
+foreach ( $all_hid as $hc ) {
+	$pid = (int) $hc->parent_id;
+	while ( $pid > 0 && isset( $parent_of[ $pid ] ) ) {
+		if ( isset( $hidden_eff[ $pid ] ) ) {
+			$hidden_eff[ (int) $hc->id ] = true;
+			break;
+		}
+		$pid = $parent_of[ $pid ];
+	}
+}
+$hidden_eff_ids = array_keys( $hidden_eff );
+$hidden_sql = '';
+$hidden_params = [];
+if ( ! empty( $hidden_eff_ids ) ) {
+	$hidden_sql = ' AND c.id NOT IN (' . implode( ',', array_fill( 0, count( $hidden_eff_ids ), '%d' ) ) . ')';
+	$hidden_params = $hidden_eff_ids;
+}
+
 $segments = $wpdb->get_results( $wpdb->prepare(
 	"SELECT s.*, c.name AS category_name, c.slug AS category_slug, c.parent_id, c.level, c.metadata_json, c.description AS category_description, c.sort_order AS cat_sort_order, c.is_hidden
 	 FROM $table_seg s
 	 JOIN $table_cat c ON s.category_id = c.id
-	 WHERE s.page_id = %d AND c.is_hidden = 0
+	 WHERE s.page_id = %d$hidden_sql
 	 ORDER BY CASE WHEN c.sort_order > 0 THEN c.sort_order ELSE s.sort_order END ASC",
-	$page->id
+	array_merge( [ $page->id ], $hidden_params )
 ) );
 aoe_profile_mark( 'after_segments_query' );
 

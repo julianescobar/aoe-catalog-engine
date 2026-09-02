@@ -113,11 +113,39 @@ class CategoryRepository {
 		) );
 	}
 
+	/**
+	 * Reorder categories. sort_order is assigned per sibling group (same
+	 * parent_id) based on the position each id holds within its own group in
+	 * $ordered_ids, so a flat list from the UI can never scramble separate
+	 * branches.
+	 */
 	public static function reorder( array $ordered_ids ): void {
 		global $wpdb;
 		$table = $wpdb->prefix . 'aoe_catalog_categories';
-		foreach ( $ordered_ids as $position => $id ) {
-			$wpdb->update( $table, [ 'sort_order' => $position + 1 ], [ 'id' => (int) $id ], [ '%d' ], [ '%d' ] );
+		if ( empty( $ordered_ids ) ) {
+			return;
+		}
+		$ids = array_map( 'intval', $ordered_ids );
+		$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+		$rows = $wpdb->get_results( $wpdb->prepare(
+			"SELECT id, parent_id FROM $table WHERE id IN ($placeholders)", $ids
+		) );
+		$parent_of = [];
+		foreach ( $rows as $r ) {
+			$parent_of[ (int) $r->id ] = (int) $r->parent_id;
+		}
+		// Assign position within each sibling group.
+		$rank  = [];
+		$final_order = [];
+		foreach ( $ordered_ids as $id ) {
+			$id  = (int) $id;
+			$pid = $parent_of[ $id ] ?? 0;
+			$key = 'p' . $pid;
+			$rank[ $key ] = ( $rank[ $key ] ?? 0 ) + 1;
+			$final_order[ $id ] = $rank[ $key ];
+		}
+		foreach ( $final_order as $id => $order ) {
+			$wpdb->update( $table, [ 'sort_order' => $order ], [ 'id' => $id ], [ '%d' ], [ '%d' ] );
 		}
 	}
 
