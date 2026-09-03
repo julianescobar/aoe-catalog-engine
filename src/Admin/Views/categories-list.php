@@ -30,10 +30,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 			<button type="button" class="button" id="aoe-cat-collapse-all">Colapsar todo</button>
 			<button type="button" class="button button-primary" id="aoe-cat-save" disabled>Guardar cambios</button>
 			<span id="aoe-cat-save-status" style="font-weight:600;"></span>
-			<span id="aoe-cat-post-actions" style="display:none;">
-				<button type="button" class="button button-small" id="aoe-cat-post-btn" title="Limpia las páginas cacheadas y actualiza el índice de búsqueda del chatbot con los cambios">Limpiar caché</button>
-				<span id="aoe-cat-post-status"></span>
-			</span>
 			<span class="description" style="display:none;">
 				<span id="aoe-cat-count">0</span> categorías |
 				<span id="aoe-cat-visible">0</span> visibles |
@@ -69,8 +65,6 @@ jQuery(function($) {
 	var catHidden = $('#aoe-cat-hidden');
 	var saveBtn = $('#aoe-cat-save');
 	var saveStatus = $('#aoe-cat-save-status');
-	var postActions = $('#aoe-cat-post-actions');
-	var postStatus = $('#aoe-cat-post-status');
 	var pendingWrap = $('#aoe-cat-pending');
 	var pendingNum = $('#aoe-cat-pending-num');
 
@@ -86,21 +80,20 @@ jQuery(function($) {
 			+ Object.keys(pending.hidden).length
 			+ (pending.order ? 1 : 0);
 		if (count > 0) {
-			saveBtn.prop('disabled', false);
+			saveBtn.prop('disabled', false).text('Guardar cambios');
 			pendingNum.text(count);
 			pendingWrap.show();
 		} else {
-			saveBtn.prop('disabled', true);
+			saveBtn.prop('disabled', true).text('Guardar cambios');
 			pendingWrap.hide();
 		}
 	}
 
 	saveBtn.on('click', function() {
 		var btn = $(this);
+		var slug = manufacturerSelect.find('option:selected').text().match(/\(([^)]+)\)/)[1];
 		btn.prop('disabled', true).text('Guardando...');
-		saveStatus.text('').css('color', '');
-		postActions.hide();
-		postStatus.text('');
+		saveStatus.text('').css('color', '').show();
 
 		$.post(ajaxurl, {
 			action: 'aoe_save_categories',
@@ -112,55 +105,31 @@ jQuery(function($) {
 			}
 		}, function(response) {
 			if (response.success) {
-				var msg = 'Guardado';
-				if (response.data.pages_updated) msg += ' + páginas actualizadas';
-				saveBtn.prop('disabled', true).text('Guardar cambios');
-				saveStatus.html('<span style="color:#00a32a;">' + msg + '</span>').show();
 				pending = { names: {}, hidden: {}, order: null };
 				originalOrder = currentDomIds();
 				$('#aoe-cat-table tbody tr').removeClass('aoe-cat-dirty');
 				markDirty();
 				updateCounts();
-				postActions.show();
-				setTimeout(function() { saveStatus.fadeOut(300); }, 3000);
+
+				saveStatus.html('<span style="color:#00a32a;">Reindexando...</span>');
+				$.post(ajaxurl, { action: 'aoe_clear_cache', slug: slug })
+					.then(function() {
+						return $.post(ajaxurl, { action: 'aoe_reindex_manufacturer', manufacturer: slug });
+					})
+					.always(function() {
+						saveStatus.html('<span style="color:#00a32a;">Guardado ✓</span>');
+						setTimeout(function() { saveStatus.fadeOut(300); }, 2000);
+					});
 			} else {
 				saveStatus.html('<span style="color:#d63638;">' + (response.data.message || 'Error al guardar') + '</span>').show();
-				saveBtn.prop('disabled', false).text('Guardar cambios');
+				btn.prop('disabled', false).text('Guardar cambios');
 				setTimeout(function() { saveStatus.fadeOut(300); }, 4000);
 			}
 		}).fail(function() {
 			saveStatus.html('<span style="color:#d63638;">Error de red</span>').show();
-			saveBtn.prop('disabled', false).text('Guardar cambios');
+			btn.prop('disabled', false).text('Guardar cambios');
 			setTimeout(function() { saveStatus.fadeOut(300); }, 4000);
 		});
-	});
-
-	// Limpiar caché + reindexar en secuencia
-	$('#aoe-cat-post-btn').on('click', function() {
-		var btn = $(this);
-		var slug = manufacturerSelect.find('option:selected').text().match(/\(([^)]+)\)/)[1];
-		btn.prop('disabled', true).text('Procesando...');
-		postStatus.text('');
-
-		// Step 1: Clear cache
-		$.post(ajaxurl, { action: 'aoe_clear_cache', slug: slug })
-			.then(function(r1) {
-				if (!r1.success) throw new Error('cache');
-				postStatus.html('<span style="color:#00a32a;">Caché limpiada</span> — reindexando...');
-				// Step 2: Reindex
-				return $.post(ajaxurl, { action: 'aoe_reindex_manufacturer', manufacturer: slug });
-			})
-			.then(function(r2) {
-				if (!r2.success) throw new Error('reindex');
-				postStatus.html('<span style="color:#00a32a;">Listo</span>');
-				btn.prop('disabled', false).text('Limpiar caché');
-				setTimeout(function() { postStatus.text(''); }, 4000);
-			})
-			.catch(function() {
-				postStatus.html('<span style="color:#d63638;">Error</span>');
-				btn.prop('disabled', false).text('Limpiar caché');
-				setTimeout(function() { postStatus.text(''); }, 4000);
-			});
 	});
 
 	manufacturerSelect.on('change', function() {
@@ -191,12 +160,22 @@ jQuery(function($) {
 		}, function(response) {
 			catLoading.hide();
 			if (response.success) {
-				renderCategories(response.data);
+				var cats = response.data.categories || response.data;
+				if (!cats || !cats.length) {
+					catList.html('<tr><td colspan="4">Sin categorías para este fabricante.</td></tr>');
+					catContainer.show();
+					return;
+				}
+				renderCategories(cats);
 				catContainer.show();
 			} else {
-				catList.html('<tr><td colspan="4">Error al cargar categorías.</td></tr>');
+				catList.html('<tr><td colspan="4">Error: ' + (response.data || 'Unknown') + '</td></tr>');
 				catContainer.show();
 			}
+		}).fail(function(xhr, status, error) {
+			catLoading.hide();
+			catList.html('<tr><td colspan="4">AJAX error: ' + status + ' — ' + error + '<br>URL: ' + ajaxurl + '<br>Response: ' + (xhr.responseText || '').substring(0, 300) + '</td></tr>');
+			catContainer.show();
 		});
 	}
 

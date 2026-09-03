@@ -86,17 +86,15 @@ class AdminManager {
 			[ $this, 'display_export_search_page' ]
 		);
 
-		// Submenu: Categorías (solo visible fuera de pre-producción dev)
-		if ( ! $this->is_dev_environment() ) {
-			add_submenu_page(
-				'aoe-catalog-engine',
-				'Categorías',
-				'Categorías',
-				'manage_options',
-				'aoe-catalog-categories',
-				[ $this, 'display_categories_page' ]
-			);
-		}
+		// Submenu: Categorías
+		add_submenu_page(
+			'aoe-catalog-engine',
+			'Categorías',
+			'Categorías',
+			'manage_options',
+			'aoe-catalog-categories',
+			[ $this, 'display_categories_page' ]
+		);
 	}
 
 	/**
@@ -174,9 +172,6 @@ class AdminManager {
 	}
 
 	public function display_categories_page() {
-		if ( $this->is_dev_environment() ) {
-			wp_die( 'Acceso no autorizado en este entorno.' );
-		}
 		global $wpdb;
 		$table = $wpdb->prefix . 'aoe_catalog_manufacturers';
 		$manufacturers = $wpdb->get_results( "SELECT id, name, slug FROM $table ORDER BY name ASC" );
@@ -288,13 +283,21 @@ class AdminManager {
 		$errors = [];
 		$saved  = [ 'names' => 0, 'hidden' => 0, 'order' => 0 ];
 
+		global $wpdb;
+		$table_cat = $wpdb->prefix . 'aoe_catalog_categories';
+
+		// Transactional save: a failed page-slug update must also roll back the
+		// category rename. The old code failed silently when MySQL rejected the
+		// UPDATE (UNIQUE-key clash), leaving the category renamed but its pages
+		// untouched. Requires InnoDB tables; on MyISAM it degrades to
+		// non-atomic without erroring.
+		$wpdb->query( 'START TRANSACTION' );
+
 		// 1. Name updates (triggers reindex needed — names in payload_json).
 		//    If the name changed, also update the slug and regenerate pages.
 		$slug_changes = []; // [ ['old' => 'x', 'new' => 'y'], ... ]
 		if ( ! empty( $changes['names'] ) && is_array( $changes['names'] ) ) {
 			$needs_reindex = true;
-			global $wpdb;
-			$table_cat = $wpdb->prefix . 'aoe_catalog_categories';
 			foreach ( $changes['names'] as $id => $name ) {
 				$name = sanitize_text_field( $name );
 				$name = preg_replace( '/[^\p{L}\p{N}\s\-\/()&.,#+]/u', '', $name );
@@ -348,54 +351,79 @@ class AdminManager {
 			}
 		}
 
-		if ( $errors ) {
-			wp_send_json_error( [
-				'message' => 'Errores en: ' . implode( ', ', $errors ),
-				'saved'   => $saved,
-			] );
-		}
-
-		// 4. If any category slug changed, update pregenerated page slugs directly.
-		//    Pages store full path like "mfr/category-slug" or "mfr/category-slug-2".
-		//    Two queries: one for exact match, one for paginated (-N) variants.
+		// 4. If any category slug changed, update pregenerated page slugs.
+		//    Two-phase replace via a temp marker so the UNIQUE KEY can never
+		//    abort the whole UPDATE. Page slugs are "mfr/cat-slug" (page 1) and
+		//    "mfr/cat-slug-N" (page N); the marker keeps every row unique
+		//    mid-flight, so page 1 claiming "mfr/new" can never clash with a
+		//    not-yet-unmarked row (the old silent-failure mode).
 		$pages_updated = 0;
 		if ( $slug_changes && $manufacturer_id ) {
-			global $wpdb;
 			$table_pages = $wpdb->prefix . 'aoe_catalog_pregenerated_pages';
 			foreach ( $slug_changes as $sc ) {
 				$old_path = '/' . $sc['old'];
 				$new_path = '/' . $sc['new'];
-				// 1) Exact match: "mfr/old-slug" → "mfr/new-slug"
-				$wpdb->query( $wpdb->prepare(
-					"UPDATE $table_pages SET slug = CONCAT(SUBSTRING_INDEX(slug, %s, 1), %s)
-					 WHERE manufacturer_id = %d AND slug = CONCAT(SUBSTRING_INDEX(slug, %s, 1), %s)",
-					$old_path, $new_path,
-					$manufacturer_id,
-					$old_path, $old_path
-				) );
-				$pages_updated += $wpdb->rows_affected;
-				// 2) Paginated: "mfr/old-slug-3" → "mfr/new-slug-3" (digits only after dash)
-				$wpdb->query( $wpdb->prepare(
-					"UPDATE $table_pages SET slug = CONCAT(SUBSTRING_INDEX(slug, %s, 1), %s, SUBSTRING_INDEX(slug, %s, -1))
-					 WHERE manufacturer_id = %d AND slug REGEXP CONCAT('^.*/', %s, '-[0-9]+$')",
-					$old_path, $new_path,
-					$old_path,
+				$marked   = $new_path . '__REN__';
+
+				// Phase 1 — mark. REGEXP matches only this category's pages
+				// ("mfr/old" exact or "mfr/old-N" paginated); sibling slugs
+				// like "mfr/old-extra" are never touched. "__REN__" cannot
+				// collide: sanitize_title never emits underscores.
+				$ph1 = $wpdb->query( $wpdb->prepare(
+					"UPDATE $table_pages SET slug = REPLACE(slug, %s, %s)
+					 WHERE manufacturer_id = %d AND slug REGEXP CONCAT('^.*/', %s, '(-[0-9]+)?$')",
+					$old_path, $marked,
 					$manufacturer_id,
 					$sc['old']
 				) );
-				$pages_updated += $wpdb->rows_affected;
+				if ( false === $ph1 ) {
+					$errors[] = "pages (marcar {$sc['old']}): " . $wpdb->last_error;
+					continue;
+				}
+
+				// Phase 2 — unmark into the final slugs, preserving the -N
+				// pagination suffix exactly as pack_catalog builds it.
+				$ph2 = $wpdb->query( $wpdb->prepare(
+					"UPDATE $table_pages SET slug = REPLACE(slug, %s, %s)
+					 WHERE manufacturer_id = %d AND slug LIKE %s",
+					$marked, $new_path,
+					$manufacturer_id,
+					'%' . $wpdb->esc_like( $marked ) . '%'
+				) );
+				if ( false === $ph2 ) {
+					$errors[] = "pages (aplicar {$sc['old']}): " . $wpdb->last_error;
+					continue;
+				}
+				// Every row marked in phase 1 must be unmarked in phase 2.
+				if ( (int) $ph2 !== (int) $ph1 ) {
+					$errors[] = "pages (inconsistencia {$sc['old']}: marcadas={$ph1} aplicadas={$ph2})";
+					continue;
+				}
+				$pages_updated += (int) $ph2;
 			}
 		}
 
+		// Commit the whole save, or roll everything back on any error.
+		if ( $errors ) {
+			$wpdb->query( 'ROLLBACK' );
+			wp_send_json_error( [
+				'message' => 'Errores en: ' . implode( ', ', $errors ) . ' — cambios revertidos',
+				'saved'   => $saved,
+			] );
+		}
+		$wpdb->query( 'COMMIT' );
+
 		// Clear catalog cache for this manufacturer
 		if ( $manufacturer_id ) {
-			global $wpdb;
 			$mfr_slug = $wpdb->get_var( $wpdb->prepare(
 				"SELECT slug FROM {$wpdb->prefix}aoe_catalog_manufacturers WHERE id = %d",
 				$manufacturer_id
 			) );
 			if ( $mfr_slug ) {
 				\AOE\CatalogEngine\PublicFacing\CacheCatalog::invalidate( $mfr_slug );
+				// Bump Last-Modified so browsers revalidating (max-age=0,
+				// must-revalidate) get a fresh 200 instead of a stale 304.
+				update_option( 'aoe_catalog_last_modified_' . $mfr_slug, time() );
 			}
 		}
 

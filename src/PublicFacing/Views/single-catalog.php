@@ -282,11 +282,15 @@ if ( ! $page ) {
 	}
 }
 
-if ( ! $page && ! empty( $category_slug ) && 'grouped' !== $catalog_type ) {
-	// The rewrite rule ([^/]+)/([^-]+)-([0-9]+) is unanchored and wrongly splits
-	// category slugs that contain "-<digits>" anywhere (e.g. "ul-style-1213-silver-plated"
-	// -> category="ul-style", page="1213", dropping "-silver-plated"; or
-	// "yv-based-on-vde-0812" -> category="yv-based-on-vde", page="812").
+// The rewrite rule ([^/]+)/([^-]+)-([0-9]+) is unanchored and wrongly splits
+// category slugs that contain "-<digits>" anywhere (e.g. "ul-style-1213-silver-plated"
+// -> category="ul-style", page="1213", dropping "-silver-plated"; or
+// "yv-based-on-vde-0812" -> category="yv-based-on-vde", page="812").
+// Also: "single-level-type-2/" (page 1 of a category whose slug ends in -2)
+// parses as category="single-level-type", page=2 — the first query above still
+// finds the page (slug matches), but the parsed vars are wrong. The DB
+// page_number disagreeing with the parsed page_num is the tell-tale signal.
+if ( ( ! $page || ( ! empty( $category_slug ) && (int) $page->page_number !== (int) $page_num ) ) && 'grouped' !== $catalog_type ) {
 	// Recover the full original segment from REQUEST_URI and look it up verbatim.
 	$req_uri = isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '';
 	$path   = wp_parse_url( $req_uri, PHP_URL_PATH );
@@ -304,10 +308,11 @@ if ( ! $page && ! empty( $category_slug ) && 'grouped' !== $catalog_type ) {
 			$full_slug
 		) );
 		if ( $full_page ) {
-			$page          = $full_page;
-			$category_slug = $full;
-			$page_num      = 1;
-			$page_slug     = $full_slug;
+			$page            = $full_page;
+			$category_slug   = $full;
+			$page_num        = (int) $full_page->page_number;
+			$page_slug       = $full_slug;
+			$page_slug_base  = $manufacturer_slug . '/' . $full;
 		}
 	}
 }

@@ -169,10 +169,13 @@ class PublicManager {
 						}
 					}
 				}
-				if ( defined( 'AOE_CATALOG_CACHE_MAX_AGE' ) && AOE_CATALOG_CACHE_MAX_AGE > 0 ) {
-					header( 'Cache-Control: public, max-age=' . AOE_CATALOG_CACHE_MAX_AGE );
-					header( 'Expires: ' . gmdate( 'D, d M Y H:i:s', time() + AOE_CATALOG_CACHE_MAX_AGE ) . ' GMT' );
-				}
+				// Revalidate on every visit: the browser always asks back with
+				// If-Modified-Since and gets a cheap 304 when nothing changed,
+				// or a fresh 200 from our server cache when it did. This keeps
+				// edits public on the next request instead of after the TTL
+				// expires (Magento-style: cache lives server-side, the browser
+				// only revalidates).
+				header( 'Cache-Control: public, max-age=0, must-revalidate' );
 			}
 		}
 	}

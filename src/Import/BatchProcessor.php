@@ -341,12 +341,9 @@ class BatchProcessor {
 				continue;
 			}
 			$cat_meta = ! empty( $cat->metadata_json ) ? json_decode( $cat->metadata_json, true ) : [];
-			$has_wp_post = ! empty( $cat_meta['wp_post_id'] );
 			$total_prods  = (int) $cat->products_count;
 			$total_pages  = max( 1, ceil( $total_prods / $per_page ) );
-			// If category has wp_post_id, page 1 is handled by shortcode; start from page 2
-			$start_page = $has_wp_post ? 2 : 1;
-			for ( $p = $start_page; $p <= $total_pages; $p++ ) {
+			for ( $p = 1; $p <= $total_pages; $p++ ) {
 				$page_slug = $manufacturer_slug . '/' . $cat->slug . ( $p > 1 ? '-' . $p : '' );
 				if ( isset( $used_page_slugs[ $page_slug ] ) ) {
 					$page_slug .= '-' . $cat->id;
