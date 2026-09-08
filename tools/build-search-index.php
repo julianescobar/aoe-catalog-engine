@@ -14,7 +14,8 @@
  *   php tools/build-search-index.php                    (shows help)
  */
 
-if ( PHP_SAPI !== 'cli' ) {
+// Allow CLI and CGI (shared hosting uses cgi-fcgi).
+if ( PHP_SAPI !== 'cli' && PHP_SAPI !== 'cgi-fcgi' ) {
 	die( "CLI only.\n" );
 }
 

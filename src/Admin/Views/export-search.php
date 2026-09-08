@@ -14,9 +14,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 		<div class="aoe-export-actions-row">
 			<div class="aoe-export-bulk">
 				<span class="description">Exportar todo:</span>
-				<a href="<?php echo esc_url( admin_url( 'admin-post.php?action=aoe_export_search&format=sql' ) ); ?>" class="button button-small">SQL</a>
-				<a href="<?php echo esc_url( admin_url( 'admin-post.php?action=aoe_export_search&format=csv' ) ); ?>" class="button button-small">CSV</a>
+				<?php if ( $total > 80000 ) : ?>
+					<button type="button" class="button button-small aoe-export-file-btn" data-format="sql" data-manufacturer="">SQL</button>
+					<button type="button" class="button button-small aoe-export-file-btn" data-format="csv" data-manufacturer="">CSV</button>
+				<?php else : ?>
+					<a href="<?php echo esc_url( admin_url( 'admin-post.php?action=aoe_export_search&format=sql' ) ); ?>" class="button button-small">SQL</a>
+					<a href="<?php echo esc_url( admin_url( 'admin-post.php?action=aoe_export_search&format=csv' ) ); ?>" class="button button-small">CSV</a>
+				<?php endif; ?>
 				<span class="description">(<?php echo number_format( $total ); ?> productos)</span>
+				<?php if ( $total > 80000 ) : ?>
+					<span class="aoe-export-file-status" style="display:none; margin-left:10px;"></span>
+				<?php endif; ?>
 			</div>
 			<div class="aoe-export-search-box">
 				<input type="text" id="aoe-export-filter" placeholder="Buscar fabricante..." class="regular-text" />
@@ -45,7 +53,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 						$sql_url = admin_url( 'admin-post.php?action=aoe_export_search&manufacturer=' . urlencode( $m->manufacturer_normalized ) . '&format=sql' );
 						$csv_url = admin_url( 'admin-post.php?action=aoe_export_search&manufacturer=' . urlencode( $m->manufacturer_normalized ) . '&format=csv' );
 					?>
-						<tr data-slug="<?php echo esc_attr( $slug ); ?>" data-name="<?php echo esc_attr( strtolower( $m->manufacturer_name ) ); ?>">
+						<tr data-slug="<?php echo esc_attr( $slug ); ?>" data-name="<?php echo esc_attr( strtolower( $m->manufacturer_name ) ); ?>" data-count="<?php echo esc_attr( $m->cnt ); ?>">
 							<td class="column-name"><strong><?php echo esc_html( $m->manufacturer_name ); ?></strong></td>
 							<td class="column-count"><?php echo $formatted_cnt; ?></td>
 							<td class="column-reindex">
@@ -61,8 +69,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 							</td>
 							<td class="column-export">
 								<?php if ( $has_data ) : ?>
-									<a href="<?php echo esc_url( $sql_url ); ?>" class="button button-small">SQL</a>
-									<a href="<?php echo esc_url( $csv_url ); ?>" class="button button-small">CSV</a>
+									<?php if ( $m->cnt > 80000 ) : ?>
+										<button type="button" class="button button-small aoe-export-file-btn" data-format="sql" data-manufacturer="<?php echo esc_attr( $m->manufacturer_normalized ); ?>">SQL</button>
+										<button type="button" class="button button-small aoe-export-file-btn" data-format="csv" data-manufacturer="<?php echo esc_attr( $m->manufacturer_normalized ); ?>">CSV</button>
+									<?php else : ?>
+										<a href="<?php echo esc_url( $sql_url ); ?>" class="button button-small">SQL</a>
+										<a href="<?php echo esc_url( $csv_url ); ?>" class="button button-small">CSV</a>
+									<?php endif; ?>
 								<?php else : ?>
 									<span class="aoe-export-na">—</span>
 								<?php endif; ?>
@@ -132,6 +145,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 .aoe-progress-bar { background: linear-gradient(90deg, #0073aa, #00a32a); height: 100%; border-radius: 3px; transition: width 0.3s ease; }
 .aoe-progress-done { color: #00a32a; font-weight: 600; }
 .aoe-progress-error { color: #d63638; font-weight: 600; }
+
+/* Export file generation */
+.aoe-export-file-status { font-size: 12px; color: #666; }
+.aoe-export-file-status.generating { color: #0073aa; }
+.aoe-export-file-status.done { color: #00a32a; }
+.aoe-export-file-status.error { color: #d63638; }
 </style>
 
 <script>
@@ -276,5 +295,112 @@ jQuery(function($) {
 
 	function numberFormat(n) {
 		return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+	}
+
+	// Heavy export: generate file on server via chunked AJAX.
+	var exportJob = null;
+
+	$(document).on('click', '.aoe-export-file-btn', function() {
+		var btn = $(this);
+		var format = btn.data('format');
+		var manufacturer = btn.data('manufacturer') || '';
+
+		// Find or create progress container near the button.
+		var container = btn.closest('.aoe-export-bulk, .column-export');
+		var status = container.find('.aoe-export-file-status');
+		if (!status.length) {
+			status = $('<span class="aoe-export-file-status"></span>');
+			container.append(status);
+		}
+
+		// Find or create a progress bar row.
+		var progressRow = container.find('.aoe-export-progress');
+		if (!progressRow.length) {
+			progressRow = $(
+				'<div class="aoe-export-progress" style="display:none; margin-top:8px;">' +
+					'<div class="aoe-progress-inline">' +
+						'<div class="aoe-progress-info">' +
+							'<span class="aoe-progress-text">Preparando...</span>' +
+							'<span class="aoe-progress-pct"></span>' +
+						'</div>' +
+						'<div class="aoe-progress-bar-container">' +
+							'<div class="aoe-progress-bar" style="width:0%;"></div>' +
+						'</div>' +
+					'</div>' +
+				'</div>'
+			);
+			container.append(progressRow);
+		}
+
+		var progressText = progressRow.find('.aoe-progress-text');
+		var progressPct = progressRow.find('.aoe-progress-pct');
+		var progressBar = progressRow.find('.aoe-progress-bar');
+
+		btn.prop('disabled', true);
+		status.text('').removeClass('done error');
+		progressRow.show();
+		progressText.text('Iniciando exportación...').removeClass('aoe-progress-done aoe-progress-error');
+		progressPct.text('');
+		progressBar.css('width', '0%');
+
+		// Step 1: Start job.
+		$.post(ajaxurl, {
+			action: 'aoe_start_export_job',
+			format: format,
+			manufacturer: manufacturer
+		}, function(response) {
+			if (!response.success) {
+				progressText.text('Error: ' + (response.data || 'No se pudo iniciar')).addClass('aoe-progress-error');
+				btn.prop('disabled', false);
+				return;
+			}
+			var jobId = response.data.job_id;
+			var total = response.data.total;
+			progressText.text('Exportando: 0 / ' + total.toLocaleString());
+			exportChunk(jobId, total, btn, progressRow, status);
+		}).fail(function() {
+			progressText.text('Error de red').addClass('aoe-progress-error');
+			btn.prop('disabled', false);
+		});
+	});
+
+	function exportChunk(jobId, total, btn, progressRow, status) {
+		var progressText = progressRow.find('.aoe-progress-text');
+		var progressPct = progressRow.find('.aoe-progress-pct');
+		var progressBar = progressRow.find('.aoe-progress-bar');
+
+		$.post(ajaxurl, {
+			action: 'aoe_export_chunk',
+			job_id: jobId
+		}, function(response) {
+			if (!response.success) {
+				progressText.text('Error: ' + (response.data || 'Chunk falló')).addClass('aoe-progress-error');
+				btn.prop('disabled', false);
+				return;
+			}
+			var data = response.data;
+			var pct = data.pct || 0;
+
+			progressBar.css('width', pct + '%');
+			progressPct.text(pct + '%');
+			progressText.text('Exportando: ' + data.count.toLocaleString() + ' / ' + data.total.toLocaleString());
+
+			if (data.status === 'completed') {
+				progressBar.css('width', '100%');
+				progressPct.text('100%');
+				progressText.text('Completado ✓').addClass('aoe-progress-done');
+				status.html(
+					'<a href="' + data.file_url + '" target="_blank" download="' + data.filename + '" class="button button-small">Descargar ' + data.filename + '</a>'
+				).addClass('done');
+				btn.prop('disabled', false);
+				setTimeout(function() { progressRow.hide(); }, 3000);
+			} else {
+				// Next chunk.
+				setTimeout(function() { exportChunk(jobId, total, btn, progressRow, status); }, 100);
+			}
+		}).fail(function() {
+			// Retry on network error.
+			setTimeout(function() { exportChunk(jobId, total, btn, progressRow, status); }, 2000);
+		});
 	}
 });</script>

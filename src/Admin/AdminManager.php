@@ -27,6 +27,8 @@ class AdminManager {
 		add_action( 'wp_ajax_aoe_regenerate_pages', [ $this, 'ajax_regenerate_pages' ] );
 		add_action( 'wp_ajax_aoe_generate_template_cache', [ $this, 'ajax_generate_template_cache' ] );
 		add_action( 'wp_ajax_aoe_clear_all_cache', [ $this, 'ajax_clear_all_cache' ] );
+		add_action( 'wp_ajax_aoe_start_export_job', [ $this, 'ajax_start_export_job' ] );
+		add_action( 'wp_ajax_aoe_export_chunk', [ $this, 'ajax_export_chunk' ] );
 		add_action( 'wp_ajax_aoe_import_structure', [ $this, 'ajax_import_structure' ] );
 		add_action( 'wp_ajax_aoe_import_samtec_categories', [ $this, 'ajax_import_samtec_categories' ] );
 		add_action( 'wp_ajax_aoe_import_samtec_specs', [ $this, 'ajax_import_samtec_specs' ] );
@@ -86,15 +88,17 @@ class AdminManager {
 			[ $this, 'display_export_search_page' ]
 		);
 
-		// Submenu: Categorías
-		add_submenu_page(
-			'aoe-catalog-engine',
-			'Categorías',
-			'Categorías',
-			'manage_options',
-			'aoe-catalog-categories',
-			[ $this, 'display_categories_page' ]
-		);
+		// Submenu: Categorías (oculto solo en producción)
+		if ( ! $this->is_production_environment() ) {
+			add_submenu_page(
+				'aoe-catalog-engine',
+				'Categorías',
+				'Categorías',
+				'manage_options',
+				'aoe-catalog-categories',
+				[ $this, 'display_categories_page' ]
+			);
+		}
 	}
 
 	/**
@@ -103,6 +107,14 @@ class AdminManager {
 	private function is_dev_environment() {
 		$home = home_url();
 		return ( false !== strpos( $home, 'dev.tc-componentes.es' ) );
+	}
+
+	/**
+	 * Whether we are on the production site (https://www.tc-componentes.es/).
+	 */
+	private function is_production_environment() {
+		$home = home_url();
+		return ( false !== strpos( $home, 'tc-componentes.es' ) && false === strpos( $home, 'dev.tc-componentes.es' ) );
 	}
 
 	/**
@@ -172,6 +184,9 @@ class AdminManager {
 	}
 
 	public function display_categories_page() {
+		if ( $this->is_production_environment() ) {
+			wp_die( 'Acceso no autorizado en este entorno.' );
+		}
 		global $wpdb;
 		$table = $wpdb->prefix . 'aoe_catalog_manufacturers';
 		$manufacturers = $wpdb->get_results( "SELECT id, name, slug FROM $table ORDER BY name ASC" );
@@ -560,6 +575,11 @@ class AdminManager {
 			wp_die( 'Acceso no autorizado' );
 		}
 
+		// Increase limits for large exports (shared hosting defaults are too low).
+		@ini_set( 'memory_limit', '512M' );
+		@set_time_limit( 0 );
+		ob_implicit_flush( true );
+
 		global $wpdb;
 		$table   = $wpdb->prefix . 'aoe_catalog_search_products';
 		$format  = isset( $_GET['format'] ) && 'csv' === $_GET['format'] ? 'csv' : 'sql';
@@ -644,9 +664,211 @@ class AdminManager {
 			}
 
 			$offset += $chunk;
+			flush();
 		}
 
 		exit;
+	}
+
+	/**
+	 * Start an export job (AJAX). Creates the file, writes headers, returns job_id.
+	 */
+	public function ajax_start_export_job() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( 'Unauthorized' );
+		}
+
+		$format = isset( $_POST['format'] ) && 'csv' === $_POST['format'] ? 'csv' : 'sql';
+		$mfr    = isset( $_POST['manufacturer'] ) ? sanitize_text_field( $_POST['manufacturer'] ) : '';
+		$all    = empty( $mfr );
+
+		global $wpdb;
+		$table = $wpdb->prefix . 'aoe_catalog_search_products';
+
+		$where = '';
+		if ( ! $all ) {
+			$normalized = strtoupper( preg_replace( '/[^a-zA-Z0-9]/', '', $mfr ) );
+			$where = $wpdb->prepare( " WHERE manufacturer_normalized = %s", $normalized );
+		}
+
+		$total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM $table $where" );
+		if ( $total === 0 ) {
+			wp_send_json_error( 'No hay datos para exportar' );
+		}
+
+		// Create export directory.
+		$upload_dir = wp_upload_dir();
+		$export_dir = $upload_dir['basedir'] . '/aoe-catalog-engine/exports';
+		if ( ! is_dir( $export_dir ) ) {
+			wp_mkdir_p( $export_dir );
+		}
+
+		// Clean old exports (older than 1 hour).
+		$files = glob( $export_dir . '/search-products-*' );
+		foreach ( $files as $file ) {
+			if ( is_file( $file ) && ( time() - filemtime( $file ) ) > 3600 ) {
+				unlink( $file );
+			}
+		}
+
+		// Create job file.
+		$job_id    = uniqid( 'export_', true );
+		$filename  = ( $all ? 'search-products-all' : "search-products-{$mfr}" ) . '-' . time() . '.' . $format;
+		$filepath  = $export_dir . '/' . $filename;
+		$file_url  = $upload_dir['baseurl'] . '/aoe-catalog-engine/exports/' . $filename;
+		$job_path  = $export_dir . '/' . $job_id . '.json';
+
+		// Write SQL header.
+		$fh = fopen( $filepath, 'w' );
+		if ( ! $fh ) {
+			wp_send_json_error( 'No se pudo crear el archivo' );
+		}
+
+		if ( 'sql' === $format ) {
+			$target = $table;
+			fwrite( $fh, "-- Export from $table\n" );
+			fwrite( $fh, "-- Filter: " . ( $all ? 'ALL' : "manufacturer=$mfr" ) . "\n" );
+			fwrite( $fh, "-- Rows: $total\n" );
+			fwrite( $fh, "-- Generated: " . date( 'Y-m-d H:i:s' ) . "\n\n" );
+			fwrite( $fh, "CREATE TABLE IF NOT EXISTS `$target` (\n" );
+			fwrite( $fh, "  `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,\n" );
+			fwrite( $fh, "  `manufacturer_normalized` varchar(64) NOT NULL,\n" );
+			fwrite( $fh, "  `manufacturer_name` varchar(255) NOT NULL,\n" );
+			fwrite( $fh, "  `sku_normalized` varchar(255) NOT NULL,\n" );
+			fwrite( $fh, "  `sku` varchar(255) NOT NULL,\n" );
+			fwrite( $fh, "  `search_text` text NOT NULL,\n" );
+			fwrite( $fh, "  `payload_json` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,\n" );
+			fwrite( $fh, "  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,\n" );
+			fwrite( $fh, "  `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),\n" );
+			fwrite( $fh, "  PRIMARY KEY (`id`),\n" );
+			fwrite( $fh, "  UNIQUE KEY `uq_mfr_sku` (`manufacturer_normalized`,`sku`),\n" );
+			fwrite( $fh, "  KEY `k_sku` (`sku_normalized`),\n" );
+			fwrite( $fh, "  FULLTEXT KEY `ft_search` (`search_text`)\n" );
+			fwrite( $fh, ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;\n\n" );
+		} else {
+			fwrite( $fh, "id,manufacturer_normalized,manufacturer_name,sku_normalized,sku,search_text,payload_json,created_at,updated_at\n" );
+		}
+		fclose( $fh );
+
+		// Save job state.
+		file_put_contents( $job_path, wp_json_encode( [
+			'job_id'   => $job_id,
+			'format'   => $format,
+			'where'    => $where,
+			'total'    => $total,
+			'offset'   => 0,
+			'count'    => 0,
+			'filepath' => $filepath,
+			'file_url' => $file_url,
+			'filename' => $filename,
+			'status'   => 'running',
+		] ) );
+
+		wp_send_json_success( [
+			'job_id'  => $job_id,
+			'total'   => $total,
+		] );
+	}
+
+	/**
+	 * Process one chunk of an export job (AJAX). Appends rows to file.
+	 */
+	public function ajax_export_chunk() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( 'Unauthorized' );
+		}
+
+		$job_id = isset( $_POST['job_id'] ) ? sanitize_text_field( $_POST['job_id'] ) : '';
+		if ( ! $job_id ) {
+			wp_send_json_error( 'No job_id' );
+		}
+
+		$upload_dir = wp_upload_dir();
+		$export_dir = $upload_dir['basedir'] . '/aoe-catalog-engine/exports';
+		$job_path   = $export_dir . '/' . $job_id . '.json';
+
+		if ( ! is_file( $job_path ) ) {
+			wp_send_json_error( 'Job no encontrado' );
+		}
+
+		$job = json_decode( file_get_contents( $job_path ), true );
+		if ( ! $job || 'running' !== $job['status'] ) {
+			wp_send_json_error( 'Job no está activo' );
+		}
+
+		global $wpdb;
+		$table   = $wpdb->prefix . 'aoe_catalog_search_products';
+		$chunk   = 10000;
+		$offset  = $job['offset'];
+		$total   = $job['total'];
+		$count   = $job['count'];
+		$where   = $job['where'];
+		$format  = $job['format'];
+		$target  = $table;
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$rows = $wpdb->get_results( "SELECT * FROM $table $where ORDER BY id ASC LIMIT $chunk OFFSET $offset" );
+
+		if ( empty( $rows ) ) {
+			$job['status'] = 'completed';
+			file_put_contents( $job_path, wp_json_encode( $job ) );
+			wp_send_json_success( [
+				'status'   => 'completed',
+				'count'    => $count,
+				'total'    => $total,
+				'file_url' => $job['file_url'],
+				'filename' => $job['filename'],
+			] );
+			return;
+		}
+
+		$fh = fopen( $job['filepath'], 'a' );
+		if ( ! $fh ) {
+			wp_send_json_error( 'No se pudo abrir el archivo' );
+		}
+
+		foreach ( $rows as $r ) {
+			if ( 'csv' === $format ) {
+				fwrite( $fh, $r->id . ','
+					. $r->manufacturer_normalized . ','
+					. $r->manufacturer_name . ','
+					. $r->sku_normalized . ','
+					. $r->sku . ','
+					. '"' . str_replace( '"', '""', $r->search_text ) . '",'
+					. '"' . str_replace( '"', '""', $r->payload_json ) . '",'
+					. $r->created_at . ','
+					. $r->updated_at . "\n" );
+			} else {
+				$v = [
+					$wpdb->prepare( '%s', $r->manufacturer_normalized ),
+					$wpdb->prepare( '%s', $r->manufacturer_name ),
+					$wpdb->prepare( '%s', $r->sku_normalized ),
+					$wpdb->prepare( '%s', $r->sku ),
+					$wpdb->prepare( '%s', $r->search_text ),
+					$wpdb->prepare( '%s', $r->payload_json ),
+					$wpdb->prepare( '%s', $r->created_at ),
+					$wpdb->prepare( '%s', $r->updated_at ),
+				];
+				fwrite( $fh, "INSERT INTO `$target` (`manufacturer_normalized`,`manufacturer_name`,`sku_normalized`,`sku`,`search_text`,`payload_json`,`created_at`,`updated_at`) VALUES (" . implode( ',', $v ) . ") ON DUPLICATE KEY UPDATE "
+					. "manufacturer_name=VALUES(manufacturer_name), sku_normalized=VALUES(sku_normalized), sku=VALUES(sku), search_text=VALUES(search_text), payload_json=VALUES(payload_json), created_at=VALUES(created_at);\n" );
+			}
+			$count++;
+		}
+		fclose( $fh );
+
+		$job['offset'] = $offset + count( $rows );
+		$job['count']  = $count;
+		file_put_contents( $job_path, wp_json_encode( $job ) );
+
+		$done = $job['offset'] >= $total;
+		wp_send_json_success( [
+			'status' => $done ? 'completed' : 'running',
+			'count'  => $count,
+			'total'  => $total,
+			'pct'    => $total > 0 ? round( ( $count / $total ) * 100 ) : 0,
+			'file_url' => $done ? $job['file_url'] : null,
+			'filename' => $done ? $job['filename'] : null,
+		] );
 	}
 
 	public function handle_manufacturer_crud() {
