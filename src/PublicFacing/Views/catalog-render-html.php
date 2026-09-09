@@ -246,7 +246,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 	$family_image = aoe_catalog_get_first_value( $first_images );
 	$family_pdf   = $first_pdf;
 	$category_display_name = $category;
-	$show_features_col = in_array( $manufacturer_slug, [ 'samtec', 'edac', 'camdenboss', 'bivar', 'panduit', 'bulgin', 'medi-kabel', 'yokowo', 'amphenol-anytek', 'amphenol-ltw', 'amphenol-rf', 'amphenol-lutze', 'amphenol-industrial', 'amphenol-conec', 'wieland', 'mh-connectors' ], true );
+	$show_features_col = in_array( $manufacturer_slug, [ 'samtec', 'edac', 'camdenboss', 'bivar', 'panduit', 'bulgin', 'medi-kabel', 'yokowo', 'amphenol-anytek', 'amphenol-ltw', 'amphenol-rf', 'amphenol-lutze', 'amphenol-industrial', 'amphenol-conec', 'amphenol-pcd', 'wieland', 'mh-connectors' ], true );
 	$show_subtitle_desc = false;
 	$_aoe_proc_mgr = new \AOE\CatalogEngine\Import\ProcessorManager();
 	$_aoe_proc = $_aoe_proc_mgr->get_processor( $manufacturer_slug );
@@ -299,6 +299,8 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 		'amphenol-rf'       => [ 's3.us-west-2.amazonaws.com' ],
 		'amphenol-industrial' => [ 'www.amphenol-industrial.de' ],
 		'amphenol-conec'    => [ 'conec.com' ],
+		'amphenol-pcd'      => [ 'www.amphenolpcd.com.cn' ],
+		'amphenol-audio'    => [ 'www.amphenolaudio.com' ],
 		'amphenol-lutze'    => [ 'mediabridge.luetze.de', 'pimport-cdn.luetze.com' ],
 		'wieland'           => [ 'wiemediadl.wieland-electric.com' ],
 		'mh-connectors'     => [ 'www.mhconnectors.com' ],
@@ -325,7 +327,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 
 			<?php
 			$mfr_link_slug = $manufacturer_slug;
-			$amphenol_slugs = [ 'amphenol-anytek', 'amphenol-ltw', 'amphenol-rf', 'amphenol-lutze', 'amphenol-industrial', 'amphenol-conec' ];
+			$amphenol_slugs = [ 'amphenol-anytek', 'amphenol-ltw', 'amphenol-rf', 'amphenol-lutze', 'amphenol-industrial', 'amphenol-conec', 'amphenol-pcd', 'amphenol-audio' ];
 			if ( in_array( $manufacturer_slug, $amphenol_slugs, true ) ) {
 				$mfr_link_slug = 'amphenol';
 			} elseif ( 'mh-connectors' === $manufacturer_slug ) {
@@ -650,8 +652,13 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 		<div class="aoe-series-highlights"><?php echo wp_kses_post( nl2br( str_replace( '\n', "\n", $category_metadata['highlights'] ) ) ); ?></div>
 		<?php endif; ?>
 		<?php if ( ! empty( $category_metadata['features'] ) ) : ?>
-		<div class="aoe-series-features"><h4 style="font-weight: bold;">Características</h4>
+		<div class="aoe-series-features"><h4 style="font-weight: bold;"><?php echo 'amphenol-audio' === $manufacturer_slug ? 'Features' : 'Características'; ?></h4>
 			<ul><?php foreach ( explode( "\n", str_replace( '\n', "\n", $category_metadata['features'] ) ) as $feat ) : ?><?php $feat = trim( $feat ); if ( '' !== $feat ) : ?><li><?php echo esc_html( $feat ); ?></li><?php endif; ?><?php endforeach; ?></ul>
+		</div>
+		<?php endif; ?>
+		<?php if ( ! empty( $category_metadata['options'] ) ) : ?>
+		<div class="aoe-series-options"><h4 style="font-weight: bold;"><?php echo 'amphenol-audio' === $manufacturer_slug ? 'Options' : 'Opciones'; ?></h4>
+			<ul><?php foreach ( explode( "\n", str_replace( '\n', "\n", $category_metadata['options'] ) ) as $opt ) : ?><?php $opt = trim( $opt ); if ( '' !== $opt ) : ?><li><?php echo esc_html( $opt ); ?></li><?php endif; ?><?php endforeach; ?></ul>
 		</div>
 		<?php endif; ?>
 		<?php endif; ?>

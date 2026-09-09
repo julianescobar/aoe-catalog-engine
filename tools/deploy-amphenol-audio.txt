@@ -1,0 +1,54 @@
+# Deploy: Amphenol Audio (amphenol-audio)
+
+Nuevo fabricante Amphenol Audio. Se importa en DOS pasadas (igual que PCD/Industrial/RF):
+
+## Prerrequisitos
+- Fabricante "Amphenol Audio" YA creado en el admin con su plantilla/post y
+  `tree_layout: table_desc`. (Confirmado en BD local: id=18.)
+- Subir a producción:
+  - `src/Import/Processors/AmphenolAudioProcessor.php` (nuevo)
+  - `src/Import/ProcessorManager.php` (registro del procesador)
+  - `tools/import-audio-structure.php` (nuevo)
+  - `src/PublicFacing/Views/catalog-render-html.php` (bloque options + preconnect + mfr link)
+  - `src/PublicFacing/Views/single-catalog.php` (options metadata + mfr link amphenol)
+  - `assets/css/catalog-render.css` (estilos .aoe-series-options)
+  - `tools/amphenol-audio-productos.csv` (1369 productos)
+  - `tools/amphenol-audio-categorias.csv` (67 categorias)
+
+## Pasada 1 — Productos
+En el hosting (Plesk), dentro del plugin:
+```
+nohup php -d register_argc_argv=1 tools/full-import.php --manufacturer=amphenol-audio --csv=tools/amphenol-audio-productos.csv --mode=replace > tools/audio-import.log 2>&1 &
+```
+Nota: en este punto los 1369 productos quedan en "Uncategorized" (las categorias
+se reconstruyen en la pasada 2). Log: `tools/audio-import.log`.
+
+## Pasada 2 — Categorías + re-attribución
+Tras terminar la pasada 1:
+```
+nohup php -d register_argc_argv=1 tools/import-audio-structure.php > tools/audio-structure.log 2>&1 &
+```
+Esto:
+- Reconstruye L1 (11) + L2 (56) con slugs jerárquicos
+- Guarda descripción + imagen de categoría
+- Guarda metadata: audio_id, url, features (lista), options (lista)
+- Re-atribuye los productos por SKU -> ruta completa L1|L2
+- Poda categorias vacias
+- Regenera las paginas (pack_catalog)
+
+## Verificar
+- `/catalogo/amphenol-audio/` muestra el arbol table_desc con las 11 familias L1.
+- Paginas hijas L2 muestran: descripcion, Caracteristicas (lista), Opciones (lista),
+  imagenes remotas, PDFs (datasheet + documentos) y CAD 3D (.stp).
+- Revisar log de structure para ver cuantos productos quedaron en uncategorized
+  (en local: 0). Log: `tools/audio-structure.log`.
+
+## Notas
+- Las imagenes/PDFs/CAD son REMOTAS de `www.amphenolaudio.com` (preconnect + dns-prefetch).
+- Los productos NO tienen specs tecnicas (no hay columna attrs); el name ya es la
+  descripcion tecnica. La columna "Caracteristicas" de la tabla NO se activa para
+  este fabricante (quedaria vacia); features/options van en el bloque de serie.
+- Los productos repiten features/options de su categoria; se ignoran a nivel producto
+  y se guardan en la categoria (import-audio-structure.php).
+- 12 SKUs duplicados en el CSV (AC-GROMMET-* por color, AC-D-ADAPTER, 52500005-732,
+  52500016-400) -> dedupe identico a Industrial.

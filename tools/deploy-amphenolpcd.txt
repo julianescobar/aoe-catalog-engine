@@ -1,0 +1,46 @@
+# Deploy: Amphenol PCD (amphenol-pcd)
+
+Nuevo fabricante Amphenol PCD. Se importa en DOS pasadas (igual que Industrial/RF):
+
+## Prerrequisitos
+- Fabricante "Amphenol PCD" YA creado en el admin con su plantilla/post y
+  `tree_layout: table_desc`. (Confirmado por el usuario.)
+- Subir a producción:
+  - `src/Import/Processors/AmphenolPcdProcessor.php` (nuevo)
+  - `src/Import/ProcessorManager.php` (registro del procesador)
+  - `tools/import-pcd-structure.php` (nuevo)
+  - `src/PublicFacing/Views/catalog-render-html.php` (features col + preconnect + mfr link)
+  - `src/PublicFacing/Views/single-catalog.php` (mfr link amphenol)
+  - `tools/amphenol-pcd-productos.csv` (1986 productos)
+  - `tools/amphenol-pcd-categorias.csv` (125 categorias)
+
+## Pasada 1 — Productos
+En el hosting (Plesk), dentro del plugin:
+```
+php -d register_argc_argv=1 tools/full-import.php --manufacturer=amphenol-pcd --csv=tools/amphenol-pcd-productos.csv --mode=replace > tools/pcd-import.log 2>&1
+```
+Nota: en este punto los 1986 productos quedan en "Uncategorized" (las categorias
+se reconstruyen en la pasada 2). Log: `tools/pcd-import.log`.
+
+## Pasada 2 — Categorías + re-attribución
+Tras terminar la pasada 1:
+```
+php -d register_argc_argv=1 tools/import-pcd-structure.php > tools/pcd-structure.log 2>&1
+```
+Esto:
+- Reconstruye L1 (4) + L2 (65) + L3 (56) con slugs jerárquicos
+- Guarda pcd_id + url + image_url (imagen se guarda, NO se usa en el render aun)
+- Re-atribuye los productos por SKU -> ruta completa L1|L2|L3
+- Poda categorias vacias
+- Regenera las paginas (pack_catalog)
+
+## Verificar
+- `/catalogo/amphenol-pcd/` muestra el arbol table_desc con 4 familias L1.
+- Revisar log de structure para ver cuantos productos quedaron en uncategorized
+  (idealmente 0 tras la poda, o pocos).
+
+## Notas
+- Las imagenes/PDFs son REMOTAS de `www.amphenolpcd.com.cn` (preconnect + dns-prefetch).
+- Part_count de la CSV de categorias es solo referencial; se recalcula al final.
+- Categoria L2 "CABLE ASSEMBLY" esta duplicada (TRAIN id 63, INDUSTRIAL id 64);
+  el mapeo por ruta completa L1|L2|L3 la desambigua.

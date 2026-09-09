@@ -28,6 +28,8 @@ class ProcessorManager {
 		$this->register_processor( new Processors\AmphenolLutzeProcessor() );
 		$this->register_processor( new Processors\AmphenolIndustrialProcessor() );
 		$this->register_processor( new Processors\AmphenolConecProcessor() );
+		$this->register_processor( new Processors\AmphenolPcdProcessor() );
+		$this->register_processor( new Processors\AmphenolAudioProcessor() );
 		$this->register_processor( new Processors\WielandProcessor() );
 		$this->register_processor( new Processors\MHConnectorsProcessor() );
 

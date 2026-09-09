@@ -509,7 +509,7 @@ if ( 'category' === $page_type ) {
 			"SELECT description, metadata_json, image FROM $table_cat WHERE id = %d",
 			$cat_seg->category_id
 		) );
-		$category_metadata = [ 'description' => '', 'features' => '', 'specifications' => '', 'highlights' => '', 'image' => '' ];
+		$category_metadata = [ 'description' => '', 'features' => '', 'specifications' => '', 'highlights' => '', 'options' => '', 'image' => '' ];
 		if ( $cat_row ) {
 			$category_metadata['description'] = $cat_row->description ?? '';
 			$category_metadata['image']       = $cat_row->image ?? '';
@@ -519,6 +519,7 @@ if ( 'category' === $page_type ) {
 					$category_metadata['features']       = $cat_meta['features'] ?? '';
 					$category_metadata['specifications'] = $cat_meta['specifications'] ?? '';
 					$category_metadata['highlights']     = $cat_meta['highlights'] ?? '';
+					$category_metadata['options']        = $cat_meta['options'] ?? '';
 				}
 			}
 		}
@@ -682,7 +683,7 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 		<h2 id="fab-<?php echo esc_attr( $manufacturer_slug ); ?>" class="tit-catalog">Catálogo de componentes <?php echo esc_html( $page->manufacturer_name ); ?></h2>
 		<?php
 		$mfr_link_slug = $manufacturer_slug;
-		$amphenol_slugs = [ 'amphenol-anytek', 'amphenol-ltw', 'amphenol-rf', 'amphenol-lutze', 'amphenol-industrial', 'amphenol-conec' ];
+		$amphenol_slugs = [ 'amphenol-anytek', 'amphenol-ltw', 'amphenol-rf', 'amphenol-lutze', 'amphenol-industrial', 'amphenol-conec', 'amphenol-pcd', 'amphenol-audio' ];
 		if ( in_array( $manufacturer_slug, $amphenol_slugs, true ) ) {
 			$mfr_link_slug = 'amphenol';
 		} elseif ( 'mh-connectors' === $manufacturer_slug ) {
