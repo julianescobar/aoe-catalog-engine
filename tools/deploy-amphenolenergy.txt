@@ -1,0 +1,51 @@
+# Deploy: Amphenol Energy (amphenol-energy)
+
+Nuevo fabricante Amphenol Energy. Se importa en DOS pasadas (igual que PCD/Audio):
+
+## Prerrequisitos
+- Fabricante "Amphenol Energy" YA creado en el admin con su plantilla/post y
+  `tree_layout: table_desc`. (Confirmado en BD local: id=19.)
+- Subir a producción:
+  - `src/Import/Processors/AmphenolEnergyProcessor.php` (nuevo)
+  - `src/Import/ProcessorManager.php` (registro del procesador)
+  - `tools/import-energy-structure.php` (nuevo)
+  - `src/PublicFacing/Views/catalog-render-html.php` (preconnect + mfr link + features col)
+  - `src/PublicFacing/Views/single-catalog.php` (mfr link amphenol)
+  - `tools/amphenol-energy-productos.csv` (2622 productos)
+  - `tools/amphenol-energy-categorias.csv` (7 categorias)
+
+## Pasada 1 — Productos
+En el hosting (Plesk), dentro del plugin:
+```
+php -d register_argc_argv=1 tools/full-import.php --manufacturer=amphenol-energy --csv=tools/amphenol-energy-productos.csv --mode=replace > tools/energy-import.log 2>&1
+```
+Nota: en este punto los 2622 productos quedan en "Uncategorized" (las categorias
+se reconstruyen en la pasada 2). Log: `tools/energy-import.log`.
+
+## Pasada 2 — Categorías + re-atribución
+Tras terminar la pasada 1:
+```
+php -d register_argc_argv=1 tools/import-energy-structure.php > tools/energy-structure.log 2>&1
+```
+Esto:
+- Reconstruye L1 (2) + L2 (5) con slugs jerárquicos
+- Guarda descripción + imagen de categoría (Industrial Plugs & Sockets, Neptune Connectors)
+- Guarda metadata: energy_id, url, image
+- Re-atribuye los productos por SKU -> ruta completa L1|L2 (Neptune sin L2 cae a L1)
+- Poda categorías vacías
+- Regenera las páginas (pack_catalog)
+
+## Verificar
+- `/catalogo/amphenol-energy/` muestra el árbol table_desc con las 2 familias L1.
+- Páginas hijas L2 muestran: descripción, imágenes remotas de `www.amphenolenergy.com`
+  y la columna "Características" con specs (attrs: Rated current, IP rating, etc.).
+- Revisar log de structure para ver cuántos productos quedaron en uncategorized
+  (en local: 0). Log: `tools/energy-structure.log`.
+
+## Notas
+- Las imágenes son REMOTAS de `www.amphenolenergy.com` (preconnect + dns-prefetch).
+- Los productos SÍ tienen specs en la columna attrs -> la columna "Características"
+  se activa (show_features_col), como PCD.
+- Los CSV no traen PDFs (columna pdf_url vacía en todos los productos).
+- Neptune Connectors (154 productos) NO tiene categoría L2: los productos llevan
+  `category_l2` vacío y caen a la raíz L1 "Neptune Connectors".

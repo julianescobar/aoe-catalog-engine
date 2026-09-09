@@ -683,7 +683,7 @@ if ( 'tree' === $page_type || ( 'grouped' !== $page_type && empty( $display_cate
 		<h2 id="fab-<?php echo esc_attr( $manufacturer_slug ); ?>" class="tit-catalog">Catálogo de componentes <?php echo esc_html( $page->manufacturer_name ); ?></h2>
 		<?php
 		$mfr_link_slug = $manufacturer_slug;
-		$amphenol_slugs = [ 'amphenol-anytek', 'amphenol-ltw', 'amphenol-rf', 'amphenol-lutze', 'amphenol-industrial', 'amphenol-conec', 'amphenol-pcd', 'amphenol-audio' ];
+		$amphenol_slugs = [ 'amphenol-anytek', 'amphenol-ltw', 'amphenol-rf', 'amphenol-lutze', 'amphenol-industrial', 'amphenol-conec', 'amphenol-pcd', 'amphenol-audio', 'amphenol-energy' ];
 		if ( in_array( $manufacturer_slug, $amphenol_slugs, true ) ) {
 			$mfr_link_slug = 'amphenol';
 		} elseif ( 'mh-connectors' === $manufacturer_slug ) {

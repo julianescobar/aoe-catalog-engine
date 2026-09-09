@@ -246,7 +246,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 	$family_image = aoe_catalog_get_first_value( $first_images );
 	$family_pdf   = $first_pdf;
 	$category_display_name = $category;
-	$show_features_col = in_array( $manufacturer_slug, [ 'samtec', 'edac', 'camdenboss', 'bivar', 'panduit', 'bulgin', 'medi-kabel', 'yokowo', 'amphenol-anytek', 'amphenol-ltw', 'amphenol-rf', 'amphenol-lutze', 'amphenol-industrial', 'amphenol-conec', 'amphenol-pcd', 'wieland', 'mh-connectors' ], true );
+	$show_features_col = in_array( $manufacturer_slug, [ 'samtec', 'edac', 'camdenboss', 'bivar', 'panduit', 'bulgin', 'medi-kabel', 'yokowo', 'amphenol-anytek', 'amphenol-ltw', 'amphenol-rf', 'amphenol-lutze', 'amphenol-industrial', 'amphenol-conec', 'amphenol-pcd', 'amphenol-energy', 'wieland', 'mh-connectors' ], true );
 	$show_subtitle_desc = false;
 	$_aoe_proc_mgr = new \AOE\CatalogEngine\Import\ProcessorManager();
 	$_aoe_proc = $_aoe_proc_mgr->get_processor( $manufacturer_slug );
@@ -305,6 +305,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 		'wieland'           => [ 'wiemediadl.wieland-electric.com' ],
 		'mh-connectors'     => [ 'www.mhconnectors.com' ],
 		'panduit'           => [ 's7d9.scene7.com' ],
+		'amphenol-energy'   => [ 'www.amphenolenergy.com' ],
 	];
 	$preconnect_domains = $image_domains[ $manufacturer_slug ] ?? [];
 	foreach ( $preconnect_domains as $domain ) :
@@ -327,7 +328,7 @@ function aoe_catalog_render_html( string $manufacturer_name, string $page_slug, 
 
 			<?php
 			$mfr_link_slug = $manufacturer_slug;
-			$amphenol_slugs = [ 'amphenol-anytek', 'amphenol-ltw', 'amphenol-rf', 'amphenol-lutze', 'amphenol-industrial', 'amphenol-conec', 'amphenol-pcd', 'amphenol-audio' ];
+			$amphenol_slugs = [ 'amphenol-anytek', 'amphenol-ltw', 'amphenol-rf', 'amphenol-lutze', 'amphenol-industrial', 'amphenol-conec', 'amphenol-pcd', 'amphenol-audio', 'amphenol-energy' ];
 			if ( in_array( $manufacturer_slug, $amphenol_slugs, true ) ) {
 				$mfr_link_slug = 'amphenol';
 			} elseif ( 'mh-connectors' === $manufacturer_slug ) {

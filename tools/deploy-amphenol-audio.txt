@@ -18,7 +18,7 @@ Nuevo fabricante Amphenol Audio. Se importa en DOS pasadas (igual que PCD/Indust
 ## Pasada 1 — Productos
 En el hosting (Plesk), dentro del plugin:
 ```
-nohup php -d register_argc_argv=1 tools/full-import.php --manufacturer=amphenol-audio --csv=tools/amphenol-audio-productos.csv --mode=replace > tools/audio-import.log 2>&1 &
+php -d register_argc_argv=1 tools/full-import.php --manufacturer=amphenol-audio --csv=tools/amphenol-audio-productos.csv --mode=replace > tools/audio-import.log 2>&1
 ```
 Nota: en este punto los 1369 productos quedan en "Uncategorized" (las categorias
 se reconstruyen en la pasada 2). Log: `tools/audio-import.log`.
@@ -26,7 +26,7 @@ se reconstruyen en la pasada 2). Log: `tools/audio-import.log`.
 ## Pasada 2 — Categorías + re-attribución
 Tras terminar la pasada 1:
 ```
-nohup php -d register_argc_argv=1 tools/import-audio-structure.php > tools/audio-structure.log 2>&1 &
+php -d register_argc_argv=1 tools/import-audio-structure.php > tools/audio-structure.log 2>&1
 ```
 Esto:
 - Reconstruye L1 (11) + L2 (56) con slugs jerárquicos
